@@ -1,0 +1,45 @@
+html,
+body,
+#root {
+  height: 100%;
+}
+
+:root {
+  --navy: #1a3c5e;
+  --navy-hover: #15304d;
+  --navy-muted: #3b6491;
+  --navy-bg: #edf2f8;
+  --navy-border: #c5d5e8;
+  --bg: #f7f7f6;
+  --surface: #ffffff;
+  --border: #e4e4e2;
+  --border-strong: #c8c8c5;
+  --text: #111110;
+  --text-secondary: #6b6b68;
+  --text-muted: #9b9b97;
+  --success: #16a34a;
+  --success-bg: #f0fdf4;
+  --success-border: #bbf7d0;
+  --warning: #d97706;
+  --warning-bg: #fffbeb;
+  --warning-border: #fde68a;
+  --error: #dc2626;
+  --error-bg: #fef2f2;
+  --error-border: #fecaca;
+}
+
+.brand-app {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.font-quote-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+    monospace;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
