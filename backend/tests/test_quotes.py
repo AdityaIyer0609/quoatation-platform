@@ -31,6 +31,10 @@ def test_create_list_and_get_quote(client, auth_header):
     assert quote["number"].startswith("QT-")
     assert quote["specification"]["productType"] == "FIBC Bulk Bag"
     assert quote["versions"][0]["version"] == 1
+    assert quote["versions"][0]["isCurrent"] is True
+    assert quote["versions"][0]["bomSnapshot"] is not None
+    assert quote["versions"][0]["pricingSnapshot"]["ruleVersion"] == "book4-16-04-26"
+    assert quote["currentVersion"] == 1
     assert quote["timeline"][0]["event"] in {
         "Quotation issued",
         "Quotation stored — manual pricing required",
@@ -78,9 +82,10 @@ def test_accept_quote(client, auth_header):
     assert conflict.status_code == 409
 
 
-def test_revision_creates_version(client, auth_header):
+def test_revision_request_does_not_create_version(client, auth_header):
     created = client.post("/api/quotes", headers=auth_header, json={"specification": SPEC})
     quote_id = created.json()["id"]
+    original_v1 = created.json()["versions"][0]
     revised = client.post(
         f"/api/quotes/{quote_id}/revision",
         headers=auth_header,
@@ -89,7 +94,9 @@ def test_revision_creates_version(client, auth_header):
     assert revised.status_code == 200
     body = revised.json()
     assert body["status"] == "revision_requested"
-    assert len(body["versions"]) == 2
+    assert len(body["versions"]) == 1
+    assert body["versions"][0]["pricingSnapshot"] == original_v1["pricingSnapshot"]
+    assert body["versions"][0]["bomSnapshot"] == original_v1["bomSnapshot"]
     history = client.get(f"/api/quotes/{quote_id}/history", headers=auth_header)
     assert any(item["event"] == "Revision requested" for item in history.json())
 
@@ -118,6 +125,10 @@ def test_pdf_uses_frozen_snapshot_and_never_shows_zero_for_manual(client, auth_h
     assert created.status_code == 201
     quote = created.json()
     assert quote["pricing"]["requiresManualPricing"] is True
+    listed = client.get("/api/quotes", headers=auth_header).json()
+    match = next(item for item in listed if item["id"] == quote["id"])
+    assert match["amount"] is None
+    assert match["requiresManualPricing"] is True
     pdf = client.get(f"/api/quotes/{quote['id']}/pdf", headers=auth_header)
     assert pdf.status_code == 200
     assert pdf.headers["content-type"].startswith("application/pdf")
@@ -136,6 +147,7 @@ def test_pdf_includes_priced_total(client, auth_header):
     pdf = client.get(f"/api/quotes/{quote['id']}/pdf", headers=auth_header)
     assert pdf.status_code == 200
     assert quote["number"].encode() in pdf.content
+    assert b"Version V1" in pdf.content
     if not quote["pricing"]["requiresManualPricing"]:
         assert b"Total amount" in pdf.content
 
@@ -181,5 +193,5 @@ def test_revision_does_not_overwrite_snapshots(client, auth_header):
     detail = client.get(f"/api/quotes/{quote_id}", headers=auth_header).json()
     assert detail["bomSnapshot"] == original_bom
     assert detail["pricingSnapshot"] == original_price
-    assert len(detail["versions"]) == 2
+    assert len(detail["versions"]) == 1
 

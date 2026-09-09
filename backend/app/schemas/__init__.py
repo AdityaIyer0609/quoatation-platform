@@ -46,13 +46,38 @@ class CustomerProfile(BaseModel):
     pincode: str
     country: str
     initials: str = ""
+    kind: str = "customer"
+    role: str = "customer"
 
     @classmethod
     def from_customer(cls, customer: Any) -> "CustomerProfile":
         return cls.model_validate(customer).model_copy(
             update={
-                "initials": f"{customer.first_name[:1]}{customer.last_name[:1]}".upper()
+                "initials": f"{customer.first_name[:1]}{customer.last_name[:1]}".upper(),
+                "kind": "customer",
+                "role": "customer",
             }
+        )
+
+    @classmethod
+    def from_staff(cls, staff: Any) -> "CustomerProfile":
+        return cls(
+            id=staff.id,
+            email=staff.email,
+            firstName=staff.first_name,
+            lastName=staff.last_name,
+            phone="",
+            designation=staff.role.replace("_", " ").title(),
+            company="QuoteCraft",
+            gst="",
+            address="",
+            city="",
+            state="",
+            pincode="",
+            country="",
+            initials=f"{staff.first_name[:1]}{staff.last_name[:1]}".upper(),
+            kind="staff",
+            role=staff.role,
         )
 
 
@@ -116,6 +141,11 @@ class QuoteListItem(BaseModel):
     quantity: int
     amount: float | None = None
     status: str
+    company: str = ""
+    customer_name: str = Field(default="", alias="customerName")
+    customer_id: str | None = Field(default=None, alias="customerId")
+    requires_manual_pricing: bool = Field(default=False, alias="requiresManualPricing")
+    manual_pricing_status: str | None = Field(default=None, alias="manualPricingStatus")
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
@@ -133,6 +163,16 @@ class QuoteVersionOut(BaseModel):
     status: str
     created_at: str = Field(alias="createdAt")
     note: str | None = None
+    quantity: int | None = None
+    unit_price: float | None = Field(default=None, alias="unitPrice")
+    total_amount: float | None = Field(default=None, alias="totalAmount")
+    rule_version: str = Field(default="book4-16-04-26", alias="ruleVersion")
+    created_by_name: str = Field(default="", alias="createdByName")
+    is_current: bool = Field(default=False, alias="isCurrent")
+    requires_manual_pricing: bool = Field(default=False, alias="requiresManualPricing")
+    bom_snapshot: dict | None = Field(default=None, alias="bomSnapshot")
+    pricing_snapshot: dict | None = Field(default=None, alias="pricingSnapshot")
+    specification: dict | None = None
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
@@ -154,6 +194,16 @@ class QuoteDetail(BaseModel):
     pricing: PricingSummary
     timeline: list[TimelineEvent]
     versions: list[QuoteVersionOut]
+    current_version: int = Field(default=1, alias="currentVersion")
+    customer_id: str | None = Field(default=None, alias="customerId")
+    customer_email: str | None = Field(default=None, alias="customerEmail")
+    assigned_staff_id: int | None = Field(default=None, alias="assignedStaffId")
+    assigned_staff_name: str | None = Field(default=None, alias="assignedStaffName")
+    created_by_staff_id: int | None = Field(default=None, alias="createdByStaffId")
+    manual_pricing_status: str | None = Field(default=None, alias="manualPricingStatus")
+    manual_pricing_note: str | None = Field(default=None, alias="manualPricingNote")
+    manual_pricing_reasons: list[str] = Field(default_factory=list, alias="manualPricingReasons")
+    manual_pricing_warnings: list[str] = Field(default_factory=list, alias="manualPricingWarnings")
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 

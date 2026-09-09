@@ -12,7 +12,7 @@ import { api, type Session } from "@/services/api"
 
 type AuthContextValue = {
   user: Session | null
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<Session>
   logout: () => Promise<void>
   refresh: () => void
 }
@@ -25,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const session = await api.login(email, password)
     setUser(session)
+    return session
   }, [])
 
   const logout = useCallback(async () => {

@@ -7,6 +7,7 @@ from io import BytesIO
 from fpdf import FPDF
 
 from app.models import Quote
+from app.services.quotes import current_version
 
 
 def _plain(value: object) -> str:
@@ -70,7 +71,9 @@ def render_quote_pdf(quote: Quote) -> bytes:
     pdf.set_font("Helvetica", "B", 16)
     pdf.cell(0, 8, _plain(quote.number), new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(0, 6, f"Status: {_plain(quote.status)}", new_x="LMARGIN", new_y="NEXT")
+    live = current_version(quote)
+    current = live.version if live is not None else 1
+    pdf.cell(0, 6, f"Version V{current}    Status: {_plain(quote.status)}", new_x="LMARGIN", new_y="NEXT")
     created = quote.created_at.strftime("%d %b %Y") if quote.created_at else "-"
     valid = quote.valid_until.strftime("%d %b %Y") if quote.valid_until else "-"
     pdf.cell(0, 6, f"Date: {created}    Valid until: {valid}", new_x="LMARGIN", new_y="NEXT")

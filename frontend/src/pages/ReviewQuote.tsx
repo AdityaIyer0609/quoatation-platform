@@ -4,19 +4,21 @@ import { useNavigate } from "react-router-dom"
 
 import { Button } from "@/components/ui/button"
 import { useQuoteDraft } from "@/hooks/useQuoteDraft"
+import { usePortalPaths } from "@/lib/portal"
 import { previewBom } from "@/services/bom"
 
 const BOM_KEY = "quotecraft.bom.preview"
 
 export default function ReviewQuote() {
   const navigate = useNavigate()
+  const paths = usePortalPaths()
   const { specification, setStep } = useQuoteDraft()
   const [working, setWorking] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function edit(step: number) {
     setStep(step)
-    navigate("/quotes/new")
+    navigate(paths.newQuote)
   }
 
   async function calculate() {
@@ -25,7 +27,7 @@ export default function ReviewQuote() {
     try {
       const preview = await previewBom(specification)
       sessionStorage.setItem(BOM_KEY, JSON.stringify(preview))
-      navigate("/quotes/new/bom")
+      navigate(paths.bom)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not calculate the material list.")
     } finally {
@@ -37,11 +39,11 @@ export default function ReviewQuote() {
     <div className="mx-auto max-w-[760px] p-6 pb-32 md:p-8 md:pb-8">
       <div className="mb-6">
         <div className="mb-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-          <button type="button" onClick={() => navigate("/dashboard")}>
+          <button type="button" onClick={() => navigate(paths.dashboard)}>
             Dashboard
           </button>
           <span>/</span>
-          <button type="button" onClick={() => navigate("/quotes/new")}>
+          <button type="button" onClick={() => navigate(paths.newQuote)}>
             New Quote
           </button>
           <span>/</span>
@@ -101,7 +103,7 @@ export default function ReviewQuote() {
       )}
 
       <div className="mt-8 flex items-center justify-between">
-        <Button type="button" variant="outline" onClick={() => navigate("/quotes/new")} className="gap-1.5">
+        <Button type="button" variant="outline" onClick={() => navigate(paths.newQuote)} className="gap-1.5">
           <ArrowLeft className="size-3.5" />
           Back
         </Button>

@@ -12,11 +12,16 @@ import { pricingOptionsFromSpec } from "@/services/pricing"
 const SESSION_KEY = "quotecraft.session"
 const TOKEN_KEY = "quotecraft.token"
 
+export type StaffRole = "sales_executive" | "sales_manager" | "pricing_manager" | "admin"
+export type SessionKind = "customer" | "staff"
+
 export type Session = {
   email: string
   firstName: string
   lastName: string
   initials: string
+  kind: SessionKind
+  role: StaffRole | "customer"
 }
 
 function readJson<T>(key: string, fallback: T): T {
@@ -75,15 +80,19 @@ function mapApiQuote(body: Record<string, unknown>): Quote {
     },
     timeline: (body.timeline as Quote["timeline"]) ?? [],
     versions: (body.versions as Quote["versions"]) ?? [],
+    currentVersion: typeof body.currentVersion === "number" ? body.currentVersion : undefined,
+    customerId: body.customerId != null ? String(body.customerId) : undefined,
   }
 }
 
-function sessionFromProfile(me: CustomerProfile & { initials?: string }): Session {
+function sessionFromProfile(me: CustomerProfile & { initials?: string; kind?: string; role?: string }): Session {
   return {
     email: me.email,
     firstName: me.firstName,
     lastName: me.lastName,
     initials: me.initials || `${me.firstName[0] ?? ""}${me.lastName[0] ?? ""}`.toUpperCase(),
+    kind: me.kind === "staff" ? "staff" : "customer",
+    role: (me.role as Session["role"]) || "customer",
   }
 }
 
@@ -117,7 +126,13 @@ export const api = {
   },
 
   getSession(): Session | null {
-    return readJson<Session | null>(SESSION_KEY, null)
+    const session = readJson<Session | null>(SESSION_KEY, null)
+    if (!session) return null
+    return {
+      ...session,
+      kind: session.kind ?? "customer",
+      role: session.role ?? "customer",
+    }
   },
 
   async requestPasswordReset(email: string) {
@@ -157,12 +172,18 @@ export const api = {
   },
 
   async createQuote(spec: QuoteSpecification, _bomSnapshot?: BomPreview | null) {
-    void _bomSnapshot
     const options = pricingOptionsFromSpec(spec)
-    const response = await fetch("/api/quotes", {
+    const session = this.getSession()
+    const customerId = sessionStorage.getItem("quotecraft.salesCustomerId")
+    const isStaff = session?.kind === "staff"
+    const response = await fetch(isStaff ? "/api/sales/quotes" : "/api/quotes", {
       method: "POST",
       headers: authHeaders(true),
-      body: JSON.stringify({ specification: spec, options }),
+      body: JSON.stringify(
+        isStaff
+          ? { specification: spec, options, customerId: Number(customerId), bomSnapshot: _bomSnapshot }
+          : { specification: spec, options, bomSnapshot: _bomSnapshot },
+      ),
     })
     if (!response.ok) {
       throw new Error(await readError(response, "Could not create the quotation."))
@@ -275,5 +296,149 @@ export const api = {
       })
     }
     return saved
+  },
+
+  async salesDashboard() {
+    const response = await fetch("/api/sales/dashboard", { headers: authHeaders() })
+    if (!response.ok) throw new Error(await readError(response, "Could not load the sales dashboard."))
+    return response.json()
+  },
+  async salesCustomers(search = "") {
+    const response = await fetch(`/api/sales/customers?search=${encodeURIComponent(search)}`, {
+      headers: authHeaders(),
+    })
+    if (!response.ok) throw new Error(await readError(response, "Could not load customers."))
+    return response.json()
+  },
+  async salesCustomer(id: string) {
+    const response = await fetch(`/api/sales/customers/${id}`, { headers: authHeaders() })
+    if (!response.ok) throw new Error(await readError(response, "Customer not found"))
+    return response.json()
+  },
+  async salesCustomerQuotes(id: string) {
+    const response = await fetch(`/api/sales/customers/${id}/quotes`, { headers: authHeaders() })
+    if (!response.ok) throw new Error(await readError(response, "Could not load quotations."))
+    return response.json()
+  },
+  async createSalesCustomer(payload: Record<string, unknown>) {
+    const response = await fetch("/api/sales/customers", {
+      method: "POST",
+      headers: authHeaders(true),
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) throw new Error(await readError(response, "Could not create the customer."))
+    return response.json()
+  },
+  async assignCustomer(customerId: string, staffId: number | null) {
+    const response = await fetch(`/api/sales/customers/${customerId}/assign`, {
+      method: "POST",
+      headers: authHeaders(true),
+      body: JSON.stringify({ staffId }),
+    })
+    if (!response.ok) throw new Error(await readError(response, "Could not assign the customer."))
+    return response.json()
+  },
+  async salesAssignees() {
+    const response = await fetch("/api/sales/assignees", { headers: authHeaders() })
+    if (!response.ok) throw new Error(await readError(response, "Could not load sales users."))
+    return response.json()
+  },
+  async salesQuotes(params: Record<string, string> = {}) {
+    const query = new URLSearchParams(params).toString()
+    const response = await fetch(`/api/sales/quotes${query ? `?${query}` : ""}`, { headers: authHeaders() })
+    if (!response.ok) throw new Error(await readError(response, "Could not load quotations."))
+    return response.json()
+  },
+  async salesQuote(id: string) {
+    const response = await fetch(`/api/sales/quotes/${id}`, { headers: authHeaders() })
+    if (!response.ok) throw new Error(await readError(response, "Quote not found"))
+    return mapApiQuote((await response.json()) as Record<string, unknown>)
+  },
+  async downloadSalesPdf(id: string) {
+    const response = await fetch(`/api/sales/quotes/${id}/pdf`, { headers: authHeaders() })
+    if (!response.ok) throw new Error(await readError(response, "Could not download the PDF."))
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `quote-${id}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  },
+  async issueQuoteVersion(
+    id: string,
+    payload: {
+      reason: string
+      specification?: QuoteSpecification
+      bomSnapshot?: BomPreview | null
+    },
+  ) {
+    const options = payload.specification ? pricingOptionsFromSpec(payload.specification) : undefined
+    const response = await fetch(`/api/sales/quotes/${id}/versions`, {
+      method: "POST",
+      headers: authHeaders(true),
+      body: JSON.stringify({
+        reason: payload.reason,
+        specification: payload.specification,
+        bomSnapshot: payload.bomSnapshot,
+        options,
+      }),
+    })
+    if (!response.ok) throw new Error(await readError(response, "Could not issue a new version."))
+    return mapApiQuote((await response.json()) as Record<string, unknown>)
+  },
+  async compareQuoteVersions(id: string, fromVersion: number, toVersion: number) {
+    const query = new URLSearchParams({ from: String(fromVersion), to: String(toVersion) })
+    const response = await fetch(`/api/sales/quotes/${id}/versions/compare?${query}`, {
+      headers: authHeaders(),
+    })
+    if (!response.ok) throw new Error(await readError(response, "Could not compare versions."))
+    return response.json() as Promise<{
+      from: Record<string, unknown>
+      to: Record<string, unknown>
+      changes: Record<string, { from: unknown; to: unknown }>
+    }>
+  },
+  async sendSalesEmail(id: string) {
+    const response = await fetch(`/api/sales/quotes/${id}/email`, {
+      method: "POST",
+      headers: authHeaders(true),
+    })
+    if (!response.ok) throw new Error(await readError(response, "Could not send the quotation email."))
+    return response.json()
+  },
+  async salesManualPricing(id: string, action: string, note: string) {
+    const response = await fetch(`/api/sales/quotes/${id}/manual-pricing`, {
+      method: "POST",
+      headers: authHeaders(true),
+      body: JSON.stringify({ action, note }),
+    })
+    if (!response.ok) throw new Error(await readError(response, "Could not update manual pricing."))
+    return response.json()
+  },
+  async adminUsers() {
+    const response = await fetch("/api/admin/users", { headers: authHeaders() })
+    if (!response.ok) throw new Error(await readError(response, "Could not load users."))
+    return response.json()
+  },
+  async createAdminUser(payload: Record<string, unknown>) {
+    const response = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: authHeaders(true),
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) throw new Error(await readError(response, "Could not create the user."))
+    return response.json()
+  },
+  async updateAdminUser(id: number, payload: Record<string, unknown>) {
+    const response = await fetch(`/api/admin/users/${id}`, {
+      method: "PATCH",
+      headers: authHeaders(true),
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) throw new Error(await readError(response, "Could not update the user."))
+    return response.json()
   },
 }

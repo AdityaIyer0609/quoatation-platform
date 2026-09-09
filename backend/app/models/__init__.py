@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -21,6 +21,39 @@ class QuoteStatus(StrEnum):
     REVISION_REQUESTED = "revision_requested"
 
 
+class StaffRole(StrEnum):
+    SALES_EXECUTIVE = "sales_executive"
+    SALES_MANAGER = "sales_manager"
+    PRICING_MANAGER = "pricing_manager"
+    ADMIN = "admin"
+
+
+class ManualPricingStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    RESOLVED = "resolved"
+
+
+class StaffUser(Base):
+    __tablename__ = "staff_users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(255))
+    first_name: Mapped[str] = mapped_column(String(100))
+    last_name: Mapped[str] = mapped_column(String(100))
+    role: Mapped[str] = mapped_column(String(32), index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    assigned_customers: Mapped[list["Customer"]] = relationship(back_populates="assigned_staff")
+
+
 class Customer(Base):
     __tablename__ = "customers"
 
@@ -38,6 +71,11 @@ class Customer(Base):
     state: Mapped[str] = mapped_column(String(100), default="")
     pincode: Mapped[str] = mapped_column(String(20), default="")
     country: Mapped[str] = mapped_column(String(100), default="India")
+    assigned_staff_id: Mapped[int | None] = mapped_column(
+        ForeignKey("staff_users.id"),
+        nullable=True,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -46,6 +84,7 @@ class Customer(Base):
     )
 
     quotes: Mapped[list["Quote"]] = relationship(back_populates="customer")
+    assigned_staff: Mapped["StaffUser | None"] = relationship(back_populates="assigned_customers")
 
 
 class Quote(Base):
@@ -54,7 +93,16 @@ class Quote(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     number: Mapped[str] = mapped_column(String(32), unique=True, index=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True)
+    created_by_staff_id: Mapped[int | None] = mapped_column(
+        ForeignKey("staff_users.id"),
+        nullable=True,
+        index=True,
+    )
     status: Mapped[str] = mapped_column(String(32), default=QuoteStatus.QUOTED.value, index=True)
+    manual_pricing_status: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    manual_pricing_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    manual_pricing_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    manual_pricing_by_id: Mapped[int | None] = mapped_column(ForeignKey("staff_users.id"), nullable=True)
     product_name: Mapped[str] = mapped_column(String(255))
     specification: Mapped[dict] = mapped_column(JsonType)
     bom_snapshot: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
@@ -92,7 +140,16 @@ class QuoteVersion(Base):
     version: Mapped[int] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(32))
     specification: Mapped[dict] = mapped_column(JsonType)
+    bom_snapshot: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
+    pricing_snapshot: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
+    quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    unit_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    total_amount: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    rule_version: Mapped[str] = mapped_column(String(40), default="book4-16-04-26")
+    created_by_staff_id: Mapped[int | None] = mapped_column(ForeignKey("staff_users.id"), nullable=True)
+    created_by_name: Mapped[str] = mapped_column(String(160), default="")
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_current: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     quote: Mapped[Quote] = relationship(back_populates="versions")
@@ -136,3 +193,17 @@ class PricingSnapshot(Base):
 
     quote: Mapped[Quote | None] = relationship(back_populates="pricing_snapshots")
     version: Mapped[QuoteVersion | None] = relationship(back_populates="pricing_snapshots")
+
+
+class AuditEvent(Base):
+    __tablename__ = "audit_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    actor_type: Mapped[str] = mapped_column(String(20), default="staff")
+    actor_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    actor_email: Mapped[str] = mapped_column(String(255), default="")
+    action: Mapped[str] = mapped_column(String(80), index=True)
+    entity_type: Mapped[str] = mapped_column(String(40), index=True)
+    entity_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    detail: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

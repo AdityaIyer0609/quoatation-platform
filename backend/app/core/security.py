@@ -14,18 +14,27 @@ def verify_password(password: str, password_hash: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
-def create_access_token(subject: str) -> str:
+def create_access_token(subject: str, *, token_type: str = "customer", role: str = "customer") -> str:
     settings = get_settings()
     expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
-    payload = {"sub": subject, "exp": expire}
+    payload = {"sub": subject, "typ": token_type, "role": role, "exp": expire}
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
 
 def decode_access_token(token: str) -> str | None:
+    payload = decode_token_payload(token)
+    if payload is None:
+        return None
+    subject = payload.get("sub")
+    return str(subject) if subject else None
+
+
+def decode_token_payload(token: str) -> dict | None:
     settings = get_settings()
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
     except JWTError:
         return None
-    subject = payload.get("sub")
-    return str(subject) if subject else None
+    if not payload.get("sub"):
+        return None
+    return payload

@@ -1,0 +1,53 @@
+import { useNavigate } from "react-router-dom"
+
+import { Button } from "@/components/ui/button"
+import { useAuth } from "@/hooks/useAuth"
+
+const ROLE_LABEL: Record<string, string> = {
+  sales_executive: "Sales Executive",
+  sales_manager: "Sales Manager",
+  pricing_manager: "Pricing Manager",
+  admin: "Admin",
+}
+
+export default function SalesProfile() {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
+  async function handleSignOut() {
+    await logout()
+    navigate("/", { replace: true })
+  }
+
+  if (!user) return null
+
+  return (
+    <div className="mx-auto max-w-[720px] p-6 md:p-8">
+      <h1 className="font-heading mb-1 text-xl font-bold">Profile</h1>
+      <p className="mb-7 text-sm text-[var(--text-secondary)]">Your sales portal account</p>
+      <div className="flex items-center gap-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
+        <div className="font-heading flex size-14 shrink-0 items-center justify-center rounded-full bg-[var(--navy-muted)] text-lg font-semibold text-white">
+          {user.initials}
+        </div>
+        <div>
+          <div className="font-heading text-sm font-semibold">
+            {user.firstName} {user.lastName}
+          </div>
+          <div className="text-xs text-[var(--text-secondary)]">{user.email}</div>
+          <div className="mt-1 text-xs text-[var(--navy)]">{ROLE_LABEL[user.role] ?? user.role}</div>
+        </div>
+      </div>
+      <div className="mt-6 rounded-lg border border-[var(--error-border)] bg-[var(--error-bg)] p-5">
+        <div className="font-heading mb-1 text-sm font-semibold text-[var(--error)]">Account actions</div>
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-3 h-auto rounded-md border-[var(--error-border)] px-3.5 py-2 text-xs text-[var(--error)]"
+          onClick={() => void handleSignOut()}
+        >
+          Sign out
+        </Button>
+      </div>
+    </div>
+  )
+}

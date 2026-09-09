@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db.base import Base
 from app.db.session import get_db, make_engine
 from app.main import app
-from app.models import Customer  # noqa: F401
+from app.models import Customer, StaffUser  # noqa: F401
 from app.services.auth import create_customer
 
 SPEC = {

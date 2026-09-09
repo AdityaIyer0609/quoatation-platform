@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom"
 import { PricingBreakdown } from "@/components/quote/PricingBreakdown"
 import { Button } from "@/components/ui/button"
 import { useQuoteDraft } from "@/hooks/useQuoteDraft"
+import { usePortalPaths } from "@/lib/portal"
 import { formatQty } from "@/lib/format"
 import { api } from "@/services/api"
 import { previewPricing } from "@/services/pricing"
@@ -14,6 +15,7 @@ const BOM_KEY = "quotecraft.bom.preview"
 
 export default function BomReport() {
   const navigate = useNavigate()
+  const paths = usePortalPaths()
   const { specification, reset } = useQuoteDraft()
   const [submitting, setSubmitting] = useState(false)
   const [pricing, setPricing] = useState<PricingPreview | null>(null)
@@ -50,10 +52,21 @@ export default function BomReport() {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const quote = await api.createQuote(specification, preview)
+      const reviseId = sessionStorage.getItem("quotecraft.salesReviseQuoteId")
+      const reason = sessionStorage.getItem("quotecraft.salesReviseReason") || "Configuration revised"
+      const quote =
+        paths.staff && reviseId
+          ? await api.issueQuoteVersion(reviseId, {
+              reason,
+              specification,
+              bomSnapshot: preview,
+            })
+          : await api.createQuote(specification, preview)
       reset()
       sessionStorage.removeItem(BOM_KEY)
-      navigate(`/quotes/${quote.id}/ready`)
+      sessionStorage.removeItem("quotecraft.salesReviseQuoteId")
+      sessionStorage.removeItem("quotecraft.salesReviseReason")
+      navigate(paths.quoteReady(quote.id))
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Could not create the quotation.")
     } finally {
@@ -65,7 +78,7 @@ export default function BomReport() {
     return (
       <div className="p-8 text-sm">
         No material list yet.{" "}
-        <button type="button" className="text-[var(--navy)]" onClick={() => navigate("/quotes/new/review")}>
+        <button type="button" className="text-[var(--navy)]" onClick={() => navigate(paths.review)}>
           Go back to review
         </button>
       </div>
@@ -76,11 +89,11 @@ export default function BomReport() {
     <div className="mx-auto max-w-[960px] p-6 md:p-8">
       <div className="mb-6">
         <div className="mb-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-          <button type="button" onClick={() => navigate("/dashboard")}>
+          <button type="button" onClick={() => navigate(paths.dashboard)}>
             Dashboard
           </button>
           <span>/</span>
-          <button type="button" onClick={() => navigate("/quotes/new/review")}>
+          <button type="button" onClick={() => navigate(paths.review)}>
             Review
           </button>
           <span>/</span>
@@ -153,7 +166,7 @@ export default function BomReport() {
       )}
 
       <div className="mt-8 flex items-center justify-between">
-        <Button type="button" variant="outline" className="gap-1.5" onClick={() => navigate("/quotes/new/review")}>
+        <Button type="button" variant="outline" className="gap-1.5" onClick={() => navigate(paths.review)}>
           <ArrowLeft className="size-3.5" />
           Back
         </Button>

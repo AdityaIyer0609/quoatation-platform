@@ -29,8 +29,8 @@ export default function Login() {
     }
     setLoading(true)
     try {
-      await login(email, password)
-      navigate("/dashboard", { replace: true })
+      const session = await login(email, password)
+      navigate(session.kind === "staff" ? "/sales" : "/dashboard", { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in. Please try again.")
     } finally {

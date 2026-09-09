@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
-import { formatQty, formatUsd } from "@/lib/format"
+import { formatQty, formatQuoteAmount, formatUsd } from "@/lib/format"
 import { api } from "@/services/api"
 import type { Quote } from "@/types/quote"
 import { PricingBreakdown } from "@/components/quote/PricingBreakdown"
@@ -158,6 +158,8 @@ export default function QuoteDetails() {
   ]
 
   const canAct = quote.status === "quoted"
+  const canSend = quote.status === "quoted" || quote.status === "revision_requested"
+  const currentVersion = quote.currentVersion ?? quote.versions.at(-1)?.version ?? 1
 
   return (
     <div className="mx-auto max-w-[960px] p-6 md:p-8">
@@ -184,6 +186,9 @@ export default function QuoteDetails() {
           <div className="mb-1 flex items-center gap-3">
             <h1 className="font-heading text-xl font-bold">{quote.number}</h1>
             <StatusBadge status={quote.status} />
+            <span className="rounded-full bg-[var(--navy-bg)] px-2.5 py-0.5 text-xs font-medium text-[var(--navy)]">
+              V{currentVersion}
+            </span>
           </div>
           <p className="text-sm text-[var(--text-secondary)]">
             {quote.productName} · Created {quote.createdAt}
@@ -203,7 +208,7 @@ export default function QuoteDetails() {
           <Button
             type="button"
             variant="outline"
-            disabled={emailWorking}
+            disabled={emailWorking || !canSend}
             className="h-auto gap-1.5 rounded-md px-3.5 py-2 text-sm font-medium"
             onClick={() => void sendEmail()}
           >
@@ -276,6 +281,30 @@ export default function QuoteDetails() {
               ))}
             </div>
           </div>
+
+          {quote.versions.length > 0 && (
+            <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+              <div className="border-b border-[var(--border)] px-5 py-3.5">
+                <h2 className="font-heading text-sm font-semibold">Versions</h2>
+              </div>
+              <div className="divide-y divide-[var(--border)] px-5 py-2">
+                {quote.versions.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between py-2.5 text-sm">
+                    <div>
+                      <span className="font-medium">V{item.version}</span>
+                      {item.isCurrent ? (
+                        <span className="ml-2 text-[10px] text-[var(--navy)]">current</span>
+                      ) : null}
+                      <div className="text-xs text-[var(--text-muted)]">{item.createdAt}</div>
+                    </div>
+                    <div className="text-right text-xs">
+                      {item.requiresManualPricing ? "Manual pricing" : formatQuoteAmount(item.totalAmount)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="space-y-5">

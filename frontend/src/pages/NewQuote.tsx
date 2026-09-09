@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useQuoteDraft } from "@/hooks/useQuoteDraft"
+import { usePortalPaths } from "@/lib/portal"
 import {
   BAG_TYPES,
   BODY_GRADES,
@@ -44,6 +45,7 @@ import type { ComplicationPicker } from "@/types/quote"
 
 export default function NewQuote() {
   const navigate = useNavigate()
+  const paths = usePortalPaths()
   const { specification: spec, step, setStep, update, patch } = useQuoteDraft()
   const [picker, setPicker] = useState<ComplicationPicker | null>(null)
   const fillingSpout = spec.topType === "Top Spout"
@@ -90,13 +92,13 @@ export default function NewQuote() {
     if (step < 4) setStep(step + 1)
     else {
       setStep(5)
-      navigate("/quotes/new/review")
+      navigate(paths.review)
     }
   }
 
   function goReview() {
     setStep(5)
-    navigate("/quotes/new/review")
+    navigate(paths.review)
   }
 
   return (
@@ -106,7 +108,7 @@ export default function NewQuote() {
           <button
             type="button"
             className="text-[var(--text-secondary)] hover:underline"
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate(paths.dashboard)}
           >
             Dashboard
           </button>
@@ -122,7 +124,7 @@ export default function NewQuote() {
       <StepIndicator
         current={step}
         onStepClick={(next) => {
-          if (next === 5) navigate("/quotes/new/review")
+          if (next === 5) navigate(paths.review)
           else setStep(next)
         }}
       />

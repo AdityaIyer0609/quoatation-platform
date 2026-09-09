@@ -183,6 +183,14 @@ export type QuoteVersion = {
   status: QuoteStatus
   createdAt: string
   note?: string
+  quantity?: number | null
+  unitPrice?: number | null
+  totalAmount?: number | null
+  ruleVersion?: string
+  createdByName?: string
+  isCurrent?: boolean
+  requiresManualPricing?: boolean
+  specification?: Record<string, unknown>
 }
 
 export type Quote = {
@@ -202,6 +210,8 @@ export type Quote = {
   pricing: PricingSummary
   timeline: QuoteTimelineEvent[]
   versions: QuoteVersion[]
+  currentVersion?: number
+  customerId?: string | null
 }
 
 export type QuoteListItem = {
@@ -246,6 +256,8 @@ export type CustomerProfile = {
   pincode: string
   country: string
   initials?: string
+  kind?: "customer" | "staff"
+  role?: string
 }
 
 export type SessionUser = {

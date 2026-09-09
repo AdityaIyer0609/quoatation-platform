@@ -117,6 +117,10 @@ def email_quote(
     customer: Customer = Depends(get_current_customer),
 ) -> dict[str, bool]:
     quote = _owned_quote(db, customer, quote_id)
+    try:
+        quote_service.assert_sendable(quote)
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     payload = render_quote_pdf(quote)
     try:
         send_quote_email(quote, payload)
@@ -137,7 +141,7 @@ def list_versions(
     customer: Customer = Depends(get_current_customer),
 ) -> list[QuoteVersionOut]:
     quote = _owned_quote(db, customer, quote_id)
-    return quote_service.serialize_quote(quote).versions
+    return [quote_service.serialize_version(item) for item in sorted(quote.versions, key=lambda row: row.version)]
 
 
 @router.get("/quotes/{quote_id}/history", response_model=list[TimelineEvent])
