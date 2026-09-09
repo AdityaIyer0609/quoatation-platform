@@ -367,26 +367,13 @@ export const api = {
     link.remove()
     URL.revokeObjectURL(url)
   },
-  async issueQuoteVersion(
-    id: string,
-    payload: {
-      reason: string
-      specification?: QuoteSpecification
-      bomSnapshot?: BomPreview | null
-    },
-  ) {
-    const options = payload.specification ? pricingOptionsFromSpec(payload.specification) : undefined
+  async issueQuoteVersion(id: string, payload: { reason: string; unitPrice: number }) {
     const response = await fetch(`/api/sales/quotes/${id}/versions`, {
       method: "POST",
       headers: authHeaders(true),
-      body: JSON.stringify({
-        reason: payload.reason,
-        specification: payload.specification,
-        bomSnapshot: payload.bomSnapshot,
-        options,
-      }),
+      body: JSON.stringify({ reason: payload.reason, unitPrice: payload.unitPrice }),
     })
-    if (!response.ok) throw new Error(await readError(response, "Could not issue a new version."))
+    if (!response.ok) throw new Error(await readError(response, "Could not issue a revised offer."))
     return mapApiQuote((await response.json()) as Record<string, unknown>)
   },
   async compareQuoteVersions(id: string, fromVersion: number, toVersion: number) {

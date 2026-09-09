@@ -1,4 +1,6 @@
+from copy import deepcopy
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
@@ -57,7 +59,7 @@ def list_quotes(db: Session, customer: Customer) -> list[QuoteListItem]:
         select(Quote)
         .where(Quote.customer_id == customer.id)
         .order_by(Quote.created_at.desc())
-        .options(selectinload(Quote.pricing_snapshots))
+        .options(selectinload(Quote.pricing_snapshots), selectinload(Quote.status_history))
     ).all()
     return [_to_list_item(quote) for quote in quotes]
 
@@ -196,23 +198,46 @@ def issue_new_version(
     db: Session,
     customer: Customer,
     quote: Quote,
-    specification: dict | None = None,
-    bom_snapshot: dict | None = None,
-    options: PricingOptions | None = None,
     *,
     reason: str,
     created_by_name: str,
     created_by_staff_id: int | None = None,
+    unit_price: float | None = None,
 ) -> Quote:
+    """Create a commercial revised offer for the same quotation. Does not change BOM or spec."""
     if quote.status not in {QuoteStatus.QUOTED.value, QuoteStatus.REVISION_REQUESTED.value}:
-        raise PermissionError("A new version can only be issued while the quotation is quoted or awaiting revision.")
+        raise PermissionError("A revised offer can only be issued while the quotation is quoted or awaiting negotiation.")
     if not reason.strip():
-        raise PermissionError("A revision reason is required.")
-    spec_data = dict(specification or quote.specification or {})
+        raise PermissionError("A negotiation reason is required.")
+    if unit_price is None or float(unit_price) <= 0:
+        raise PermissionError("A commercial unit price is required for a revised offer.")
+    live = current_version(quote)
+    if live is None:
+        raise PermissionError("This quotation has no frozen version to revise.")
+    qty = int(live.quantity or 0)
+    if qty < 1:
+        snap = live.pricing_snapshot if isinstance(live.pricing_snapshot, dict) else {}
+        qty = int(snap.get("quantity") or 0)
+    if qty < 1:
+        raise PermissionError("Cannot issue a revised offer without a frozen quantity.")
+    unit = Decimal(str(unit_price)).quantize(Decimal("0.01"), ROUND_HALF_UP)
+    total = (unit * Decimal(qty)).quantize(Decimal("0.01"), ROUND_HALF_UP)
+    spec_data = deepcopy(live.specification or quote.specification or {})
+    bom_payload = deepcopy(live.bom_snapshot or quote.bom_snapshot)
+    previous_price = deepcopy(live.pricing_snapshot if isinstance(live.pricing_snapshot, dict) else quote.pricing_snapshot or {})
+    pricing_payload = deepcopy(previous_price)
+    pricing_payload["unitPrice"] = float(unit)
+    pricing_payload["totalAmount"] = float(total)
+    pricing_payload["quantity"] = qty
+    pricing_payload["requiresManualPricing"] = False
+    pricing_payload["priced"] = True
+    pricing_payload["commercialOffer"] = True
+    pricing_payload["book4UnitPrice"] = previous_price.get("unitPrice")
+    pricing_payload["book4TotalAmount"] = previous_price.get("totalAmount")
+    pricing_payload["book4Errors"] = previous_price.get("errors") or []
+    pricing_payload["errors"] = []
+    pricing_payload["negotiationReason"] = reason.strip()
     from_status = quote.status
-    bom, priced = _book4_price(spec_data, bom_snapshot, options)
-    bom_payload = bom.model_dump(mode="json", by_alias=True)
-    pricing_payload = priced.model_dump(mode="json", by_alias=True)
     next_number = max((item.version for item in quote.versions), default=0) + 1
     for item in quote.versions:
         item.is_current = False
@@ -224,10 +249,10 @@ def issue_new_version(
         specification=spec_data,
         bom_snapshot=bom_payload,
         pricing_snapshot=pricing_payload,
-        quantity=priced.quantity,
-        unit_price=priced.unit_price,
-        total_amount=priced.total_amount,
-        rule_version=priced.rule_version,
+        quantity=qty,
+        unit_price=float(unit),
+        total_amount=float(total),
+        rule_version=live.rule_version or previous_price.get("ruleVersion") or "book4-16-04-26",
         created_by_staff_id=created_by_staff_id,
         created_by_name=created_by_name,
         note=reason.strip(),
@@ -239,25 +264,21 @@ def issue_new_version(
         PricingSnapshot(
             quote_id=quote.id,
             quote_version_id=version.id,
-            currency=priced.currency,
-            unit_price=priced.unit_price,
-            quantity=priced.quantity,
-            total_amount=priced.total_amount,
-            total_kg=priced.total_kg_per_bag,
-            source=priced.source,
-            rule_version=priced.rule_version,
+            currency=str(previous_price.get("currency") or "USD"),
+            unit_price=float(unit),
+            quantity=qty,
+            total_amount=float(total),
+            total_kg=float(previous_price.get("totalKgPerBag") or 0),
+            source=str(previous_price.get("source") or "book4"),
+            rule_version=version.rule_version,
             breakdown=pricing_payload,
         )
     )
-    # Live quote pointer moves to the new freeze. Historical version rows are never rewritten.
     quote.specification = spec_data
     quote.bom_snapshot = bom_payload
     quote.pricing_snapshot = pricing_payload
-    quote.product_name = _product_name(QuoteSpecification.model_validate(spec_data))
     quote.status = QuoteStatus.QUOTED.value
-    quote.manual_pricing_status = (
-        ManualPricingStatus.PENDING.value if priced.requires_manual_pricing else None
-    )
+    quote.manual_pricing_status = None
     quote.manual_pricing_note = None
     db.add(quote)
     db.add(
@@ -265,8 +286,8 @@ def issue_new_version(
             quote_id=quote.id,
             from_status=from_status,
             to_status=QuoteStatus.QUOTED.value,
-            event=f"Version {next_number} issued",
-            detail=reason or f"Issued V{next_number}",
+            event=f"Revised offer V{next_number}",
+            detail=reason.strip(),
             event_type="success",
         )
     )
@@ -330,13 +351,31 @@ def compare_versions(quote: Quote, from_version: int, to_version: int) -> dict:
 
 
 def dashboard(db: Session, customer: Customer) -> DashboardResponse:
-    items = list_quotes(db, customer)
+    quotes = db.scalars(
+        select(Quote)
+        .where(Quote.customer_id == customer.id)
+        .order_by(Quote.created_at.desc())
+        .options(selectinload(Quote.pricing_snapshots), selectinload(Quote.status_history))
+    ).all()
+    items = [_to_list_item(quote) for quote in quotes]
     pending = next((item for item in items if item.status == QuoteStatus.QUOTED.value), None)
     in_progress = sum(
         1
         for item in items
         if item.status in {QuoteStatus.QUOTED.value, QuoteStatus.REVISION_REQUESTED.value}
     )
+    year = datetime.now(UTC).year
+    ytd = 0.0
+    accepted_priced = 0
+    for quote, item in zip(quotes, items, strict=True):
+        if quote.status != QuoteStatus.ACCEPTED.value:
+            continue
+        if _utc_year(_accepted_at(quote)) != year:
+            continue
+        if item.amount is None:
+            continue
+        ytd += item.amount
+        accepted_priced += 1
     return DashboardResponse(
         greetingName=customer.first_name,
         dateLabel=datetime.now(UTC).strftime("%A, %d %B %Y"),
@@ -345,8 +384,8 @@ def dashboard(db: Session, customer: Customer) -> DashboardResponse:
             quotesThisMonthDelta="Current account",
             inProgress=str(in_progress),
             inProgressDelta="Awaiting action",
-            totalSpentYtd="—",
-            totalSpentDelta="Priced quotes only",
+            totalSpentYtd=f"${ytd:,.2f}",
+            totalSpentDelta="Accepted this year" if accepted_priced else "No accepted priced quotes yet",
         ),
         recentQuotes=items[:5],
         pendingQuote=pending,
@@ -522,11 +561,16 @@ def _product_name(specification: QuoteSpecification) -> str:
 def _to_list_item(quote: Quote) -> QuoteListItem:
     snapshot = _latest_snapshot(quote)
     frozen = quote.pricing_snapshot if isinstance(quote.pricing_snapshot, dict) else {}
-    manual = bool(frozen.get("requiresManualPricing")) or bool(quote.manual_pricing_status)
+    commercial = bool(frozen.get("commercialOffer"))
+    manual = (not commercial) and (
+        bool(frozen.get("requiresManualPricing")) or bool(quote.manual_pricing_status)
+    )
     if not manual and snapshot is not None:
-        manual = snapshot.unit_price is None
+        manual = snapshot.unit_price is None and not commercial
     amount = None
-    if not manual and snapshot is not None and snapshot.total_amount is not None:
+    if commercial and frozen.get("totalAmount") is not None:
+        amount = float(frozen["totalAmount"])
+    elif not manual and snapshot is not None and snapshot.total_amount is not None:
         amount = float(snapshot.total_amount)
     return QuoteListItem(
         id=str(quote.id),
@@ -544,6 +588,21 @@ def _to_list_item(quote: Quote) -> QuoteListItem:
 def _latest_snapshot(quote: Quote):
     snapshots = sorted(quote.pricing_snapshots, key=lambda item: item.created_at, reverse=True)
     return snapshots[0] if snapshots else None
+
+
+def _accepted_at(quote: Quote) -> datetime | None:
+    accepted = [event.created_at for event in quote.status_history if event.to_status == QuoteStatus.ACCEPTED.value]
+    if accepted:
+        return max(accepted)
+    return quote.updated_at or quote.created_at
+
+
+def _utc_year(value: datetime | None) -> int | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(UTC).year
 
 
 def _fmt(value: datetime | None, with_time: bool = False) -> str:

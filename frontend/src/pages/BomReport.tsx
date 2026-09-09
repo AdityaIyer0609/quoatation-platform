@@ -52,20 +52,9 @@ export default function BomReport() {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const reviseId = sessionStorage.getItem("quotecraft.salesReviseQuoteId")
-      const reason = sessionStorage.getItem("quotecraft.salesReviseReason") || "Configuration revised"
-      const quote =
-        paths.staff && reviseId
-          ? await api.issueQuoteVersion(reviseId, {
-              reason,
-              specification,
-              bomSnapshot: preview,
-            })
-          : await api.createQuote(specification, preview)
+      const quote = await api.createQuote(specification, preview)
       reset()
       sessionStorage.removeItem(BOM_KEY)
-      sessionStorage.removeItem("quotecraft.salesReviseQuoteId")
-      sessionStorage.removeItem("quotecraft.salesReviseReason")
       navigate(paths.quoteReady(quote.id))
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Could not create the quotation.")

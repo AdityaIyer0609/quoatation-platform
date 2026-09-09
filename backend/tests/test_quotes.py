@@ -102,12 +102,23 @@ def test_revision_request_does_not_create_version(client, auth_header):
 
 
 def test_dashboard(client, auth_header):
-    client.post("/api/quotes", headers=auth_header, json={"specification": SPEC})
+    created = client.post("/api/quotes", headers=auth_header, json={"specification": SPEC})
     response = client.get("/api/dashboard", headers=auth_header)
     assert response.status_code == 200
     body = response.json()
     assert body["greetingName"] == "Arjun"
     assert len(body["recentQuotes"]) == 1
+    assert body["stats"]["totalSpentYtd"] == "$0.00"
+
+    quote_id = created.json()["id"]
+    amount = created.json()["pricing"]["totalAmount"]
+    if created.json()["pricing"]["requiresManualPricing"] or amount is None:
+        return
+    accepted = client.post(f"/api/quotes/{quote_id}/accept", headers=auth_header)
+    assert accepted.status_code == 200
+    after = client.get("/api/dashboard", headers=auth_header).json()
+    assert after["stats"]["totalSpentYtd"] == f"${float(amount):,.2f}"
+    assert after["stats"]["totalSpentDelta"] == "Accepted this year"
 
 
 def test_pdf_uses_frozen_snapshot_and_never_shows_zero_for_manual(client, auth_header):

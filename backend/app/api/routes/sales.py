@@ -72,9 +72,7 @@ class IssueVersionRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     reason: str = Field(min_length=1)
-    specification: dict | None = None
-    bom_snapshot: dict | None = Field(default=None, alias="bomSnapshot")
-    options: PricingOptions | None = None
+    unit_price: float = Field(gt=0, alias="unitPrice")
 
 
 class ManualPricingRequest(BaseModel):
@@ -434,9 +432,7 @@ def sales_issue_version(
             staff,
             quote_id,
             reason=payload.reason,
-            specification=payload.specification,
-            bom_snapshot=payload.bom_snapshot,
-            options=payload.options,
+            unit_price=payload.unit_price,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc

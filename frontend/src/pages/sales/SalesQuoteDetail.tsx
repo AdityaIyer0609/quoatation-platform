@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { Link, useParams } from "react-router-dom"
 
 import { StatusBadge } from "@/components/common/StatusBadge"
 import { PricingBreakdown } from "@/components/quote/PricingBreakdown"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/hooks/useAuth"
 import { formatQuoteAmount, formatUsd, statusLabel } from "@/lib/format"
@@ -18,7 +19,6 @@ function money(value: unknown) {
 
 export default function SalesQuoteDetail() {
   const { id = "" } = useParams()
-  const navigate = useNavigate()
   const { user } = useAuth()
   const [quote, setQuote] = useState<Quote | null>(null)
   const [raw, setRaw] = useState<Record<string, unknown> | null>(null)
@@ -26,9 +26,11 @@ export default function SalesQuoteDetail() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [note, setNote] = useState("")
   const [reason, setReason] = useState("")
+  const [unitPrice, setUnitPrice] = useState("")
   const [fromV, setFromV] = useState(1)
   const [toV, setToV] = useState(1)
   const [compare, setCompare] = useState<Record<string, { from: unknown; to: unknown }> | null>(null)
+  const [working, setWorking] = useState(false)
   const canPrice = user?.role === "admin" || user?.role === "pricing_manager"
   const canIssue = user?.role === "admin" || user?.role === "sales_manager" || user?.role === "sales_executive"
 
@@ -57,7 +59,12 @@ export default function SalesQuoteDetail() {
   }, [versions])
 
   useEffect(() => {
-    if (!quote || quote.status !== "revision_requested") return
+    if (!quote) return
+    const currentOffer = quote.versions.find((item) => item.isCurrent) ?? quote.versions.at(-1)
+    if (currentOffer?.unitPrice != null) {
+      setUnitPrice(String(currentOffer.unitPrice))
+    }
+    if (quote.status !== "revision_requested") return
     const request = quote.timeline.find((item) => item.event === "Revision requested")
     if (request?.detail) {
       setReason((prev) => prev || request.detail)
@@ -74,17 +81,32 @@ export default function SalesQuoteDetail() {
   const canAccept = quote.status === "quoted"
   const canRevise = quote.status === "quoted" || quote.status === "revision_requested"
   const customerRequest = quote.timeline.find((item) => item.event === "Revision requested")
+  const commercialOffer = Boolean(
+    (quote.pricingSnapshot as { commercialOffer?: boolean } | null)?.commercialOffer,
+  )
 
-  function reviseConfiguration() {
+  async function createRevisedOffer() {
     if (!reason.trim()) {
-      setActionError("Enter a revision reason before revising the configuration.")
+      setActionError("Enter a negotiation reason before creating a revised offer.")
       return
     }
-    sessionStorage.setItem("quotecraft.salesReviseQuoteId", id)
-    sessionStorage.setItem("quotecraft.salesReviseReason", reason.trim())
-    if (quote?.customerId) sessionStorage.setItem("quotecraft.salesCustomerId", String(quote.customerId))
-    else if (raw?.customerId) sessionStorage.setItem("quotecraft.salesCustomerId", String(raw.customerId))
-    navigate("/sales/quotes/configure")
+    const price = Number(unitPrice)
+    if (!Number.isFinite(price) || price <= 0) {
+      setActionError("Enter a commercial unit price greater than zero.")
+      return
+    }
+    setWorking(true)
+    setActionError(null)
+    try {
+      const next = await api.issueQuoteVersion(id, { reason: reason.trim(), unitPrice: price })
+      setQuote(next)
+      setReason("")
+      await reload()
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not issue a revised offer.")
+    } finally {
+      setWorking(false)
+    }
   }
 
   async function runCompare() {
@@ -158,13 +180,18 @@ export default function SalesQuoteDetail() {
           <p className="mt-1 text-sm text-[var(--text)]">{customerRequest.detail}</p>
           <p className="mt-1 font-quote-mono text-[10px] text-[var(--text-muted)]">{customerRequest.at}</p>
           <p className="mt-2 text-xs text-[var(--text-secondary)]">
-            This is not a new version. Issue V{current + 1} after you change the configuration to match this request.
+            This is not a new version. Create a revised commercial offer on this same quotation, or ask the customer to raise a new quote if they need a different bag or quantity.
           </p>
         </section>
       )}
 
       {quote.pricingSnapshot && (
         <div className="mt-6">
+          {commercialOffer && (
+            <p className="mb-2 text-xs text-[var(--text-secondary)]">
+              This is a negotiated commercial offer. Book4 material and conversion lines are copied from the previous freeze and were not recalculated.
+            </p>
+          )}
           <PricingBreakdown pricing={quote.pricingSnapshot} />
         </div>
       )}
@@ -173,7 +200,7 @@ export default function SalesQuoteDetail() {
         <div className="border-b border-[var(--border)] px-5 py-3.5">
           <h2 className="font-heading text-sm font-semibold">Version history</h2>
           <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-            Each version is frozen. Issuing a revision creates V{current + 1} instead of overwriting V{current}.
+            Each version is a frozen commercial offer. Create a revised offer for price negotiation; a different bag or quantity is a new quotation.
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -302,31 +329,39 @@ export default function SalesQuoteDetail() {
 
       {canIssue && canRevise && (
         <section className="mt-6 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="font-heading text-sm font-semibold">Issue new version</h2>
+          <h2 className="font-heading text-sm font-semibold">Create revised offer</h2>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">
-            Opens the bag configurator and freezes V{current + 1} on submit. Previous versions stay auditable even if Book4 rates change.
-            {customerRequest ? " Apply the customer request above before you submit." : ""}
+            Issues V{current + 1} with a new commercial unit price on the same bag, quantity, and BOM.
+            Previous versions stay auditable. Do not use this for a different specification — create a new quotation instead.
           </p>
+          <label className="mt-3 block text-xs text-[var(--text-muted)]">
+            Unit price (USD)
+            <Input
+              className="mt-1"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={unitPrice}
+              onChange={(event) => setUnitPrice(event.target.value)}
+            />
+          </label>
           <Textarea
             className="mt-3"
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder={
-              customerRequest
-                ? "Sales note for V" + (current + 1) + " (pre-filled from the customer request)"
-                : "Revision reason (required)"
-            }
+            placeholder="Negotiation reason (required)"
           />
           <Button
+            disabled={working}
             className="mt-3 bg-[var(--navy)] text-white hover:bg-[var(--navy-hover)]"
-            onClick={reviseConfiguration}
+            onClick={() => void createRevisedOffer()}
           >
-            Revise configuration
+            {working ? "Issuing…" : "Create Revised Offer"}
           </Button>
         </section>
       )}
 
-      {(reasons.length > 0 || quote.pricing.requiresManualPricing) && (
+      {!commercialOffer && (reasons.length > 0 || quote.pricing.requiresManualPricing) && (
         <section className="mt-6 rounded-lg border border-[var(--warning-border)] bg-[var(--warning-bg)] p-4 text-sm">
           <div className="font-heading font-semibold">Manual pricing</div>
           <div className="mt-1 text-xs">Status: {String(raw?.manualPricingStatus ?? "pending")}</div>

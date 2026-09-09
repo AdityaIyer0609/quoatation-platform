@@ -395,7 +395,7 @@ export default function QuoteDetails() {
                 className="h-auto w-full rounded-md py-2.5 text-sm font-medium"
                 onClick={() => setRevisionOpen(true)}
               >
-                Request revision
+                Ask for a better price
               </Button>
               <Button
                 type="button"
@@ -436,15 +436,17 @@ export default function QuoteDetails() {
       <Dialog open={revisionOpen} onOpenChange={setRevisionOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Request a revision</DialogTitle>
+            <DialogTitle>Ask for a better price</DialogTitle>
             <DialogDescription>
-              Tell us what should change. Our team will issue an updated quotation.
+              Use this to negotiate the current offer. Sales will issue a revised price on this
+              same quotation. If you need a different bag or quantity, create a new quotation
+              instead of requesting a revision.
             </DialogDescription>
           </DialogHeader>
           <Textarea
             value={message}
             onChange={(event) => setMessage(event.target.value)}
-            placeholder="Describe the change you need…"
+            placeholder="e.g. Please review the unit price"
             className="min-h-24"
           />
           <DialogFooter>

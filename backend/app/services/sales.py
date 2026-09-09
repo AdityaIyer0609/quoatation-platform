@@ -284,31 +284,27 @@ def issue_version_for_staff(
     quote_id: int,
     *,
     reason: str,
-    specification: dict | None = None,
-    bom_snapshot: dict | None = None,
-    options: PricingOptions | None = None,
+    unit_price: float,
 ) -> Quote:
     if not can_create_quotes(staff):
-        raise AccessDenied("Your role cannot issue a new quotation version.")
+        raise AccessDenied("Your role cannot issue a revised commercial offer.")
     quote = get_quote(db, staff, quote_id)
     updated = quote_service.issue_new_version(
         db,
         quote.customer,
         quote,
-        specification,
-        bom_snapshot,
-        options,
         reason=reason,
         created_by_name=staff_name(staff),
         created_by_staff_id=staff.id,
+        unit_price=unit_price,
     )
     record_audit(
         db,
         staff=staff,
-        action="quote.version.issued",
+        action="quote.version.revised_offer",
         entity_type="quote",
         entity_id=updated.id,
-        detail=reason or "New version issued",
+        detail=reason or "Revised commercial offer",
         commit=True,
     )
     return get_quote(db, staff, updated.id)
