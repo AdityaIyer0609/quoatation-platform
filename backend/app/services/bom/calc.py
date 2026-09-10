@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from app.services.bom.accessories import populate_accessories
 from app.services.bom.helpers import (
     HALF_PI,
     PI,
@@ -53,6 +54,7 @@ def populate_calculated_component_values(request: BomRequest) -> None:
     populate_label(request)
     populate_filler_cord(request)
     populate_thread(request)
+    populate_accessories(request)
 
 
 def populate_body(request: BomRequest) -> None:

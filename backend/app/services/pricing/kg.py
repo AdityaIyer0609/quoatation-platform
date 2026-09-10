@@ -25,7 +25,38 @@ PP_HEADINGS = {
     "Tunnel",
     "Reinforce fabric",
     "Thread",
+    "Filler Cord",
+    "Bottom Flap",
+    "Top Rope",
+    "Bottom Rope",
+    "Top Spout Rope",
+    "Bottom Spout Rope",
+    "Top Tie",
+    "Bottom Tie",
+    "Top Hook",
+    "Bottom Hook",
+    "Bottom Loop",
+    "Loop Protector",
+    "Inner Box",
+    "Top Band",
+    "Stevedore",
+    "Anchor Loop",
+    "Hose Slider",
+    "Top Petal Flap",
+    "Bottom Petal Flap",
+    "Belly Band 1",
+    "Belly Band 2",
+    "Top Bottom Band",
+    "Safety Band",
+    "Stevedore Cover",
+    "FabricPatch",
+    "Inner Top",
+    "Inner Bottom",
+    "Bottom Spout 2",
+    "Bottom Spout 3",
 }
+
+ADDON_ONLY_HEADINGS = {"Felt", "MF Webbing"}
 
 PE_LINER_MATERIALS = {"ld", "lld", "hd", "pe"}
 
@@ -69,6 +100,8 @@ def classify_bom_kg(
         if heading == "Liner" and pe_ok:
             category = "PE/Liner"
             pe += kg
+        elif heading in ADDON_ONLY_HEADINGS:
+            category = "addon"
         elif heading in PP_HEADINGS:
             category = "PP"
             pp += kg

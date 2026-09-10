@@ -2,6 +2,7 @@ import { Check, Download, Loader2, Mail } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 
+import { BagPreview3D } from "@/components/quote/BagPreview3D"
 import { Button } from "@/components/ui/button"
 import { useQuoteDraft } from "@/hooks/useQuoteDraft"
 import { formatQty, formatUsd } from "@/lib/format"
@@ -71,6 +72,10 @@ export default function QuoteReady() {
             ? " has been saved for commercial review. Manual pricing is required."
             : ` has been prepared and is valid until ${quote.validUntil}`}
         </p>
+      </div>
+
+      <div className="mb-5">
+        <BagPreview3D specification={spec} />
       </div>
 
       <div className="mb-5 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">

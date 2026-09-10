@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 
 import { StatusBadge } from "@/components/common/StatusBadge"
+import { BagPreview3D } from "@/components/quote/BagPreview3D"
 import { PricingBreakdown } from "@/components/quote/PricingBreakdown"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -184,6 +185,10 @@ export default function SalesQuoteDetail() {
           </p>
         </section>
       )}
+
+      <div className="mt-6">
+        <BagPreview3D specification={quote.specification} />
+      </div>
 
       {quote.pricingSnapshot && (
         <div className="mt-6">

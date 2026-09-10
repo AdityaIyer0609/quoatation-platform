@@ -1,3 +1,4 @@
+import { bodyStylesFor } from "@/lib/erpCatalog"
 import type { QuoteSpecification } from "@/types/quote"
 
 function sfIndex(sf: string) {
@@ -53,7 +54,11 @@ function isFourPanel(construction: string) {
 /** Defaults from frmBOM_NEW checkBoxLoop / check_bottom / comboTopType handlers. */
 export function constructionDefaults(construction: string, spec: QuoteSpecification): Partial<QuoteSpecification> {
   const swl = Number.parseFloat(spec.swl) || 1000
-  const patch: Partial<QuoteSpecification> = { constructionType: construction }
+  const styles = bodyStylesFor(construction)
+  const patch: Partial<QuoteSpecification> = {
+    constructionType: construction,
+    bodyStyle: styles.includes(spec.bodyStyle) ? spec.bodyStyle : styles[0],
+  }
 
   if (isCircular(construction)) {
     patch.loopConstruction = "Cross Corner"
@@ -62,13 +67,13 @@ export function constructionDefaults(construction: string, spec: QuoteSpecificat
     patch.loopGsm = loop.gsm
     patch.loopLength = loop.length
     patch.bodyStyle = "Non-Builder"
-  } else if (isUPanel(construction) || isFourPanel(construction)) {
+  } else if (isUPanel(construction) || isFourPanel(construction) || construction === "Buffle") {
     patch.loopConstruction = "Corner"
     patch.loopWidth =
       spec.bodyStyle === "Builder" || spec.bodyStyle === "Tunnel" ? "4" : "5"
     patch.loopGsm = panelLoopGrm(swl, spec.sfRatio)
     patch.loopLength = "30"
-    if (!spec.bodyStyle || spec.bodyStyle === "Standard") patch.bodyStyle = "Non-Builder"
+    if (!spec.bodyStyle || spec.bodyStyle === "Standard") patch.bodyStyle = styles[0] || "Non-Builder"
   }
 
   if (spec.bodyGrade === "Standard" || !spec.bodyGrade) patch.bodyGrade = "Std"
@@ -85,14 +90,24 @@ export function topTypeDefaults(topType: string, spec: QuoteSpecification): Part
       topSpoutType: "Simple",
       topSpoutDia: spec.topSpoutDia || "35",
       topSpoutHeight: spec.topSpoutHeight || "50",
-      topGsm: "70",
-      topLami: "25",
-      topSpoutGsm: "70",
-      topSpoutLami: "25",
+      topGsm: spec.sameFabricForPanels ? spec.topGsm : spec.topGsm || "70",
+      topLami: spec.sameFabricForPanels ? spec.topLami : spec.topLami || "25",
+      ...(spec.sameFabricForPanels
+        ? {}
+        : { topSpoutGsm: spec.topSpoutGsm || "70", topSpoutLami: spec.topSpoutLami || "25" }),
     }
   }
-  if (topType === "Duffle or Skrit" || topType === "Top + Skrit") {
+  if (topType === "Duffle or Skrit" || topType === "Top + Skrit" || topType === "Oversize Duffle or Skrit" || topType === "Leno" || topType === "Drawstring Skirt" || topType === "Jute Skirt") {
     return { topType, duffleHeight: spec.duffleHeight || duffle, topGsm: "70", topLami: "25" }
+  }
+  if (topType === "Conical Top" || topType === "Conical PlateTop") {
+    return {
+      topType,
+      topSpoutType: spec.topSpoutType || "Simple",
+      topSpoutDia: spec.topSpoutDia || "35",
+      topSpoutHeight: spec.topSpoutHeight || "50",
+      conicalTop: spec.conicalTop || spec.height,
+    }
   }
   return { topType }
 }
@@ -101,4 +116,26 @@ export function bottomGsmFromBody(construction: string, bodyGsm: string): string
   const gsm = Number.parseInt(bodyGsm, 10) || 0
   if (isCircular(construction) && gsm > 0) return String(gsm + 10)
   return bodyGsm
+}
+
+/** Copies body GSM/lami onto panels and spouts, matching mapper.same_fabric_for_panels. */
+export function sameFabricPatch(
+  spec: QuoteSpecification,
+  bodyGsm: string,
+  bodyLami: string,
+): Partial<QuoteSpecification> {
+  return {
+    bodyGsm,
+    bodyLami,
+    topGsm: bodyGsm,
+    topLami: bodyLami,
+    sideGsm: bodyGsm,
+    sideLami: bodyLami,
+    bottomGsm: bottomGsmFromBody(spec.constructionType, bodyGsm),
+    bottomLami: bodyLami,
+    topSpoutGsm: bodyGsm,
+    topSpoutLami: bodyLami,
+    bottomSpoutGsm: bodyGsm,
+    bottomSpoutLami: bodyLami,
+  }
 }

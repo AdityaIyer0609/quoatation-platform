@@ -198,3 +198,129 @@ def test_validation_requires_spout_sizes():
         raise AssertionError("expected validation error")
     except HTTPException as exc:
         assert exc.status_code == 422
+
+
+def test_bottom_rope_uses_erp_cut_plus_five():
+    result = preview_bom(
+        _spec(
+            loopEnabled=False,
+            sameFabricForPanels=False,
+            bottomRope=True,
+            bottomRopeGsm="10",
+            bottomRopeSize="10",
+            bottomRopeCut="20",
+            bottomRopeCount="1",
+        )
+    )
+    rope = _line(result, "Bottom Rope")
+    assert rope is not None
+    # cut = 20 + 5 = 25; kg = 25 * 10 * 1 / 100000
+    assert rope.cut_size == "25"
+    assert rope.total_kg == 0.0025
+
+
+def test_top_flap_inner_formula():
+    result = preview_bom(
+        _spec(
+            loopEnabled=False,
+            sameFabricForPanels=False,
+            sizeType="INNER",
+            length="90",
+            width="90",
+            topFlap=True,
+            topFlapGsm="180",
+            topFlapLami="0",
+            topFlapCount="1",
+        )
+    )
+    flap = _line(result, "Top Flap")
+    assert flap is not None
+    # fabric = 90+5=95; cut = 90+15=105; kg = 105*95*180 / 10_000_000
+    assert flap.fabric_size == "95"
+    assert flap.cut_size == "105"
+    assert flap.total_kg == 0.1796
+
+
+def test_hose_slider_fixed_weight():
+    result = preview_bom(_spec(loopEnabled=False, sameFabricForPanels=False, hoseSlider=True, hoseSliderCount="2"))
+    line = _line(result, "Hose Slider")
+    assert line is not None
+    assert line.total_kg == 0.01
+
+
+def test_top_rope_shows_type_and_color():
+    result = preview_bom(
+        _spec(
+            loopEnabled=False,
+            sameFabricForPanels=False,
+            topRope=True,
+            topRopeType="Braided Rope",
+            topRopeGsm="10",
+            topRopeSize="10",
+            topRopeColor="Milky White",
+            topRopeCount="1",
+        )
+    )
+    line = _line(result, "Top Rope")
+    assert line is not None
+    assert line.lamination == "Braided Rope"
+    assert line.colour == "Milky White"
+    # cut = 10*20+5 = 205; kg = 205*10*1 / 100000
+    assert line.cut_size == "205"
+    assert line.total_kg == 0.0205
+
+
+def test_belly_band_1_inner_formula():
+    result = preview_bom(
+        _spec(
+            loopEnabled=False,
+            sameFabricForPanels=False,
+            sizeType="INNER",
+            length="90",
+            width="90",
+            bellyBand1=True,
+            bellyBand1Gsm="40",
+            bellyBand1Size="5",
+        )
+    )
+    line = _line(result, "Belly Band 1")
+    assert line is not None
+    # cut = (90+90)*2+20 = 380; kg = 40*380/100000
+    assert line.cut_size == "380"
+    assert line.total_kg == 0.152
+
+
+def test_extra_doc_pouch_1_formula():
+    result = preview_bom(
+        _spec(
+            loopEnabled=False,
+            sameFabricForPanels=False,
+            docPouch1=True,
+            doc1Length="30",
+            doc1Width="22",
+            doc1Micron="80",
+            doc1Opening="Vertical Open",
+            doc1Type="Simple",
+            doc1Unit="CMS",
+            doc1Count="1",
+        )
+    )
+    line = _line(result, "DocPouch1")
+    assert line is not None
+    # fabric=30; cut=22+4=26; kg = 30*26*2*80*0.92 / 10_000_000
+    assert line.fabric_size == "30"
+    assert line.cut_size == "26"
+    assert line.total_kg == 0.0115
+
+
+def test_packing_and_party_go_to_instruction():
+    from app.services.bom.mapper import map_customer_spec
+
+    request = map_customer_spec(
+        _spec(partyName="Acme", packing="Bale", transport="20 ft", cableTie=True, cableTieCount="4")
+    )
+    assert "Party: Acme" in request.header.instruction
+    assert "Packing: Bale" in request.header.instruction
+    assert "Transport: 20 ft" in request.header.instruction
+    assert "Cable tie x4" in request.header.instruction
+

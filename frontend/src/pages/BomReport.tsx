@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
+import { BagPreview3D } from "@/components/quote/BagPreview3D"
 import { PricingBreakdown } from "@/components/quote/PricingBreakdown"
 import { Button } from "@/components/ui/button"
 import { useQuoteDraft } from "@/hooks/useQuoteDraft"
@@ -92,6 +93,10 @@ export default function BomReport() {
         <p className="mt-1 text-sm text-[var(--text-secondary)]">
           {preview.construction} · {preview.sizeType === "OUTER" ? "Outer" : "Inner"} size · {preview.dimensions}
         </p>
+      </div>
+
+      <div className="mb-5">
+        <BagPreview3D specification={specification} />
       </div>
 
       {preview.warnings?.length > 0 && (

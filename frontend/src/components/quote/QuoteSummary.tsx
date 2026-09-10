@@ -1,14 +1,17 @@
 import { ArrowRight } from "lucide-react"
 
+import { BagPreview3D } from "@/components/quote/BagPreview3D"
 import { Button } from "@/components/ui/button"
 import type { QuoteSpecification } from "@/types/quote"
 
 export function QuoteSummary({
   specification,
   onProceed,
+  onApplySample,
 }: {
   specification: QuoteSpecification
   onProceed: () => void
+  onApplySample?: () => void
 }) {
   const rows = [
     { label: "Product", value: specification.productType },
@@ -34,6 +37,9 @@ export function QuoteSummary({
         <div className="text-[11px] text-white/50">Material list is calculated on the next step</div>
       </div>
       <div className="px-5 py-4">
+        <div className="mb-4">
+          <BagPreview3D specification={specification} compact onApplySample={onApplySample} />
+        </div>
         <div className="mb-5 space-y-2">
           {rows.map((row) => (
             <div key={row.label} className="flex items-start justify-between gap-3">

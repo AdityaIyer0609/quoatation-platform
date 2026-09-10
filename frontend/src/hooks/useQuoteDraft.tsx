@@ -13,7 +13,7 @@ import {
   type QuoteSpecification,
 } from "@/types/quote"
 
-const DRAFT_KEY = "quotecraft.draft.v5"
+const DRAFT_KEY = "quotecraft.draft.v9"
 
 type DraftState = {
   specification: QuoteSpecification

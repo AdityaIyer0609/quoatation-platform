@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 
 import { StatusBadge } from "@/components/common/StatusBadge"
+import { BagPreview3D } from "@/components/quote/BagPreview3D"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -143,6 +144,7 @@ export default function QuoteDetails() {
     { label: "Product type", value: spec.productType },
     { label: "Category", value: spec.productCategory },
     { label: "Construction", value: spec.constructionType },
+    { label: "Body style", value: spec.bodyStyle },
     {
       label: "Dimensions",
       value: `${spec.length} × ${spec.width} × ${spec.height} cm`,
@@ -154,7 +156,19 @@ export default function QuoteDetails() {
     { label: "Bottom", value: spec.bottomType || spec.bottomConstruction || "—" },
     { label: "Loops", value: spec.loopEnabled === false ? "None" : spec.loopType || spec.loops || "—" },
     { label: "Liner", value: spec.linerEnabled ? `${spec.linerType} (${spec.linerMicron} µ)` : spec.liner || "None" },
+    { label: "Document pouch", value: spec.docPouch ? `${spec.docType || "Yes"}` : "None" },
+    { label: "Label", value: spec.label ? `${spec.labelLength}×${spec.labelWidth}` : "None" },
     { label: "Printing", value: spec.printing || "—" },
+    ...(spec.partyName ? [{ label: "Party", value: spec.partyName }] : []),
+    ...(spec.packing ? [{ label: "Packing", value: spec.packing }] : []),
+    ...(spec.transport ? [{ label: "Transport", value: spec.transport }] : []),
+    ...(spec.bellyBand1 ? [{ label: "Belly band 1", value: `${spec.bellyBand1Gsm} GPM` }] : []),
+    ...(spec.safetyBand ? [{ label: "Safety band", value: "Yes" }] : []),
+    ...(spec.fabricPatch ? [{ label: "Fabric patch", value: `${spec.fabricPatchGsm} GSM` }] : []),
+    ...(spec.docPouch1 ? [{ label: "Extra doc pouch 1", value: `${spec.doc1Length}×${spec.doc1Width}` }] : []),
+    ...(spec.extraLabel ? [{ label: "Extra label", value: `${spec.extraLabelCount}` }] : []),
+    ...(spec.bottomSpout2 ? [{ label: "2nd discharge spout", value: `${spec.bottomSpout2Dia} × ${spec.bottomSpout2Height}` }] : []),
+    ...(spec.cableTie ? [{ label: "Cable tie", value: spec.cableTieCount || "Yes" }] : []),
   ]
 
   const canAct = quote.status === "quoted"
@@ -229,6 +243,7 @@ export default function QuoteDetails() {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
+          <BagPreview3D specification={spec} />
           <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
             <div className="border-b border-[var(--border)] px-5 py-3.5">
               <h2 className="font-heading text-sm font-semibold">Product Configuration</h2>

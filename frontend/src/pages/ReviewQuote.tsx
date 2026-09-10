@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowRight, Pencil } from "lucide-react"
 import { useState, type ReactNode } from "react"
 import { useNavigate } from "react-router-dom"
 
+import { BagPreview3D } from "@/components/quote/BagPreview3D"
 import { Button } from "@/components/ui/button"
 import { useQuoteDraft } from "@/hooks/useQuoteDraft"
 import { usePortalPaths } from "@/lib/portal"
@@ -36,7 +37,7 @@ export default function ReviewQuote() {
   }
 
   return (
-    <div className="mx-auto max-w-[760px] p-6 pb-32 md:p-8 md:pb-8">
+    <div className="mx-auto max-w-[880px] p-6 pb-32 md:p-8 md:pb-8">
       <div className="mb-6">
         <div className="mb-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
           <button type="button" onClick={() => navigate(paths.dashboard)}>
@@ -55,6 +56,10 @@ export default function ReviewQuote() {
         </p>
       </div>
 
+      <div className="mb-5">
+        <BagPreview3D specification={specification} />
+      </div>
+
       <div className="space-y-4">
         <Section title="Product" onEdit={() => edit(1)}>
           <Row label="Product type" value={specification.productType} />
@@ -67,6 +72,8 @@ export default function ReviewQuote() {
           <Row label="Size type" value={specification.sizeType} />
           <Row label="Top" value={specification.topType} />
           <Row label="Bottom" value={specification.bottomType} />
+          {specification.doubleFoldTop ? <Row label="Double-fold top" value="Yes" /> : null}
+          {specification.doubleFoldBottom ? <Row label="Double-fold bottom" value="Yes" /> : null}
         </Section>
         <Section title="Specifications" onEdit={() => edit(3)}>
           <Row
@@ -77,9 +84,29 @@ export default function ReviewQuote() {
           <Row label="Safety factor" value={specification.sfRatio} />
           <Row label="Body GSM" value={`${specification.bodyGsm} g/m²`} />
           <Row label="Lamination" value={`${specification.bodyLami} g/m²`} />
+          <Row label="Fabric colour" value={specification.fabricColour} />
+          {!specification.sameFabricForPanels ? (
+            <>
+              <Row label="Top GSM" value={`${specification.topGsm || specification.bodyGsm} g/m²`} />
+              <Row label="Bottom GSM" value={`${specification.bottomGsm || specification.bodyGsm} g/m²`} />
+              <Row label="Side GSM" value={`${specification.sideGsm || specification.bodyGsm} g/m²`} />
+            </>
+          ) : (
+            <Row label="Panel fabric" value="Same as body" />
+          )}
+          {specification.threadType ? (
+            <Row label="Thread" value={`${specification.threadType} / ${specification.threadColour}`} />
+          ) : null}
         </Section>
         <Section title="Components" onEdit={() => edit(4)}>
           <Row label="Loops" value={specification.loopEnabled ? specification.loopType : "None"} />
+          {specification.loopEnabled ? (
+            <Row
+              label="Loop spec"
+              value={`${specification.loopConstruction}, ${specification.loopGsm} GSM, ${specification.loopLength}×${specification.loopWidth} cm × ${specification.loopCount}`}
+            />
+          ) : null}
+          {specification.dropLoop ? <Row label="Drop loop" value={`${specification.dropLoopLength || "Yes"} cm`} /> : null}
           {specification.book4Complication ? (
             <Row label="Book4 conversion type" value={specification.book4Complication} />
           ) : null}
@@ -91,6 +118,51 @@ export default function ReviewQuote() {
                 : "None"
             }
           />
+          {specification.docPouch ? (
+            <Row
+              label="Document pouch"
+              value={`${specification.docType} / ${specification.docOpening} (${specification.docLength}×${specification.docWidth} ${specification.docUnit})`}
+            />
+          ) : (
+            <Row label="Document pouch" value="None" />
+          )}
+          {specification.label ? (
+            <Row
+              label="Label"
+              value={`${specification.labelLength}×${specification.labelWidth}, ${specification.labelMicron} µ`}
+            />
+          ) : (
+            <Row label="Label" value="None" />
+          )}
+          {specification.fillerCord ? <Row label="Filler cord" value={`${specification.fillerCordGpm} GPM`} /> : null}
+          {specification.topRope ? <Row label="Top rope" value={`${specification.topRopeType}, ${specification.topRopeGsm} GPM × ${specification.topRopeCount}`} /> : null}
+          {specification.bottomRope ? <Row label="Bottom rope" value={`${specification.bottomRopeType}, ${specification.bottomRopeGsm} GPM × ${specification.bottomRopeCount}`} /> : null}
+          {specification.topFlap ? <Row label="Top flap" value={`${specification.topFlapGsm} GSM × ${specification.topFlapCount}`} /> : null}
+          {specification.bottomFlap ? <Row label="Bottom flap" value={`${specification.bottomFlapGsm} GSM × ${specification.bottomFlapCount}`} /> : null}
+          {specification.felt ? <Row label="Felt" value="Yes" /> : null}
+          {specification.innerSkin ? <Row label="Inner skin" value={`${specification.innerSkinGsm} GSM`} /> : null}
+          {specification.bellyBand1 ? <Row label="Belly band 1" value={`${specification.bellyBand1Gsm} GPM`} /> : null}
+          {specification.bellyBand2 ? <Row label="Belly band 2" value={`${specification.bellyBand2Gsm} GPM`} /> : null}
+          {specification.topBottomBand ? <Row label="Top–bottom band" value={`${specification.topBottomBandGsm} GPM`} /> : null}
+          {specification.safetyBand ? <Row label="Safety band" value="Yes" /> : null}
+          {specification.steveCover ? <Row label="Stevedore cover" value={`${specification.steveCoverLength} × ${specification.steveCoverCount}`} /> : null}
+          {specification.fabricPatch ? <Row label="Fabric patch" value={`${specification.fabricPatchGsm} GSM`} /> : null}
+          {specification.innerTop ? <Row label="Inner top" value={`${specification.innerTopGsm} GSM`} /> : null}
+          {specification.innerBottom ? <Row label="Inner bottom" value={`${specification.innerBottomGsm} GSM`} /> : null}
+          {specification.docPouch1 ? <Row label="Extra doc pouch 1" value={`${specification.doc1Length}×${specification.doc1Width}`} /> : null}
+          {specification.docPouch2 ? <Row label="Extra doc pouch 2" value={`${specification.doc2Length}×${specification.doc2Width}`} /> : null}
+          {specification.extraLabel ? <Row label="Extra label" value={`${specification.extraLabelLength}×${specification.extraLabelWidth} × ${specification.extraLabelCount}`} /> : null}
+          {specification.extraLabel1 ? <Row label="Extra label 1" value={`${specification.extraLabel1Length}×${specification.extraLabel1Width}`} /> : null}
+          {specification.extraLabel2 ? <Row label="Extra label 2" value={`${specification.extraLabel2Length}×${specification.extraLabel2Width}`} /> : null}
+          {specification.extraLabel3 ? <Row label="Extra label 3" value={`${specification.extraLabel3Length}×${specification.extraLabel3Width}`} /> : null}
+          {specification.bottomSpout2 ? <Row label="2nd discharge spout" value={`${specification.bottomSpout2Dia} × ${specification.bottomSpout2Height}`} /> : null}
+          {specification.bottomSpout3 ? <Row label="3rd discharge spout" value={`${specification.bottomSpout3Dia} × ${specification.bottomSpout3Height}`} /> : null}
+          {specification.cableTie ? <Row label="Cable tie" value={specification.cableTieCount || "Yes"} /> : null}
+          {specification.topVelcro ? <Row label="Top velcro" value="Yes" /> : null}
+          {specification.bottomVelcro ? <Row label="Bottom velcro" value="Yes" /> : null}
+          {specification.partyName ? <Row label="Party" value={specification.partyName} /> : null}
+          {specification.packing ? <Row label="Packing" value={specification.packing} /> : null}
+          {specification.transport ? <Row label="Transport" value={specification.transport} /> : null}
           <Row label="Printing" value={specification.printing || "None"} />
           <Row label="Quantity" value={`${specification.quantity} bags`} />
         </Section>
