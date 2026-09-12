@@ -6,6 +6,7 @@ import { ForgotPasswordForm } from "@/components/login/ForgotPasswordForm"
 import { LoginForm } from "@/components/login/LoginForm"
 import { QuoteCraftMark } from "@/components/login/QuoteCraftMark"
 import { ResetSent } from "@/components/login/ResetSent"
+import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { useAuth } from "@/hooks/useAuth"
 import { api } from "@/services/api"
 
@@ -47,10 +48,13 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="relative flex min-h-screen">
+      <div className="absolute top-5 right-5 z-10">
+        <ThemeToggle />
+      </div>
       <BrandPanel />
       <div className="flex flex-1 items-center justify-center p-8">
-        <div className="w-full max-w-[360px]">
+        <div className="qc-card qc-rise w-full max-w-[400px] p-8 sm:p-9">
           <div className="mb-10 flex items-center gap-2.5 lg:hidden">
             <QuoteCraftMark className="size-7 text-xs" />
             <span className="font-heading text-sm font-semibold">QuoteCraft</span>

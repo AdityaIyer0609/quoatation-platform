@@ -17,14 +17,14 @@ export default function SalesApprovals() {
   }, [])
 
   return (
-    <div className="mx-auto max-w-[960px] p-6 md:p-8">
+    <div className="qc-page max-w-[960px]">
       <h1 className="font-heading text-xl font-bold">Manual pricing</h1>
       <p className="mt-1 text-sm text-[var(--text-secondary)]">
         Frozen Book4 snapshots are not recalculated. Approve or resolve the commercial exception.
       </p>
       <ul className="mt-6 space-y-4">
         {rows.map((row) => (
-          <li key={String(row.id)} className="rounded-lg border border-[var(--border)] p-4">
+          <li key={String(row.id)} className="qc-card p-5">
             <div className="flex items-center justify-between">
               <Link className="font-medium text-[var(--navy)]" to={`/sales/quotes/${row.id}`}>{String(row.number)}</Link>
               <span className="text-xs">{String(row.manualPricingStatus ?? "pending")}</span>

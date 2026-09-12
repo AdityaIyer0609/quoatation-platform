@@ -39,7 +39,7 @@ export default function SalesCustomerDetail() {
   if (!customer) return <div className="p-8 text-sm">Loading…</div>
 
   return (
-    <div className="mx-auto max-w-[960px] p-6 md:p-8">
+    <div className="qc-page max-w-[960px]">
       <Link to="/sales/customers" className="text-xs text-[var(--navy)]">Back to customers</Link>
       <h1 className="font-heading mt-2 text-xl font-bold">{String(customer.company || customer.email)}</h1>
       <p className="text-sm text-[var(--text-secondary)]">
@@ -75,7 +75,7 @@ export default function SalesCustomerDetail() {
       <ul className="space-y-2">
         {quotes.map((item) => (
           <li key={String(item.id)}>
-            <Link to={`/sales/quotes/${item.id}`} className="flex items-center justify-between rounded-md border border-[var(--border)] px-3 py-2 text-sm">
+            <Link to={`/sales/quotes/${item.id}`} className="qc-row-card flex items-center justify-between rounded-2xl border border-[var(--border)] px-3 py-2 text-sm">
               <span>{String(item.number)} · {formatQuoteAmount(item.requiresManualPricing ? null : (item.amount as number | null))}</span>
               <StatusBadge status={item.status as never} />
             </Link>

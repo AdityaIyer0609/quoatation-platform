@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { fieldClassName } from "@/components/login/fieldStyles"
+import { AppearancePicker } from "@/components/layout/ThemeToggle"
 import { useAuth } from "@/hooks/useAuth"
 import { api } from "@/services/api"
 import type { CustomerProfile } from "@/types/quote"
@@ -68,20 +69,29 @@ export default function Profile() {
   }
 
   return (
-    <div className="mx-auto max-w-[720px] p-6 md:p-8">
+    <div className="qc-page max-w-[720px]">
       <h1 className="font-heading mb-1 text-xl font-bold">Profile & Company</h1>
       <p className="mb-7 text-sm text-[var(--text-secondary)]">
         Your account and company information used in quotations
       </p>
 
+      <section className="qc-card mb-6 overflow-hidden">
+        <div className="border-b border-[var(--border)] px-5 py-3.5">
+          <h2 className="font-heading text-sm font-semibold">Appearance</h2>
+        </div>
+        <div className="px-5 py-5">
+          <AppearancePicker />
+        </div>
+      </section>
+
       {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
+        <div className="mb-4 rounded-md border border-[var(--error-border)] bg-[var(--error-bg)] px-3 py-2 text-sm text-[var(--error)]">
           {error}
         </div>
       )}
 
       <form onSubmit={handleSave} className="space-y-6">
-        <div className="flex items-center gap-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
+        <div className="qc-card flex items-center gap-4 p-5">
           <div className="font-heading flex size-14 shrink-0 items-center justify-center rounded-full bg-[var(--navy-muted)] text-lg font-semibold text-white">
             {profile.firstName[0]}
             {profile.lastName[0]}
@@ -99,7 +109,7 @@ export default function Profile() {
           </div>
         </div>
 
-        <section className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+        <section className="qc-card overflow-hidden">
           <div className="border-b border-[var(--border)] px-5 py-3.5">
             <h2 className="font-heading text-sm font-semibold">Personal Information</h2>
           </div>
@@ -146,7 +156,7 @@ export default function Profile() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+        <section className="qc-card overflow-hidden">
           <div className="border-b border-[var(--border)] px-5 py-3.5">
             <h2 className="font-heading text-sm font-semibold">Company Information</h2>
           </div>
@@ -225,7 +235,7 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="rounded-lg border border-[var(--error-border)] bg-[var(--error-bg)] p-5">
+        <div className="qc-card border-[var(--error-border)] bg-[var(--error-bg)] p-5">
           <div className="font-heading mb-1 text-sm font-semibold text-[var(--error)]">
             Account actions
           </div>

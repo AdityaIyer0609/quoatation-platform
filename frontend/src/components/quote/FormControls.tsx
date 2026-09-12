@@ -22,10 +22,10 @@ export function OptionChips({
             type="button"
             onClick={() => onChange(option)}
             className={cn(
-              "font-heading rounded px-3 py-1.5 text-sm font-medium",
+              "font-heading rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-200",
               active
-                ? "border-[1.5px] border-[var(--navy)] bg-[var(--navy-bg)] text-[var(--navy)]"
-                : "border-[1.5px] border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)]",
+                ? "border-[1.5px] border-[var(--navy)] bg-[var(--navy)] text-white shadow-[var(--shadow-navy)]"
+                : "border-[1.5px] border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:-translate-y-px hover:border-[var(--navy-border)] hover:text-[var(--navy)] hover:shadow-sm",
             )}
           >
             {option}
@@ -60,10 +60,10 @@ export function CheckboxChips({
             type="button"
             onClick={() => toggle(option)}
             className={cn(
-              "font-heading flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium",
+              "font-heading flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
               checked
-                ? "border-[1.5px] border-[var(--navy)] bg-[var(--navy-bg)] text-[var(--navy)]"
-                : "border-[1.5px] border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)]",
+                ? "border-[1.5px] border-[var(--navy)] bg-[var(--navy)] text-white"
+                : "border-[1.5px] border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:border-[var(--navy-border)] hover:text-[var(--navy)]",
             )}
           >
             <span
@@ -100,7 +100,7 @@ export function FormSelect({
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="w-full appearance-none rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 pr-8 text-sm outline-none focus:border-[var(--navy)] focus:ring-[3px] focus:ring-[var(--navy-bg)]"
+      className="w-full appearance-none rounded-2xl border border-[var(--border)] bg-[var(--bg)] px-3.5 py-3 pr-8 text-sm outline-none transition-all duration-200 hover:border-[var(--navy-border)] focus:border-[var(--navy)] focus:bg-[var(--surface)] focus:ring-[4px] focus:ring-[var(--navy-bg)]"
     >
       {placeholder ? (
         <option value="">{placeholder}</option>
@@ -153,8 +153,13 @@ export function CheckRow({
   children: ReactNode
 }) {
   return (
-    <label className="flex items-center gap-2 text-sm">
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+    <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-transparent bg-[var(--bg)] px-4 py-3 text-sm text-[var(--text)] shadow-[inset_0_0_0_1px_var(--border)] transition-all duration-200 hover:shadow-[inset_0_0_0_1px_var(--navy-border),0_8px_20px_rgba(26,60,94,0.06)]">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="size-4 rounded border-[var(--border-strong)] text-[var(--navy)] accent-[var(--navy)]"
+      />
       {children}
     </label>
   )
@@ -168,7 +173,7 @@ export function FieldLabel({
   optional?: boolean
 }) {
   return (
-    <label className="font-heading mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
+    <label className="font-heading mb-2 flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase">
       {children}
       {optional && (
         <span className="font-normal text-[var(--text-muted)]">(optional)</span>

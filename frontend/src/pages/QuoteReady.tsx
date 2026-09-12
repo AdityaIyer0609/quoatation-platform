@@ -55,9 +55,9 @@ export default function QuoteReady() {
   const spec = quote.specification
 
   return (
-    <div className="mx-auto max-w-[680px] p-6 md:p-8">
+    <div className="qc-page max-w-[680px]">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full border border-[var(--success-border)] bg-[var(--success-bg)]">
+        <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full border border-[var(--success-border)] bg-[var(--success-bg)] shadow-[var(--shadow-md)]">
           <Check className="size-6 text-[var(--success)]" />
         </div>
         <h1 className="font-heading mb-1.5 text-2xl font-bold">

@@ -1,7 +1,8 @@
 import { Download } from "lucide-react"
 import { useEffect, useState } from "react"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 
+import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb"
 import { StatusBadge } from "@/components/common/StatusBadge"
 import { BagPreview3D } from "@/components/quote/BagPreview3D"
 import { Button } from "@/components/ui/button"
@@ -176,18 +177,14 @@ export default function QuoteDetails() {
   const currentVersion = quote.currentVersion ?? quote.versions.at(-1)?.version ?? 1
 
   return (
-    <div className="mx-auto max-w-[960px] p-6 md:p-8">
-      <div className="mb-5 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-        <Link to="/dashboard" className="text-[var(--text-secondary)]">
-          Dashboard
-        </Link>
-        <span>/</span>
-        <Link to="/quotes" className="text-[var(--text-secondary)]">
-          My Quotes
-        </Link>
-        <span>/</span>
-        <span>{quote.number}</span>
-      </div>
+    <div className="qc-page max-w-[960px]">
+      <PageBreadcrumb
+        items={[
+          { label: "Dashboard", to: "/dashboard" },
+          { label: "My Quotes", to: "/quotes" },
+          { label: quote.number },
+        ]}
+      />
 
       {actionError && (
         <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
@@ -244,7 +241,7 @@ export default function QuoteDetails() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           <BagPreview3D specification={spec} />
-          <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+          <div className="qc-card overflow-hidden">
             <div className="border-b border-[var(--border)] px-5 py-3.5">
               <h2 className="font-heading text-sm font-semibold">Product Configuration</h2>
             </div>
@@ -263,7 +260,7 @@ export default function QuoteDetails() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+          <div className="qc-card overflow-hidden">
             <div className="border-b border-[var(--border)] px-5 py-3.5">
               <h2 className="font-heading text-sm font-semibold">Quote History</h2>
             </div>
@@ -298,13 +295,13 @@ export default function QuoteDetails() {
           </div>
 
           {quote.versions.length > 0 && (
-            <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+            <div className="qc-card overflow-hidden">
               <div className="border-b border-[var(--border)] px-5 py-3.5">
                 <h2 className="font-heading text-sm font-semibold">Versions</h2>
               </div>
               <div className="divide-y divide-[var(--border)] px-5 py-2">
                 {quote.versions.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between py-2.5 text-sm">
+                  <div key={item.id} className="qc-row-card flex items-center justify-between px-2 py-2.5 text-sm">
                     <div>
                       <span className="font-medium">V{item.version}</span>
                       {item.isCurrent ? (
@@ -323,7 +320,7 @@ export default function QuoteDetails() {
         </div>
 
         <div className="space-y-5">
-          <div className="overflow-hidden rounded-lg bg-[var(--navy)]">
+          <div className="overflow-hidden rounded-3xl bg-[var(--navy)] shadow-[var(--shadow-navy)]">
             <div className="px-5 py-5">
               <div className="font-heading mb-3 text-xs text-white/60">TOTAL QUOTATION</div>
               {quote.pricing.requiresManualPricing || quote.pricing.unitPrice == null ? (
@@ -361,7 +358,7 @@ export default function QuoteDetails() {
                 <Button
                   type="button"
                   onClick={() => setAcceptOpen(true)}
-                  className="font-heading mt-5 h-auto w-full rounded-md bg-white py-2.5 text-sm font-semibold text-[var(--navy)] hover:bg-white/90"
+                  className="font-heading mt-5 h-auto w-full rounded-md bg-[var(--knob)] py-2.5 text-sm font-semibold text-[var(--navy)] hover:opacity-90"
                 >
                   Accept this quotation
                 </Button>
@@ -370,7 +367,7 @@ export default function QuoteDetails() {
           </div>
 
           {quote.pricingSnapshot && (
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
+            <div className="qc-card p-5">
               <h3 className="font-heading mb-3 text-xs font-semibold text-[var(--text-muted)]">
                 PRICING
               </h3>
@@ -378,7 +375,7 @@ export default function QuoteDetails() {
             </div>
           )}
 
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div className="qc-card p-5">
             <h3 className="font-heading mb-3 text-xs font-semibold text-[var(--text-muted)]">
               QUOTE INFORMATION
             </h3>

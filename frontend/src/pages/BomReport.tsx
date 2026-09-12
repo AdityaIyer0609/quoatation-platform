@@ -2,6 +2,8 @@ import { ArrowLeft } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
+import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb"
+import { ClickRow } from "@/components/common/ClickRow"
 import { BagPreview3D } from "@/components/quote/BagPreview3D"
 import { PricingBreakdown } from "@/components/quote/PricingBreakdown"
 import { Button } from "@/components/ui/button"
@@ -76,19 +78,15 @@ export default function BomReport() {
   }
 
   return (
-    <div className="mx-auto max-w-[960px] p-6 md:p-8">
+    <div className="qc-page max-w-[960px]">
       <div className="mb-6">
-        <div className="mb-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-          <button type="button" onClick={() => navigate(paths.dashboard)}>
-            Dashboard
-          </button>
-          <span>/</span>
-          <button type="button" onClick={() => navigate(paths.review)}>
-            Review
-          </button>
-          <span>/</span>
-          <span>Material list</span>
-        </div>
+        <PageBreadcrumb
+          items={[
+            { label: "Dashboard", onClick: () => navigate(paths.dashboard) },
+            { label: "Review", onClick: () => navigate(paths.review) },
+            { label: "Material list" },
+          ]}
+        />
         <h1 className="font-heading text-xl font-bold">Material list</h1>
         <p className="mt-1 text-sm text-[var(--text-secondary)]">
           {preview.construction} · {preview.sizeType === "OUTER" ? "Outer" : "Inner"} size · {preview.dimensions}
@@ -100,14 +98,14 @@ export default function BomReport() {
       </div>
 
       {preview.warnings?.length > 0 && (
-        <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <div className="qc-card mb-4 border-[var(--warning-border)] bg-[var(--warning-bg)] px-3 py-2 text-sm text-[var(--warning)]">
           {preview.warnings.join(" ")}
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-[var(--border)] bg-[var(--bg)] text-xs text-[var(--text-muted)]">
+      <div className="qc-card qc-table-card px-2">
+        <table className="qc-table text-left text-sm">
+          <thead className="text-xs text-[var(--text-muted)]">
             <tr>
               <th className="px-4 py-3 font-medium">Component</th>
               <th className="px-4 py-3 font-medium">GSM</th>
@@ -119,7 +117,7 @@ export default function BomReport() {
           </thead>
           <tbody>
             {preview.lines.map((line) => (
-              <tr key={line.heading} className="border-b border-[var(--border)] last:border-0">
+              <ClickRow key={line.heading}>
                 <td className="px-4 py-2.5 font-medium">{line.heading}</td>
                 <td className="px-4 py-2.5">{line.gsm || "—"}</td>
                 <td className="px-4 py-2.5">{line.lamination || "—"}</td>
@@ -128,7 +126,7 @@ export default function BomReport() {
                 <td className="font-quote-mono px-4 py-2.5 text-right">
                   {line.totalKg != null ? line.totalKg.toFixed(4) : "—"}
                 </td>
-              </tr>
+              </ClickRow>
             ))}
           </tbody>
         </table>

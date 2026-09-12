@@ -1,5 +1,5 @@
 import { Search } from "lucide-react"
-import { useMemo, useState, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 
 import { fieldClassName } from "@/components/login/fieldStyles"
 import { FieldLabel, FormSelect, GsmLamiFields } from "@/components/quote/FormControls"
@@ -21,8 +21,12 @@ import {
   ROPE_SIZES,
   ROPE_TYPES,
   STEVEDORE_PORTIONS,
+  THREAD_NEEDLES,
+  THREAD_TYPES,
+  TUNNEL_DESIGNS,
 } from "@/lib/erpCatalog"
 import { cn } from "@/lib/utils"
+import type { ErpBomTabId } from "@/lib/erpBomTabs"
 import type { QuoteSpecification } from "@/types/quote"
 
 type DraftApi = {
@@ -142,15 +146,14 @@ function ExtraCard({
     <div
       id={id}
       className={cn(
-        "relative scroll-mt-28 overflow-hidden rounded-xl border bg-white transition-[border-color,box-shadow] duration-150",
+        "relative overflow-hidden rounded-2xl border bg-[var(--surface)] transition-all duration-200",
         on
-          ? "border-[var(--navy-border)] shadow-[0_10px_28px_rgba(26,60,94,0.08)]"
-          : "border-[var(--border)] hover:border-[var(--navy-border)] hover:shadow-[0_6px_18px_rgba(17,17,16,0.04)]",
+          ? "border-[var(--navy-border)] bg-[var(--navy-bg)] shadow-[var(--shadow-lg)]"
+          : "border-[var(--border)] hover:-translate-y-px hover:border-[var(--navy-border)] hover:shadow-[var(--shadow)]",
         className,
       )}
     >
-      {on ? <div className="absolute inset-y-0 left-0 w-[3px] bg-[var(--navy)]" /> : null}
-      <div className={cn("flex items-center gap-3.5 py-3.5 pr-4", on || locked ? "pl-5" : "pl-4")}>
+      <div className={cn("flex items-center gap-3.5 px-4 py-3.5 pr-4")}>
         {!locked ? (
           <button
             type="button"
@@ -158,14 +161,14 @@ function ExtraCard({
             aria-checked={on}
             onClick={() => onToggle?.(!on)}
             className={cn(
-              "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-              on ? "bg-[var(--navy)]" : "bg-[var(--border-strong)]",
+              "relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200",
+              on ? "bg-[var(--navy)] shadow-[var(--shadow-navy)]" : "bg-[var(--border-strong)]",
             )}
           >
             <span
               className={cn(
-                "absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform",
-                on ? "left-[22px]" : "left-0.5",
+                "absolute top-0.5 left-0.5 size-5 rounded-full bg-[var(--knob)] shadow-sm transition-transform duration-200 ease-out",
+                on ? "translate-x-[22px]" : "translate-x-0",
               )}
             />
           </button>
@@ -209,7 +212,7 @@ function PositionChips({
             "font-heading rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
             option.checked
               ? "border border-[var(--navy)] bg-[var(--navy)] text-white"
-              : "border border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--navy-border)] hover:text-[var(--navy)]",
+              : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:border-[var(--navy-border)] hover:text-[var(--navy)]",
           )}
         >
           {option.label}
@@ -229,60 +232,13 @@ type CatalogItem = {
   body?: ReactNode
 }
 
-export function ErpExtras({ specification: spec, update }: DraftApi) {
+export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab: ErpBomTabId }) {
   const [query, setQuery] = useState("")
-
-  const selected = useMemo(
-    () =>
-      [
-        spec.topTie && "Top tie",
-        spec.topRope && "Top rope",
-        spec.bottomTie && "Bottom tie",
-        spec.bottomRope && "Bottom rope",
-        spec.topSpoutRope && "Filling-spout rope",
-        spec.bottomSpoutRope && "Discharge-spout rope",
-        spec.topFlap && "Top flap",
-        spec.bottomFlap && "Bottom flap",
-        spec.topHook && "Top hook",
-        spec.bottomHook && "Bottom hook",
-        spec.bottomLoop && "Bottom loop",
-        spec.loopProtector && "Loop protector",
-        spec.loopCover && "Loop cover",
-        spec.felt && "Felt",
-        spec.mfWeb && "MF webbing",
-        spec.innerSkin && "Inner skin",
-        spec.innerBox && "Inner box",
-        spec.innerTop && "Inner top",
-        spec.innerBottom && "Inner bottom",
-        spec.fabricPatch && "Fabric patch",
-        spec.topBand && "Top band",
-        spec.stevedore && "Stevedore",
-        spec.ancerie && "Anchor loop",
-        spec.hoseSlider && "Hose slider",
-        spec.bellyBand1 && "Belly band 1",
-        spec.bellyBand2 && "Belly band 2",
-        spec.topBottomBand && "Top–bottom band",
-        spec.safetyBand && "Safety band",
-        spec.steveCover && "Stevedore cover",
-        spec.docPouch1 && "Doc pouch 1",
-        spec.docPouch2 && "Doc pouch 2",
-        spec.extraLabel && "Extra label",
-        spec.extraLabel1 && "Extra label 1",
-        spec.extraLabel2 && "Extra label 2",
-        spec.extraLabel3 && "Extra label 3",
-        spec.bottomSpout2 && "2nd discharge",
-        spec.bottomSpout3 && "3rd discharge",
-        spec.cableTie && "Cable tie",
-        spec.topVelcro && "Top velcro",
-        spec.bottomVelcro && "Bottom velcro",
-      ].filter((item): item is string => Boolean(item)),
-    [spec],
-  )
 
   const rope: CatalogItem[] = [
     {
       id: "extra-top-tie",
-      title: "Top tie",
+      title: "TopTie",
       on: spec.topTie,
       search: "top tie bag",
       summary: `${spec.topTieGsm || "—"} grm · ${spec.topTieSize || "—"} · ×${spec.topTieCount}`,
@@ -306,7 +262,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-top-rope",
-      title: "Top rope",
+      title: "Top Rope",
       on: spec.topRope,
       search: "top rope braided",
       summary: `${spec.topRopeType} · ${spec.topRopeGsm || "—"} grm · ×${spec.topRopeCount}`,
@@ -332,7 +288,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-bottom-tie",
-      title: "Bottom tie",
+      title: "Bottom Tie",
       on: spec.bottomTie,
       search: "bottom tie bag",
       summary: `${spec.bottomTieGsm || "—"} grm · ${spec.bottomTieSize || "—"} · ×${spec.bottomTieCount}`,
@@ -356,7 +312,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-bottom-rope",
-      title: "Bottom rope",
+      title: "Bottom Rope",
       on: spec.bottomRope,
       search: "bottom rope braided",
       summary: `${spec.bottomRopeType} · ${spec.bottomRopeGsm || "—"} grm · ×${spec.bottomRopeCount}`,
@@ -382,7 +338,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-fs-rope",
-      title: "Filling-spout rope",
+      title: "TopSpout Rope",
       on: spec.topSpoutRope,
       search: "filling spout rope petal",
       summary: `${spec.topSpoutRopeType} · ${spec.topSpoutRopeGsm || "—"} grm`,
@@ -419,7 +375,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-ds-rope",
-      title: "Discharge-spout rope",
+      title: "Bottom Spout Rope",
       on: spec.bottomSpoutRope,
       search: "discharge spout rope petal",
       summary: `${spec.bottomSpoutRopeType} · ${spec.bottomSpoutRopeGsm || "—"} grm`,
@@ -451,6 +407,71 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
             gsmOptions={[...GSM_OPTIONS]}
             lamiOptions={[...LAMI_OPTIONS]}
           />
+        </div>
+      ),
+    },
+    {
+      id: "extra-ds-tie",
+      title: "Bottom Spout Tie",
+      on: spec.bottomSpoutTie,
+      search: "bottom spout tie",
+      summary: `${spec.bottomSpoutTieGsm || "—"} grm · ${spec.bottomSpoutTieSize || "—"} · ×${spec.bottomSpoutTieCount}`,
+      body: (
+        <ExtraRow
+          grm={spec.bottomSpoutTieGsm || "0"}
+          onGrm={(value) => update("bottomSpoutTieGsm", value)}
+          grmLabel="Tie grm"
+          size={spec.bottomSpoutTieSize}
+          onSize={(value) => update("bottomSpoutTieSize", value)}
+          sizeOptions={ROPE_SIZE_10_25}
+          count={spec.bottomSpoutTieCount}
+          onCount={(value) => update("bottomSpoutTieCount", value)}
+          countLabel="No (Tie)"
+          remarks={spec.bottomSpoutTieRemarks}
+          onRemarks={(value) => update("bottomSpoutTieRemarks", value)}
+        />
+      ),
+    },
+    {
+      id: "extra-thread",
+      title: "Thread",
+      on: spec.threadEnabled,
+      search: "thread sewing hiracle",
+      summary: spec.threadType,
+      body: (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-4">
+            <Labeled label="Type">
+              <FormSelect value={spec.threadType} onChange={(value) => update("threadType", value)} options={[...THREAD_TYPES]} />
+            </Labeled>
+            <Labeled label="Color">
+              <FormSelect value={spec.threadColour} onChange={(value) => update("threadColour", value)} options={[...COLOURS]} />
+            </Labeled>
+            <Labeled label="Needle">
+              <FormSelect value={spec.threadNeedle} onChange={(value) => update("threadNeedle", value)} options={[...THREAD_NEEDLES]} />
+            </Labeled>
+            <Labeled label="Denier">
+              <Input value={spec.threadDenier} onChange={(event) => update("threadDenier", event.target.value)} className={fieldClassName} />
+            </Labeled>
+          </div>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={spec.hiracleTop}
+                onChange={(event) => update("hiracleTop", event.target.checked)}
+              />
+              Top
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={spec.hiracleBottom}
+                onChange={(event) => update("hiracleBottom", event.target.checked)}
+              />
+              Bottom
+            </label>
+          </div>
         </div>
       ),
     },
@@ -486,7 +507,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-bottom-flap",
-      title: "Bottom flap",
+      title: "Bottom Flap",
       on: spec.bottomFlap,
       search: "bottom flap",
       summary: `${spec.bottomFlapGsm || spec.bodyGsm} GSM · ${spec.bottomFlapColor}`,
@@ -513,7 +534,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-top-hook",
-      title: "Top flap hook",
+      title: "Top Hook",
       on: spec.topHook,
       search: "top hook flap",
       summary: `${spec.topHookGsm || "—"} grm · cut ${spec.topHookCut || "—"}`,
@@ -536,7 +557,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-bottom-hook",
-      title: "Bottom flap hook",
+      title: "Bottom Hook",
       on: spec.bottomHook,
       search: "bottom hook flap",
       summary: `${spec.bottomHookGsm || "—"} grm · cut ${spec.bottomHookCut || "—"}`,
@@ -559,7 +580,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-bottom-loop",
-      title: "Bottom loop",
+      title: "Bottom Loop",
       on: spec.bottomLoop,
       search: "bottom loop",
       summary: `${spec.bottomLoopGsm || "—"} GSM · ${spec.bottomLoopLength || "—"}×${spec.bottomLoopWidth || "—"}`,
@@ -582,7 +603,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-loop-protector",
-      title: "Loop protector",
+      title: "Loop Proctector",
       on: spec.loopProtector,
       search: "loop protector sleeve webbing",
       summary: spec.loopProtectorType,
@@ -607,7 +628,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-loop-cover",
-      title: "Loop cover",
+      title: "Loop Cover",
       on: spec.loopCover,
       search: "loop cover",
       summary: `${spec.loopCoverGsm || "—"} GSM · cut ${spec.loopCoverCut || "—"}`,
@@ -632,8 +653,34 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
       ),
     },
     {
+      id: "extra-tunnel",
+      title: "Tunnel",
+      on: spec.tunnel,
+      search: "tunnel design",
+      summary: spec.tunnelDesign || "Flexcon",
+      body: (
+        <div className="space-y-3">
+          <Labeled label="Design">
+            <FormSelect
+              value={spec.tunnelDesign || "Flexcon"}
+              onChange={(value) => update("tunnelDesign", value)}
+              options={[...TUNNEL_DESIGNS]}
+            />
+          </Labeled>
+          <GsmLamiFields
+            gsm={spec.tunnelGsm || spec.bodyGsm}
+            lami={spec.tunnelLami || spec.bodyLami}
+            onGsm={(value) => update("tunnelGsm", value)}
+            onLami={(value) => update("tunnelLami", value)}
+            gsmOptions={[...GSM_OPTIONS]}
+            lamiOptions={[...LAMI_OPTIONS]}
+          />
+        </div>
+      ),
+    },
+    {
       id: "extra-ancerie",
-      title: "Anchor / Ancerie loop",
+      title: "Ancillary Loop",
       on: spec.ancerie,
       search: "anchor ancerie ancillary loop",
       summary: `${spec.ancerieType} · ${spec.ancerieGsm || "—"} grm`,
@@ -741,7 +788,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-inner-skin",
-      title: "Inner skin",
+      title: "Inner Skin",
       on: spec.innerSkin,
       search: "inner skin",
       summary: `${spec.innerSkinGsm || spec.bodyGsm} GSM`,
@@ -763,7 +810,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-inner-box",
-      title: "Inner box",
+      title: "Inner Box",
       on: spec.innerBox,
       search: "inner box",
       summary: `${spec.innerBoxGsm || spec.bodyGsm} GSM`,
@@ -780,7 +827,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-inner-top",
-      title: "Inner top",
+      title: "Inner Top",
       on: spec.innerTop,
       search: "inner top",
       summary: `${spec.innerTopGsm || spec.bodyGsm} GSM`,
@@ -807,7 +854,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-inner-bottom",
-      title: "Inner bottom",
+      title: "Inner Bottom",
       on: spec.innerBottom,
       search: "inner bottom",
       summary: `${spec.innerBottomGsm || spec.bodyGsm} GSM`,
@@ -834,7 +881,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-fabric-patch",
-      title: "Fabric patch",
+      title: "Fabric Patch",
       on: spec.fabricPatch,
       search: "fabric patch",
       summary: `${spec.fabricPatchGsm || spec.bodyGsm} GSM`,
@@ -854,7 +901,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
   const bands: CatalogItem[] = [
     {
       id: "extra-top-band",
-      title: "Top band",
+      title: "Top Band",
       on: spec.topBand,
       search: "top band webbing",
       summary: `${spec.topBandGsm || "—"} GPM · size ${spec.topBandSize || "—"}`,
@@ -871,7 +918,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-stevedore",
-      title: "Stevedore strap",
+      title: "Stevdore",
       on: spec.stevedore,
       search: "stevedore strap",
       summary: `${spec.stevedorePortion} · ${spec.stevedoreGsm || "—"} GPM`,
@@ -894,7 +941,19 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-hose",
-      title: "Hose slider",
+      title: "Hose Slider",
+      on: spec.hoseSlider,
+      search: "hose slider",
+      summary: `${spec.hoseSliderCount || "1"} × 0.005 kg`,
+      body: (
+        <Labeled label="Count">
+          <Input value={spec.hoseSliderCount} onChange={(event) => update("hoseSliderCount", event.target.value)} className={fieldClassName} />
+        </Labeled>
+      ),
+    },
+    {
+      id: "extra-bottom-hose",
+      title: "Hose Slider",
       on: spec.hoseSlider,
       search: "hose slider",
       summary: `${spec.hoseSliderCount || "1"} × 0.005 kg`,
@@ -906,7 +965,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-belly-1",
-      title: "Belly band 1",
+      title: "Belly Band 1",
       on: spec.bellyBand1,
       search: "belly band",
       summary: `${spec.bellyBand1Gsm || "—"} GPM`,
@@ -923,7 +982,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-belly-2",
-      title: "Belly band 2",
+      title: "Belly Band 2",
       on: spec.bellyBand2,
       search: "belly band",
       summary: `${spec.bellyBand2Gsm || "—"} GPM`,
@@ -940,7 +999,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-tb-band",
-      title: "Top–bottom band",
+      title: "Bottom Band",
       on: spec.topBottomBand,
       search: "top bottom band",
       summary: `${spec.topBottomBandGsm || "—"} GPM`,
@@ -964,7 +1023,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-steve-cover",
-      title: "Stevedore cover",
+      title: "Stevdore Cover",
       on: spec.steveCover,
       search: "stevedore cover",
       summary: `L ${spec.steveCoverLength || "—"} · ×${spec.steveCoverCount}`,
@@ -1054,24 +1113,55 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-label",
-      title: "Extra label",
+      title: "Extra Label",
       on: spec.extraLabel,
       search: "extra label",
       summary: `${spec.extraLabelLength}×${spec.extraLabelWidth} · ×${spec.extraLabelCount}`,
       body: (
-        <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-4">
-          <Labeled label="Length">
-            <Input value={spec.extraLabelLength} onChange={(event) => update("extraLabelLength", event.target.value)} className={fieldClassName} />
-          </Labeled>
-          <Labeled label="Width">
-            <Input value={spec.extraLabelWidth} onChange={(event) => update("extraLabelWidth", event.target.value)} className={fieldClassName} />
-          </Labeled>
-          <Labeled label="Micron">
-            <Input value={spec.extraLabelMicron} onChange={(event) => update("extraLabelMicron", event.target.value)} className={fieldClassName} />
-          </Labeled>
-          <Labeled label="Count">
-            <Input value={spec.extraLabelCount} onChange={(event) => update("extraLabelCount", event.target.value)} className={fieldClassName} />
-          </Labeled>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-5">
+            <Labeled label="Nos">
+              <Input value={spec.extraLabelCount} onChange={(event) => update("extraLabelCount", event.target.value)} className={fieldClassName} />
+            </Labeled>
+            <Labeled label="L">
+              <Input value={spec.extraLabelLength} onChange={(event) => update("extraLabelLength", event.target.value)} className={fieldClassName} />
+            </Labeled>
+            <Labeled label="W">
+              <Input value={spec.extraLabelWidth} onChange={(event) => update("extraLabelWidth", event.target.value)} className={fieldClassName} />
+            </Labeled>
+            <Labeled label="Micron">
+              <Input value={spec.extraLabelMicron} onChange={(event) => update("extraLabelMicron", event.target.value)} className={fieldClassName} />
+            </Labeled>
+          </div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3">
+            <Labeled label="L">
+              <Input value={spec.extraLabel1Length} onChange={(event) => update("extraLabel1Length", event.target.value)} className={fieldClassName} />
+            </Labeled>
+            <Labeled label="W">
+              <Input value={spec.extraLabel1Width} onChange={(event) => update("extraLabel1Width", event.target.value)} className={fieldClassName} />
+            </Labeled>
+            <Labeled label="Micron">
+              <Input value={spec.extraLabel1Micron} onChange={(event) => update("extraLabel1Micron", event.target.value)} className={fieldClassName} />
+            </Labeled>
+            <Labeled label="L">
+              <Input value={spec.extraLabel2Length} onChange={(event) => update("extraLabel2Length", event.target.value)} className={fieldClassName} />
+            </Labeled>
+            <Labeled label="W">
+              <Input value={spec.extraLabel2Width} onChange={(event) => update("extraLabel2Width", event.target.value)} className={fieldClassName} />
+            </Labeled>
+            <Labeled label="Micron">
+              <Input value={spec.extraLabel2Micron} onChange={(event) => update("extraLabel2Micron", event.target.value)} className={fieldClassName} />
+            </Labeled>
+            <Labeled label="L">
+              <Input value={spec.extraLabel3Length} onChange={(event) => update("extraLabel3Length", event.target.value)} className={fieldClassName} />
+            </Labeled>
+            <Labeled label="W">
+              <Input value={spec.extraLabel3Width} onChange={(event) => update("extraLabel3Width", event.target.value)} className={fieldClassName} />
+            </Labeled>
+            <Labeled label="Micron">
+              <Input value={spec.extraLabel3Micron} onChange={(event) => update("extraLabel3Micron", event.target.value)} className={fieldClassName} />
+            </Labeled>
+          </div>
         </div>
       ),
     },
@@ -1134,7 +1224,7 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-ds2",
-      title: "2nd discharge spout",
+      title: "Botttm Spout 2",
       on: spec.bottomSpout2,
       search: "discharge spout extra",
       summary: `${spec.bottomSpout2Dia || "—"} × ${spec.bottomSpout2Height || "—"}`,
@@ -1188,7 +1278,19 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-cable",
-      title: "Cable tie",
+      title: "Cable Tie",
+      on: spec.cableTie,
+      search: "cable tie",
+      summary: spec.cableTieCount ? `×${spec.cableTieCount} · no kg formula` : "Collected, no kg formula",
+      body: (
+        <Labeled label="Count">
+          <Input value={spec.cableTieCount} onChange={(event) => update("cableTieCount", event.target.value)} className={fieldClassName} />
+        </Labeled>
+      ),
+    },
+    {
+      id: "extra-bottom-cable",
+      title: "Cable Tie",
       on: spec.cableTie,
       search: "cable tie",
       summary: spec.cableTieCount ? `×${spec.cableTieCount} · no kg formula` : "Collected, no kg formula",
@@ -1200,173 +1302,162 @@ export function ErpExtras({ specification: spec, update }: DraftApi) {
     },
     {
       id: "extra-top-velcro",
-      title: "Top velcro",
+      title: "Velcro",
       on: spec.topVelcro,
       search: "velcro",
       summary: "Collected, no kg formula",
     },
     {
       id: "extra-bottom-velcro",
-      title: "Bottom velcro",
+      title: "Velcro",
       on: spec.bottomVelcro,
       search: "velcro",
       summary: "Collected, no kg formula",
     },
   ]
 
-  const sections = [
-    { title: "Rope & tie", items: rope, toggles: {
-        "extra-top-tie": "topTie",
-        "extra-top-rope": "topRope",
-        "extra-bottom-tie": "bottomTie",
-        "extra-bottom-rope": "bottomRope",
-        "extra-fs-rope": "topSpoutRope",
-        "extra-ds-rope": "bottomSpoutRope",
-      } as const },
-    { title: "Flap & loop", items: flap, toggles: {
-        "extra-top-flap": "topFlap",
-        "extra-bottom-flap": "bottomFlap",
-        "extra-top-hook": "topHook",
-        "extra-bottom-hook": "bottomHook",
-        "extra-bottom-loop": "bottomLoop",
-        "extra-loop-protector": "loopProtector",
-        "extra-loop-cover": "loopCover",
-        "extra-ancerie": "ancerie",
-      } as const },
-    { title: "Fabric extras", items: fabric, toggles: {
-        "extra-felt": "felt",
-        "extra-mf": "mfWeb",
-        "extra-inner-skin": "innerSkin",
-        "extra-inner-box": "innerBox",
-        "extra-inner-top": "innerTop",
-        "extra-inner-bottom": "innerBottom",
-        "extra-fabric-patch": "fabricPatch",
-      } as const },
-    { title: "Bands & packing extras", items: bands, toggles: {
-        "extra-top-band": "topBand",
-        "extra-stevedore": "stevedore",
-        "extra-hose": "hoseSlider",
-        "extra-belly-1": "bellyBand1",
-        "extra-belly-2": "bellyBand2",
-        "extra-tb-band": "topBottomBand",
-        "extra-safety-band": "safetyBand",
-        "extra-steve-cover": "steveCover",
-        "extra-doc1": "docPouch1",
-        "extra-doc2": "docPouch2",
-        "extra-label": "extraLabel",
-        "extra-label-1": "extraLabel1",
-        "extra-label-2": "extraLabel2",
-        "extra-label-3": "extraLabel3",
-        "extra-ds2": "bottomSpout2",
-        "extra-ds3": "bottomSpout3",
-        "extra-cable": "cableTie",
-        "extra-top-velcro": "topVelcro",
-        "extra-bottom-velcro": "bottomVelcro",
-      } as const },
-  ]
+  const extrasById = Object.fromEntries(
+    [...rope, ...flap, ...fabric, ...bands].map((item) => [item.id, item]),
+  ) as Record<string, CatalogItem>
 
-  const needle = query.trim().toLowerCase()
-
-  function jump(label: string) {
-    const match = [...rope, ...flap, ...fabric, ...bands].find((item) => item.title === label || item.title.startsWith(label))
-    const aliases: Record<string, string> = {
-      "Top hook": "extra-top-hook",
-      "Bottom hook": "extra-bottom-hook",
-      Stevedore: "extra-stevedore",
-      "2nd discharge": "extra-ds2",
-      "3rd discharge": "extra-ds3",
-      "Doc pouch 1": "extra-doc1",
-      "Doc pouch 2": "extra-doc2",
-    }
-    const id = aliases[label] || match?.id
-    if (!id) return
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })
+  const extrasTab: Record<string, ErpBomTabId> = {
+    "extra-loop-cover": "loop",
+    "extra-tunnel": "loop",
+    "extra-stevedore": "loop",
+    "extra-steve-cover": "loop",
+    "extra-bottom-loop": "loop",
+    "extra-belly-1": "loop",
+    "extra-belly-2": "loop",
+    "extra-fabric-patch": "loop",
+    "extra-fs-rope": "top",
+    "extra-top-band": "top",
+    "extra-hose": "top",
+    "extra-cable": "top",
+    "extra-top-velcro": "top",
+    "extra-ds-rope": "bottom",
+    "extra-ds-tie": "bottom",
+    "extra-tb-band": "bottom",
+    "extra-bottom-velcro": "bottom",
+    "extra-bottom-hose": "bottom",
+    "extra-bottom-cable": "bottom",
+    "extra-ds2": "bottomSpout2",
+    "extra-ds3": "bottomSpout2",
+    "extra-top-flap": "flap",
+    "extra-top-hook": "flap",
+    "extra-bottom-flap": "flap",
+    "extra-bottom-hook": "flap",
+    "extra-ancerie": "flap",
+    "extra-top-tie": "rope",
+    "extra-top-rope": "rope",
+    "extra-bottom-tie": "rope",
+    "extra-bottom-rope": "rope",
+    "extra-thread": "rope",
+    "extra-inner-box": "doc",
+    "extra-loop-protector": "doc",
+    "extra-label": "extraLabel",
+    "extra-inner-skin": "extraLabel",
+    "extra-inner-top": "extraLabel",
+    "extra-inner-bottom": "extraLabel",
+    "extra-felt": "other",
+    "extra-mf": "other",
+    "extra-doc1": "otherDoc",
+    "extra-doc2": "otherDoc",
+    "extra-safety-band": "otherBom",
   }
 
-  return (
-    <div className="space-y-8">
-      <div className="sticky top-0 z-10 overflow-hidden rounded-xl border border-[var(--navy-border)] bg-white shadow-[0_12px_32px_rgba(26,60,94,0.08)]">
-        <div className="flex flex-col gap-3 border-b border-[var(--navy-border)] bg-[var(--navy-bg)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className="font-heading text-base font-semibold tracking-tight text-[var(--navy)]">Plant extras</h3>
-            <p className="mt-0.5 text-xs text-[var(--navy-muted)]">
-              {selected.length} on · search, then switch a card to specify
-            </p>
-          </div>
-          <div className="relative w-full sm:max-w-[240px]">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-[var(--text-muted)]" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search extras…"
-              className={cn(fieldClassName, "h-9 bg-white pl-9")}
-            />
-          </div>
-        </div>
-        <div className="px-5 py-3">
-          {selected.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {selected.map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => jump(label)}
-                  className="rounded-full border border-[var(--navy-border)] bg-[var(--navy-bg)] px-3 py-1 text-xs font-medium text-[var(--navy)] transition-colors hover:bg-[var(--navy)] hover:text-white"
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs leading-5 text-[var(--text-secondary)]">
-              Nothing on yet. Switch a card — fields stay hidden until you need them.
-            </p>
-          )}
-        </div>
-      </div>
+  const extrasToggle = {
+    "extra-top-tie": "topTie",
+    "extra-top-rope": "topRope",
+    "extra-bottom-tie": "bottomTie",
+    "extra-bottom-rope": "bottomRope",
+    "extra-thread": "threadEnabled",
+    "extra-fs-rope": "topSpoutRope",
+    "extra-ds-rope": "bottomSpoutRope",
+    "extra-ds-tie": "bottomSpoutTie",
+    "extra-top-flap": "topFlap",
+    "extra-bottom-flap": "bottomFlap",
+    "extra-top-hook": "topHook",
+    "extra-bottom-hook": "bottomHook",
+    "extra-bottom-loop": "bottomLoop",
+    "extra-loop-protector": "loopProtector",
+    "extra-loop-cover": "loopCover",
+    "extra-tunnel": "tunnel",
+    "extra-ancerie": "ancerie",
+    "extra-felt": "felt",
+    "extra-mf": "mfWeb",
+    "extra-inner-skin": "innerSkin",
+    "extra-inner-box": "innerBox",
+    "extra-inner-top": "innerTop",
+    "extra-inner-bottom": "innerBottom",
+    "extra-fabric-patch": "fabricPatch",
+    "extra-top-band": "topBand",
+    "extra-stevedore": "stevedore",
+    "extra-hose": "hoseSlider",
+    "extra-bottom-hose": "hoseSlider",
+    "extra-belly-1": "bellyBand1",
+    "extra-belly-2": "bellyBand2",
+    "extra-tb-band": "topBottomBand",
+    "extra-safety-band": "safetyBand",
+    "extra-steve-cover": "steveCover",
+    "extra-doc1": "docPouch1",
+    "extra-doc2": "docPouch2",
+    "extra-label": "extraLabel",
+    "extra-label-1": "extraLabel1",
+    "extra-label-2": "extraLabel2",
+    "extra-label-3": "extraLabel3",
+    "extra-ds2": "bottomSpout2",
+    "extra-ds3": "bottomSpout3",
+    "extra-cable": "cableTie",
+    "extra-bottom-cable": "cableTie",
+    "extra-top-velcro": "topVelcro",
+    "extra-bottom-velcro": "bottomVelcro",
+  } as const satisfies Record<string, keyof QuoteSpecification>
 
-      {sections.map((section) => {
-        const items = section.items.filter((item) => {
-          if (!needle) return true
-          return `${item.title} ${item.search}`.toLowerCase().includes(needle)
-        })
-        if (items.length === 0) return null
-        const onCount = items.filter((item) => item.on).length
-        return (
-          <section key={section.title} className="space-y-3">
-            <div className="flex items-baseline justify-between gap-3">
-              <h4 className="font-heading text-sm font-semibold tracking-tight text-[var(--text)]">{section.title}</h4>
-              <span className="text-xs text-[var(--text-muted)]">
-                {onCount} of {items.length} on
-              </span>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {items.map((item) => {
-                const key = item.id as keyof typeof section.toggles
-                const toggleField = section.toggles[key]
-                return (
-                  <ExtraCard
-                    key={item.id}
-                    id={item.id}
-                    title={item.title}
-                    on={item.on}
-                    locked={item.locked}
-                    summary={item.summary}
-                    className={item.on ? "sm:col-span-2" : undefined}
-                    onToggle={
-                      toggleField
-                        ? (value) => update(toggleField, value as never)
-                        : undefined
-                    }
-                  >
-                    {item.body}
-                  </ExtraCard>
-                )
-              })}
-            </div>
-          </section>
-        )
-      })}
+  const catalogItems = Object.keys(extrasTab)
+    .map((id) => extrasById[id])
+    .filter((item): item is CatalogItem => Boolean(item))
+    .filter((item) => extrasTab[item.id] === tab)
+
+  const needle = query.trim().toLowerCase()
+  const items = catalogItems.filter((item) => {
+    if (!needle) return true
+    return `${item.title} ${item.search}`.toLowerCase().includes(needle)
+  })
+
+  if (items.length === 0 && !needle) return null
+
+  return (
+    <div className="space-y-3">
+      {catalogItems.length > 4 ? (
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-[var(--text-muted)]" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search this tab…"
+            className={cn(fieldClassName, "h-9 bg-[var(--surface)] pl-9")}
+          />
+        </div>
+      ) : null}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {items.map((item) => {
+          const toggleField = extrasToggle[item.id as keyof typeof extrasToggle]
+          return (
+            <ExtraCard
+              key={item.id}
+              id={item.id}
+              title={item.title}
+              on={item.on}
+              locked={item.locked}
+              summary={item.summary}
+              className={item.on ? "sm:col-span-2" : undefined}
+              onToggle={toggleField ? (value) => update(toggleField, value as never) : undefined}
+            >
+              {item.body}
+            </ExtraCard>
+          )
+        })}
+      </div>
     </div>
   )
 }

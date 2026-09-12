@@ -82,7 +82,7 @@ export function BagPreview3D({
 
   return (
     <>
-      <div className={cn("overflow-hidden rounded-xl border border-[var(--navy-border)] bg-white", className)}>
+      <div className={cn("overflow-hidden rounded-xl border border-[var(--navy-border)] bg-[var(--surface)]", className)}>
         <div className="relative">
           {open ? (
             <div className={cn("bg-[var(--navy-bg)]", thumbH)} />
@@ -95,13 +95,13 @@ export function BagPreview3D({
             className="absolute right-2 bottom-2 z-10"
             aria-label="Enlarge bag preview"
           >
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[10px] font-medium text-[var(--navy)] shadow-sm">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--surface)]/90 px-2 py-1 text-[10px] font-medium text-[var(--navy)] shadow-sm">
               <Maximize2 className="size-3" />
               Enlarge
             </span>
           </button>
         </div>
-        <div className="border-t border-[var(--navy-border)] bg-white px-4 py-2.5">
+        <div className="border-t border-[var(--navy-border)] bg-[var(--surface)] px-4 py-2.5">
           <div className="font-heading line-clamp-2 text-xs font-semibold tracking-tight text-[var(--navy)]">{caption(specification)}</div>
           <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">Click Enlarge · drag to rotate in the drawer</p>
         </div>

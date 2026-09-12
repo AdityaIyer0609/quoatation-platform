@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowRight, Pencil } from "lucide-react"
 import { useState, type ReactNode } from "react"
 import { useNavigate } from "react-router-dom"
 
+import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb"
 import { BagPreview3D } from "@/components/quote/BagPreview3D"
 import { Button } from "@/components/ui/button"
 import { useQuoteDraft } from "@/hooks/useQuoteDraft"
@@ -37,20 +38,16 @@ export default function ReviewQuote() {
   }
 
   return (
-    <div className="mx-auto max-w-[880px] p-6 pb-32 md:p-8 md:pb-8">
+    <div className="qc-page max-w-[880px]">
       <div className="mb-6">
-        <div className="mb-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-          <button type="button" onClick={() => navigate(paths.dashboard)}>
-            Dashboard
-          </button>
-          <span>/</span>
-          <button type="button" onClick={() => navigate(paths.newQuote)}>
-            New Quote
-          </button>
-          <span>/</span>
-          <span>Review</span>
-        </div>
-        <h1 className="font-heading text-xl font-bold">Review your requirements</h1>
+        <PageBreadcrumb
+          items={[
+            { label: "Dashboard", onClick: () => navigate(paths.dashboard) },
+            { label: "New Quote", onClick: () => navigate(paths.newQuote) },
+            { label: "Review" },
+          ]}
+        />
+        <h1 className="font-heading text-2xl font-bold tracking-tight">Review your requirements</h1>
         <p className="mt-1 text-sm text-[var(--text-secondary)]">
           Check everything looks right, then calculate the material list. Pricing follows after the material weights.
         </p>
@@ -169,7 +166,7 @@ export default function ReviewQuote() {
       </div>
 
       {error && (
-        <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <div className="qc-card mt-4 border-[var(--error-border)] bg-[var(--error-bg)] px-3 py-2 text-sm text-[var(--error)]">
           {error}
         </div>
       )}
@@ -183,7 +180,7 @@ export default function ReviewQuote() {
           type="button"
           onClick={calculate}
           disabled={working}
-          className="font-heading h-auto gap-2 rounded-md bg-[var(--navy)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--navy-hover)]"
+          className="qc-btn h-auto px-5 py-2.5 text-sm"
         >
           {working ? "Calculating…" : "Calculate material list"}
           <ArrowRight className="size-3.5" />
@@ -203,7 +200,7 @@ function Section({
   children: ReactNode
 }) {
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+    <div className="qc-card">
       <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3">
         <h2 className="font-heading text-sm font-semibold">{title}</h2>
         <button type="button" onClick={onEdit} className="flex items-center gap-1 text-xs text-[var(--navy)]">

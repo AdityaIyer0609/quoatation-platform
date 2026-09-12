@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react"
 
+import { ClickRow } from "@/components/common/ClickRow"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { api } from "@/services/api"
@@ -65,10 +66,10 @@ export default function AdminUsers() {
   }
 
   return (
-    <div className="mx-auto max-w-[960px] p-6 md:p-8">
+    <div className="qc-page max-w-[960px]">
       <h1 className="font-heading text-xl font-bold">Users & roles</h1>
       {error && <p className="mt-2 text-sm text-[var(--error)]">{error}</p>}
-      <form className="mt-6 grid gap-2 sm:grid-cols-2" onSubmit={(event) => void onCreate(event)}>
+      <form className="qc-card mt-6 grid gap-3 p-5 sm:grid-cols-2" onSubmit={(event) => void onCreate(event)}>
         <Input value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="First name" required />
         <Input value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="Last name" required />
         <Input value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="Email" required />
@@ -87,31 +88,33 @@ export default function AdminUsers() {
         <Button
           type="submit"
           disabled={saving}
-          className="bg-[var(--navy)] text-white hover:bg-[var(--navy-hover)]"
+          className="qc-btn"
         >
           {saving ? "Creating…" : "Create user"}
         </Button>
       </form>
-      <table className="mt-8 w-full text-left text-sm">
+      <div className="qc-card qc-table-card mt-8 px-3">
+      <table className="qc-table text-left text-sm">
         <thead className="text-xs text-[var(--text-muted)]">
           <tr>
-            <th className="py-2">Name</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Active</th>
+            <th className="px-3 py-2">Name</th>
+            <th className="px-3 py-2">Email</th>
+            <th className="px-3 py-2">Role</th>
+            <th className="px-3 py-2">Active</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.id} className="border-t border-[var(--border)]">
-              <td className="py-2">
+            <ClickRow key={row.id}>
+              <td className="px-3 py-2.5">
                 {row.firstName} {row.lastName}
               </td>
-              <td>{row.email}</td>
-              <td>
+              <td className="px-3 py-2.5">{row.email}</td>
+              <td className="px-3 py-2.5">
                 <select
                   className="rounded border border-[var(--border)] px-2 py-1 text-sm"
                   value={row.role}
+                  onClick={(event) => event.stopPropagation()}
                   onChange={(event) =>
                     void api
                       .updateAdminUser(row.id, { role: event.target.value })
@@ -126,11 +129,12 @@ export default function AdminUsers() {
                   ))}
                 </select>
               </td>
-              <td>{row.isActive ? "Yes" : "No"}</td>
-            </tr>
+              <td className="px-3 py-2.5">{row.isActive ? "Yes" : "No"}</td>
+            </ClickRow>
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }

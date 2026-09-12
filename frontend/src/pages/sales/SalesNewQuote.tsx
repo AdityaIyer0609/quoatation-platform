@@ -14,11 +14,11 @@ export default function SalesNewQuote() {
   }, [])
 
   return (
-    <div className="mx-auto max-w-md p-6 md:p-8">
-      <h1 className="font-heading text-xl font-bold">Create quotation</h1>
+    <div className="qc-page max-w-md">
+      <h1 className="font-heading text-2xl font-bold tracking-tight">Create quotation</h1>
       <p className="mt-1 text-sm text-[var(--text-secondary)]">Choose a customer, then use the existing bag configurator. BOM and Book4 are unchanged.</p>
       <select
-        className="mt-6 w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm"
+        className="mt-6 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm shadow-[var(--shadow)]"
         value={customerId}
         onChange={(event) => setCustomerId(event.target.value)}
       >
@@ -28,7 +28,7 @@ export default function SalesNewQuote() {
         ))}
       </select>
       <Button
-        className="mt-4 bg-[var(--navy)] text-white hover:bg-[var(--navy-hover)]"
+        className="qc-btn mt-4"
         disabled={!customerId}
         onClick={() => {
           sessionStorage.setItem("quotecraft.salesCustomerId", customerId)

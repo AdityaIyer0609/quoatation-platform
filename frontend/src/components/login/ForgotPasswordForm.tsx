@@ -57,7 +57,7 @@ export function ForgotPasswordForm({
         <Button
           type="submit"
           disabled={loading}
-          className="h-auto w-full gap-2 rounded-md bg-[var(--navy)] py-2.5 font-heading text-sm font-semibold text-white hover:bg-[var(--navy-hover)] disabled:bg-[var(--navy-muted)]"
+          className="h-auto w-full gap-2 rounded-2xl bg-[var(--navy)] py-3 font-heading text-sm font-semibold text-white shadow-[var(--shadow-navy)] hover:bg-[var(--navy-hover)] disabled:bg-[var(--navy-muted)]"
         >
           {loading ? (
             <>

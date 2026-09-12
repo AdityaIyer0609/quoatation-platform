@@ -12,7 +12,7 @@ export function AppLogo({ compact = false }: { compact?: boolean }) {
           QuoteCraft
         </div>
         {!compact && (
-          <div className="text-[10px] text-[var(--text-muted)]">Manufacturing</div>
+          <div className="text-[10px] font-semibold text-[var(--navy-muted)]">Manufacturing</div>
         )}
       </div>
     </Link>

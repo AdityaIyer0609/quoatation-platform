@@ -6,7 +6,7 @@ const steps = [
   { id: 1, label: "Product" },
   { id: 2, label: "Construction" },
   { id: 3, label: "Specifications" },
-  { id: 4, label: "Components" },
+  { id: 4, label: "BOM" },
   { id: 5, label: "Review" },
 ]
 
@@ -18,47 +18,46 @@ export function StepIndicator({
   onStepClick: (step: number) => void
 }) {
   return (
-    <div className="mb-8 flex items-center justify-between">
-      {steps.map((step, index) => {
-        const done = step.id < current
-        const active = step.id === current
-        return (
-          <div key={step.id} className="relative flex flex-1 flex-col items-center">
-            {index < steps.length - 1 && (
-              <div
-                className="absolute top-[15px] right-[calc(-50%+18px)] left-[calc(50%+18px)] h-px"
-                style={{ background: done ? "var(--navy)" : "var(--border)" }}
-              />
-            )}
+    <div className="mb-8 rounded-3xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_88%,transparent)] p-2 shadow-[var(--shadow-md)] backdrop-blur-md">
+      <div className="flex items-center gap-1">
+        {steps.map((step) => {
+          const done = step.id < current
+          const active = step.id === current
+          return (
             <button
+              key={step.id}
               type="button"
               onClick={() => {
                 if (done || active) onStepClick(step.id)
               }}
               className={cn(
-                "font-heading relative z-10 mb-1.5 flex size-8 items-center justify-center rounded-full text-xs font-semibold",
-                done || active
-                  ? "border-[1.5px] border-[var(--navy)] bg-[var(--navy)] text-white"
-                  : "border-[1.5px] border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)]",
-              )}
-            >
-              {done ? <Check className="size-3" /> : step.id}
-            </button>
-            <span
-              className={cn(
-                "font-heading hidden text-[10px] font-medium sm:block",
+                "font-heading flex min-w-0 flex-1 items-center gap-2 rounded-2xl px-2 py-2.5 text-left transition-all duration-200 sm:px-3",
                 active
-                  ? "text-[var(--navy)]"
+                  ? "bg-[var(--navy)] text-white shadow-[var(--shadow-navy)]"
                   : done
-                    ? "text-[var(--text-secondary)]"
-                    : "text-[var(--text-muted)]",
+                    ? "bg-[var(--navy-bg)] text-[var(--navy)] hover:-translate-y-px hover:shadow-[var(--shadow)]"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg)]",
               )}
             >
-              {step.label}
-            </span>
-          </div>
-        )
-      })}
+              <span
+                className={cn(
+                  "flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-colors",
+                  active
+                    ? "bg-white/20 text-white ring-1 ring-white/30"
+                    : done
+                      ? "bg-[var(--navy)] text-white"
+                      : "border border-[var(--navy-border)] bg-[var(--navy-bg)] text-[var(--navy)]",
+                )}
+              >
+                {done ? <Check className="size-3.5" strokeWidth={2.5} /> : step.id}
+              </span>
+              <span className={cn("hidden truncate text-xs font-bold sm:block", !active && !done && "font-semibold")}>
+                {step.label}
+              </span>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

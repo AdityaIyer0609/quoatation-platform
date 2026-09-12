@@ -7,6 +7,7 @@ import {
   StaffRoleRoute,
 } from "@/components/layout/RouteGuards"
 import { AuthProvider } from "@/hooks/useAuth"
+import { ThemeProvider } from "@/hooks/useTheme"
 import { QuoteDraftProvider } from "@/hooks/useQuoteDraft"
 import { CustomerLayout } from "@/layouts/CustomerLayout"
 import { SalesLayout } from "@/layouts/SalesLayout"
@@ -33,6 +34,7 @@ import SalesProfile from "@/pages/sales/SalesProfile"
 export default function App() {
   return (
     <div className="brand-app h-full">
+      <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
           <Routes>
@@ -90,6 +92,7 @@ export default function App() {
           </Routes>
         </BrowserRouter>
       </AuthProvider>
+      </ThemeProvider>
     </div>
   )
 }

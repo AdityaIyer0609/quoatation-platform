@@ -1,6 +1,7 @@
 import { Search } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 
+import { PageHero, PageShell } from "@/components/layout/PageChrome"
 import { CreateQuoteButton, QuoteTable } from "@/components/quote/QuoteTable"
 import { Input } from "@/components/ui/input"
 import { api } from "@/services/api"
@@ -55,16 +56,13 @@ export default function MyQuotes() {
   }, [quotes, search, filter])
 
   return (
-    <div className="mx-auto max-w-[960px] p-6 md:p-8">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-heading text-xl font-bold">My Quotes</h1>
-          <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
-            {loading ? "Loading…" : `${quotes.length} quotations total`}
-          </p>
-        </div>
-        <CreateQuoteButton label="New quote" />
-      </div>
+    <PageShell>
+      <PageHero
+        kicker="Library"
+        title="My Quotes"
+        subtitle={loading ? "Loading…" : `${quotes.length} quotations total`}
+        action={<CreateQuoteButton label="New quote" onDark />}
+      />
 
       <div className="mb-5 flex flex-col gap-3 sm:flex-row">
         <div className="relative max-w-xs flex-1">
@@ -73,7 +71,7 @@ export default function MyQuotes() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search by quote # or product"
-            className="h-auto rounded-md border-[var(--border)] bg-[var(--surface)] py-2 pr-3 pl-9 text-sm focus-visible:border-[var(--navy)] focus-visible:ring-[3px] focus-visible:ring-[var(--navy-bg)]"
+            className="h-auto rounded-2xl border-[var(--border)] bg-[var(--surface)] py-2.5 pr-3 pl-9 text-sm shadow-[var(--shadow)] focus-visible:border-[var(--navy)] focus-visible:ring-[3px] focus-visible:ring-[var(--navy-bg)]"
           />
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -82,12 +80,7 @@ export default function MyQuotes() {
               key={item}
               type="button"
               onClick={() => setFilter(item)}
-              className="font-heading rounded px-3 py-1.5 text-xs font-medium"
-              style={{
-                background: filter === item ? "var(--navy)" : "var(--surface)",
-                color: filter === item ? "white" : "var(--text-secondary)",
-                border: `1px solid ${filter === item ? "var(--navy)" : "var(--border)"}`,
-              }}
+              className={filter === item ? "qc-chip qc-chip-on" : "qc-chip"}
             >
               {item}
             </button>
@@ -95,13 +88,11 @@ export default function MyQuotes() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+      <div className="qc-card qc-table-card">
         {loading ? (
-          <div className="px-5 py-16 text-center text-sm text-[var(--text-muted)]">
-            Loading quotations…
-          </div>
+          <div className="px-5 py-16 text-center text-sm text-[var(--text-muted)]">Loading quotations…</div>
         ) : error ? (
-          <div className="px-5 py-8 text-center text-sm text-red-800">{error}</div>
+          <div className="px-5 py-8 text-center text-sm text-[var(--error)]">{error}</div>
         ) : (
           <QuoteTable quotes={filtered} />
         )}
@@ -112,6 +103,6 @@ export default function MyQuotes() {
           Showing {filtered.length} of {quotes.length} quotations
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

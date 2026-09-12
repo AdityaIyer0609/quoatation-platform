@@ -9,7 +9,7 @@ export function QuoteCraftMark({ className, inverted = false }: QuoteCraftMarkPr
   return (
     <div
       className={cn(
-        "flex items-center justify-center rounded font-heading font-bold text-white",
+        "flex items-center justify-center rounded-2xl font-heading font-bold text-white",
         inverted ? "bg-white/20" : "bg-[var(--navy)]",
         className
       )}

@@ -51,6 +51,7 @@ export type QuoteSpecification = {
   topSpoutTieSize: string
   topSpoutTieCount: string
   topSpoutTieRemarks: string
+  bottomSpoutTie: boolean
   bottomSpoutTieGsm: string
   bottomSpoutTieSize: string
   bottomSpoutTieCount: string
@@ -71,6 +72,9 @@ export type QuoteSpecification = {
   linerMaterial: string
   linerType: string
   linerMicron: string
+  bLock: boolean
+  bLockCount: string
+  labelCount: string
   docPouch: boolean
   docType: string
   docOpening: string
@@ -90,6 +94,7 @@ export type QuoteSpecification = {
   doubleFoldBody: boolean
   doubleFoldTop: boolean
   doubleFoldBottom: boolean
+  tunnel: boolean
   tunnelDesign: string
   tunnelGsm: string
   tunnelLami: string
@@ -107,6 +112,7 @@ export type QuoteSpecification = {
   fillerCordTopSpoutType: string
   fillerCordBottomSpoutType: string
   fillerCordBuffleType: string
+  threadEnabled: boolean
   threadColour: string
   threadType: string
   threadBuffleSeam: string
@@ -209,6 +215,9 @@ export type QuoteSpecification = {
   mfWebBuffle: boolean
   buffleGsm: string
   buffleKind: string
+  buffleSingleCoatedGsm: string
+  buffleDoubleCoatedGsm: string
+  loopRemarks: string
   innerSkin: boolean
   innerSkinGsm: string
   innerSkinLami: string
@@ -568,6 +577,7 @@ export const defaultSpecification: QuoteSpecification = {
   topSpoutTieSize: "",
   topSpoutTieCount: "",
   topSpoutTieRemarks: "",
+  bottomSpoutTie: false,
   bottomSpoutTieGsm: "",
   bottomSpoutTieSize: "",
   bottomSpoutTieCount: "",
@@ -588,6 +598,9 @@ export const defaultSpecification: QuoteSpecification = {
   linerMaterial: "LD",
   linerType: "Gusseted Liner",
   linerMicron: "70",
+  bLock: false,
+  bLockCount: "1",
+  labelCount: "1",
   docPouch: false,
   docType: "Simple",
   docOpening: "Vertical Open",
@@ -607,6 +620,7 @@ export const defaultSpecification: QuoteSpecification = {
   doubleFoldBody: false,
   doubleFoldTop: false,
   doubleFoldBottom: false,
+  tunnel: false,
   tunnelDesign: "",
   tunnelGsm: "",
   tunnelLami: "0",
@@ -624,6 +638,7 @@ export const defaultSpecification: QuoteSpecification = {
   fillerCordTopSpoutType: "single",
   fillerCordBottomSpoutType: "single",
   fillerCordBuffleType: "single",
+  threadEnabled: false,
   threadColour: "Milky White",
   threadType: "PP",
   threadBuffleSeam: "",
@@ -726,6 +741,9 @@ export const defaultSpecification: QuoteSpecification = {
   mfWebBuffle: false,
   buffleGsm: "",
   buffleKind: "Standard",
+  buffleSingleCoatedGsm: "",
+  buffleDoubleCoatedGsm: "",
+  loopRemarks: "",
   innerSkin: false,
   innerSkinGsm: "",
   innerSkinLami: "0",

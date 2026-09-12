@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 
+import { ClickRow } from "@/components/common/ClickRow"
 import { StatusBadge } from "@/components/common/StatusBadge"
 import { BagPreview3D } from "@/components/quote/BagPreview3D"
 import { PricingBreakdown } from "@/components/quote/PricingBreakdown"
@@ -121,7 +122,7 @@ export default function SalesQuoteDetail() {
   }
 
   return (
-    <div className="mx-auto max-w-[960px] p-6 md:p-8">
+    <div className="qc-page max-w-[960px]">
       <Link to="/sales/quotes" className="text-xs text-[var(--navy)]">
         Back to quotations
       </Link>
@@ -176,7 +177,7 @@ export default function SalesQuoteDetail() {
       )}
 
       {quote.status === "revision_requested" && customerRequest && (
-        <section className="mt-6 rounded-lg border border-[var(--warning-border)] bg-[var(--warning-bg)] p-4">
+        <section className="qc-card mt-6 border-[var(--warning-border)] bg-[var(--warning-bg)] p-4">
           <div className="font-heading text-sm font-semibold text-[var(--navy)]">Customer revision request</div>
           <p className="mt-1 text-sm text-[var(--text)]">{customerRequest.detail}</p>
           <p className="mt-1 font-quote-mono text-[10px] text-[var(--text-muted)]">{customerRequest.at}</p>
@@ -201,7 +202,7 @@ export default function SalesQuoteDetail() {
         </div>
       )}
 
-      <section className="mt-6 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+      <section className="qc-card qc-table-card mt-6">
         <div className="border-b border-[var(--border)] px-5 py-3.5">
           <h2 className="font-heading text-sm font-semibold">Version history</h2>
           <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
@@ -209,8 +210,8 @@ export default function SalesQuoteDetail() {
           </p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-[var(--border)] bg-[var(--bg)] text-xs text-[var(--text-muted)]">
+          <table className="qc-table text-left text-sm">
+            <thead className="text-xs text-[var(--text-muted)]">
               <tr>
                 <th className="px-4 py-2.5 font-medium">Version</th>
                 <th className="px-4 py-2.5 font-medium">Status</th>
@@ -224,7 +225,7 @@ export default function SalesQuoteDetail() {
             </thead>
             <tbody>
               {versions.map((item: QuoteVersion) => (
-                <tr key={item.id} className="border-b border-[var(--border)] last:border-0">
+                <ClickRow key={item.id}>
                   <td className="px-4 py-2.5 font-medium">
                     V{item.version}
                     {item.isCurrent ? <span className="ml-2 text-[10px] text-[var(--navy)]">current</span> : null}
@@ -239,7 +240,7 @@ export default function SalesQuoteDetail() {
                     <div className="text-[var(--text-muted)]">{item.createdAt}</div>
                   </td>
                   <td className="px-4 py-2.5 text-xs">{item.note || "—"}</td>
-                </tr>
+                </ClickRow>
               ))}
             </tbody>
           </table>
@@ -247,7 +248,7 @@ export default function SalesQuoteDetail() {
       </section>
 
       {quote.timeline.length > 0 && (
-        <section className="mt-6 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+        <section className="qc-card mt-6 overflow-hidden">
           <div className="border-b border-[var(--border)] px-5 py-3.5">
             <h2 className="font-heading text-sm font-semibold">Quote history</h2>
             <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
@@ -282,7 +283,7 @@ export default function SalesQuoteDetail() {
       )}
 
       {versions.length > 1 && (
-        <section className="mt-6 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
+        <section className="qc-card mt-6 p-5">
           <h2 className="font-heading text-sm font-semibold">Compare versions</h2>
           <div className="mt-3 flex flex-wrap items-end gap-3">
             <label className="text-xs">
@@ -310,21 +311,21 @@ export default function SalesQuoteDetail() {
             </Button>
           </div>
           {compare && (
-            <table className="mt-4 w-full text-sm">
+            <table className="qc-table mt-4 text-sm">
               <thead>
                 <tr className="text-left text-xs text-[var(--text-muted)]">
-                  <th className="py-1 font-medium">Field</th>
-                  <th className="py-1 font-medium">V{fromV}</th>
-                  <th className="py-1 font-medium">V{toV}</th>
+                  <th className="px-2 py-1 font-medium">Field</th>
+                  <th className="px-2 py-1 font-medium">V{fromV}</th>
+                  <th className="px-2 py-1 font-medium">V{toV}</th>
                 </tr>
               </thead>
               <tbody>
                 {Object.entries(compare).map(([field, change]) => (
-                  <tr key={field} className="border-t border-[var(--border)]">
-                    <td className="py-2 capitalize">{field.replace(/([A-Z])/g, " $1")}</td>
-                    <td className="py-2">{field.toLowerCase().includes("price") || field === "totalAmount" ? money(change.from) : String(change.from ?? "—")}</td>
-                    <td className="py-2 font-medium">{field.toLowerCase().includes("price") || field === "totalAmount" ? money(change.to) : String(change.to ?? "—")}</td>
-                  </tr>
+                  <ClickRow key={field}>
+                    <td className="px-2 py-2 capitalize">{field.replace(/([A-Z])/g, " $1")}</td>
+                    <td className="px-2 py-2">{field.toLowerCase().includes("price") || field === "totalAmount" ? money(change.from) : String(change.from ?? "—")}</td>
+                    <td className="px-2 py-2 font-medium">{field.toLowerCase().includes("price") || field === "totalAmount" ? money(change.to) : String(change.to ?? "—")}</td>
+                  </ClickRow>
                 ))}
               </tbody>
             </table>
@@ -333,7 +334,7 @@ export default function SalesQuoteDetail() {
       )}
 
       {canIssue && canRevise && (
-        <section className="mt-6 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
+        <section className="qc-card mt-6 p-5">
           <h2 className="font-heading text-sm font-semibold">Create revised offer</h2>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">
             Issues V{current + 1} with a new commercial unit price on the same bag, quantity, and BOM.
@@ -367,7 +368,7 @@ export default function SalesQuoteDetail() {
       )}
 
       {!commercialOffer && (reasons.length > 0 || quote.pricing.requiresManualPricing) && (
-        <section className="mt-6 rounded-lg border border-[var(--warning-border)] bg-[var(--warning-bg)] p-4 text-sm">
+        <section className="qc-card mt-6 border-[var(--warning-border)] bg-[var(--warning-bg)] p-4 text-sm">
           <div className="font-heading font-semibold">Manual pricing</div>
           <div className="mt-1 text-xs">Status: {String(raw?.manualPricingStatus ?? "pending")}</div>
           <ul className="mt-2 list-disc pl-5">

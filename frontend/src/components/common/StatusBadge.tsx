@@ -3,19 +3,19 @@ import { cn } from "@/lib/utils"
 import type { QuoteStatus } from "@/types/quote"
 
 const styles: Record<QuoteStatus, string> = {
-  draft: "bg-[#F4F4F2] text-[#6B6B68]",
-  quoted: "bg-[#EDF2F8] text-[#1A3C5E]",
-  accepted: "bg-[#F0FDF4] text-[#16A34A]",
-  expired: "bg-[#FEF2F2] text-[#DC2626]",
-  rejected: "bg-[#FEF2F2] text-[#DC2626]",
-  revision_requested: "bg-[#FFFBEB] text-[#D97706]",
+  draft: "bg-[var(--bg)] text-[var(--text-secondary)]",
+  quoted: "bg-[var(--navy-bg)] text-[var(--navy)]",
+  accepted: "bg-[var(--success-bg)] text-[var(--success)]",
+  expired: "bg-[var(--error-bg)] text-[var(--error)]",
+  rejected: "bg-[var(--error-bg)] text-[var(--error)]",
+  revision_requested: "bg-[var(--warning-bg)] text-[var(--warning)]",
 }
 
 export function StatusBadge({ status }: { status: QuoteStatus }) {
   return (
     <span
       className={cn(
-        "font-heading inline-flex items-center rounded px-2 py-0.5 text-xs font-medium",
+        "font-heading inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
         styles[status],
       )}
     >

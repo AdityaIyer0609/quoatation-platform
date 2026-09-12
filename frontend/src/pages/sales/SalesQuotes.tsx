@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 
+import { ClickRow } from "@/components/common/ClickRow"
 import { StatusBadge } from "@/components/common/StatusBadge"
 import { Input } from "@/components/ui/input"
 import { formatQuoteAmount } from "@/lib/format"
@@ -23,7 +24,7 @@ export default function SalesQuotes() {
   }, [search, status, manualOnly])
 
   return (
-    <div className="mx-auto max-w-[1100px] p-6 md:p-8">
+    <div className="qc-page max-w-[1100px]">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-heading text-xl font-bold">Quotations</h1>
@@ -31,7 +32,7 @@ export default function SalesQuotes() {
         </div>
         <Link
           to="/sales/quotes/new"
-          className="font-heading inline-flex h-auto shrink-0 items-center rounded-md bg-[var(--navy)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--navy-hover)]"
+          className="qc-btn h-auto px-4 py-2.5 text-sm"
         >
           New quote
         </Link>
@@ -62,28 +63,28 @@ export default function SalesQuotes() {
         </select>
       </div>
       {error && <p className="mt-3 text-sm text-[var(--error)]">{error}</p>}
-      <table className="mt-4 w-full text-left text-sm">
+      <div className="qc-card qc-table-card mt-4 px-3">
+      <table className="qc-table text-left text-sm">
         <thead className="text-xs text-[var(--text-muted)]">
           <tr>
-            <th className="py-2">Number</th>
-            <th>Customer</th>
-            <th>Amount</th>
-            <th>Status</th>
+            <th className="px-3 py-2">Number</th>
+            <th className="px-3 py-2">Customer</th>
+            <th className="px-3 py-2">Amount</th>
+            <th className="px-3 py-2">Status</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={String(row.id)} className="border-t border-[var(--border)]">
-              <td className="py-2">
-                <Link className="text-[var(--navy)]" to={`/sales/quotes/${row.id}`}>{String(row.number)}</Link>
-              </td>
-              <td>{String(row.customerName || row.company || "")}</td>
-              <td>{formatQuoteAmount(row.requiresManualPricing ? null : ((row.amount as number | null) ?? null))}</td>
-              <td><StatusBadge status={row.status as never} /></td>
-            </tr>
+            <ClickRow key={String(row.id)} to={`/sales/quotes/${row.id}`}>
+              <td className="px-3 py-2.5 font-medium text-[var(--navy)]">{String(row.number)}</td>
+              <td className="px-3 py-2.5">{String(row.customerName || row.company || "")}</td>
+              <td className="px-3 py-2.5">{formatQuoteAmount(row.requiresManualPricing ? null : ((row.amount as number | null) ?? null))}</td>
+              <td className="px-3 py-2.5"><StatusBadge status={row.status as never} /></td>
+            </ClickRow>
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }

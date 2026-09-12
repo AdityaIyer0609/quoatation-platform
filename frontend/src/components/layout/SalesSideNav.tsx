@@ -66,24 +66,12 @@ export function SalesSideNav({ onNavigate }: { onNavigate?: () => void }) {
         return (
           <NavLink key={item.to} to={item.to} onClick={onNavigate}>
             {item.highlight ? (
-              <span
-                className={cn(
-                  "font-heading flex w-full items-center gap-2.5 rounded px-3 py-2 text-sm font-medium text-white",
-                  active ? "bg-[var(--navy-hover)]" : "bg-[var(--navy)] hover:bg-[var(--navy-hover)]",
-                )}
-              >
+              <span className={cn("qc-nav qc-nav-cta", active && "bg-[var(--navy-hover)]")}>
                 <item.icon className="size-4" />
                 {item.label}
               </span>
             ) : (
-              <span
-                className={cn(
-                  "font-heading flex w-full items-center gap-2.5 rounded px-3 py-2 text-sm",
-                  active
-                    ? "bg-[var(--navy-bg)] font-semibold text-[var(--navy)]"
-                    : "font-medium text-[var(--text-secondary)] hover:bg-[var(--bg)]",
-                )}
-              >
+              <span className={cn("qc-nav", active && "qc-nav-active")}>
                 <item.icon className="size-4" />
                 {item.label}
               </span>

@@ -36,9 +36,9 @@ export default function SalesCustomerNew() {
   }
 
   return (
-    <div className="mx-auto max-w-md p-6 md:p-8">
-      <h1 className="font-heading text-xl font-bold">New customer</h1>
-      <form className="mt-6 space-y-3" onSubmit={(event) => void onSubmit(event)}>
+    <div className="qc-page max-w-md">
+      <h1 className="font-heading text-2xl font-bold tracking-tight">New customer</h1>
+      <form className="qc-card mt-6 space-y-3 p-5" onSubmit={(event) => void onSubmit(event)}>
         <Input value={company} onChange={(event) => setCompany(event.target.value)} placeholder="Company" required />
         <Input value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="First name" required />
         <Input value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="Last name" required />
@@ -48,7 +48,7 @@ export default function SalesCustomerNew() {
         <Button
           type="submit"
           disabled={saving}
-          className="bg-[var(--navy)] text-white hover:bg-[var(--navy-hover)]"
+          className="qc-btn"
         >
           {saving ? "Saving…" : "Create customer"}
         </Button>

@@ -29,7 +29,7 @@ export function QuoteSummary({
   ]
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+    <div className="overflow-hidden rounded-3xl bg-[var(--surface)] shadow-[var(--shadow-lg)]">
       <div className="border-b border-[var(--border)] bg-[var(--navy)] px-5 py-4">
         <div className="font-heading mb-0.5 text-xs font-semibold text-white/70">
           Configuration summary
@@ -51,7 +51,7 @@ export function QuoteSummary({
         <Button
           type="button"
           onClick={onProceed}
-          className="font-heading mt-2 h-auto w-full gap-2 rounded-md bg-[var(--navy)] py-2.5 text-sm font-semibold text-white hover:bg-[var(--navy-hover)]"
+          className="font-heading mt-2 h-auto w-full gap-2 rounded-2xl bg-[var(--navy)] py-2.5 text-sm font-semibold text-white shadow-[var(--shadow-navy)] hover:bg-[var(--navy-hover)]"
         >
           Continue to Review
           <ArrowRight className="size-3.5" />
