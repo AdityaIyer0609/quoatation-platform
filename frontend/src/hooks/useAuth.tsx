@@ -3,6 +3,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -36,6 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(() => {
     setUser(api.getSession())
   }, [])
+
+  useEffect(() => api.onAuthExpired(() => setUser(null)), [])
 
   const value = useMemo(
     () => ({ user, login, logout, refresh }),

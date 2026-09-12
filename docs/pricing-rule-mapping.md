@@ -309,7 +309,7 @@ USA / shuttle / attachments are **not** inferred from `deliveryLocation`. They r
 
 ---
 
-## 8. Minimum bag weight (validation only)
+## 8. Minimum bag weight (note only — do not change the price)
 
 | Book4 design | Min kg/bag |
 |---|---|
@@ -317,7 +317,8 @@ USA / shuttle / attachments are **not** inferred from `deliveryLocation`. They r
 | Circular | 1.75 |
 | Q-Bag | 2.20 |
 
-If `totalKgPerBag` is below the min: **warn**, **do not add a surcharge**, set **requires manual pricing/approval**.  
+Book4 lists these as a note and mentions extra cost **with no amount**.  
+If `totalKgPerBag` is below the min: **warn only**. **Do not** add a surcharge, **do not** block auto-price, **do not** change conversion or RM. Light bags use the same $/t formula as any other bag.  
 1 Loop / Fusion / Ventilated have **no** min in Book4 — no min check.
 
 ---
@@ -352,7 +353,11 @@ Printing $0.07 / $0.10 (I36:J37) is **not used**.
 |---|---|---|
 | MF Webbing | `loopType` = `MultiFilament` | `options.addons` |
 | Alu Liner | `linerEnabled` and `linerMaterial` = `ALU` | `options.addons` |
+| Colour Fabric | `fabricColour` is `Blue`, `Green`, or `Black` | `options.addons` |
+| Colour Webbing | same colours **and** `loopEnabled` | `options.addons` |
 | All others | **never inferred** | exact name in `options.addons` |
+
+White / Milky White / Natural do **not** take colour addons.
 
 Felt / Leno / Rachael / Net Baffle / baffle liner: require BOM line kg (`Felt`, `Buffle` is **not** mapped to Net Baffle). Missing kg → flag.
 

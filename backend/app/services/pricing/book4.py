@@ -5,7 +5,6 @@ from __future__ import annotations
 RULE_VERSION = "book4-16-04-26"
 MANUAL = "Pricing rule not available in Book4 — manual pricing required."
 TYPE_D_MANUAL = "Type D has no Book4 conversion amount. Pricing not available / manual pricing required."
-MIN_WEIGHT_MANUAL = "Bag weight is below the Book4 minimum. Manual pricing/approval required."
 MATERIAL_CLASSIFICATION = (
     "BOM contains material kg that Book4 PP/PE buckets cannot classify. "
     "Pricing rule not available in Book4 — manual pricing required."

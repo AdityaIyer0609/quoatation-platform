@@ -37,12 +37,34 @@ function writeJson(key: string, value: unknown) {
   localStorage.setItem(key, JSON.stringify(value))
 }
 
+const AUTH_EXPIRED_EVENT = "quotecraft.auth-expired"
+
+function readToken(): string | null {
+  const token = localStorage.getItem(TOKEN_KEY)
+  if (!token || token === "undefined" || token === "null") return null
+  return token
+}
+
+function clearAuthStorage() {
+  localStorage.removeItem(SESSION_KEY)
+  localStorage.removeItem(TOKEN_KEY)
+}
+
 function authHeaders(json = false): Record<string, string> {
   const headers: Record<string, string> = {}
   if (json) headers["Content-Type"] = "application/json"
-  const token = localStorage.getItem(TOKEN_KEY)
+  const token = readToken()
   if (token) headers.Authorization = `Bearer ${token}`
   return headers
+}
+
+async function request(input: string, init?: RequestInit): Promise<Response> {
+  const response = await fetch(input, init)
+  if (response.status === 401 && !input.includes("/api/auth/login")) {
+    clearAuthStorage()
+    window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
+  }
+  return response
 }
 
 async function readError(response: Response, fallback: string): Promise<string> {
@@ -98,7 +120,7 @@ function sessionFromProfile(me: CustomerProfile & { initials?: string; kind?: st
 
 export const api = {
   async login(email: string, password: string) {
-    const response = await fetch("/api/auth/login", {
+    const response = await request("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -108,7 +130,7 @@ export const api = {
     }
     const body = (await response.json()) as { access_token: string }
     localStorage.setItem(TOKEN_KEY, body.access_token)
-    const meRes = await fetch("/api/auth/me", {
+    const meRes = await request("/api/auth/me", {
       headers: { Authorization: `Bearer ${body.access_token}` },
     })
     if (!meRes.ok) {
@@ -121,13 +143,19 @@ export const api = {
   },
 
   async logout() {
-    localStorage.removeItem(SESSION_KEY)
-    localStorage.removeItem(TOKEN_KEY)
+    clearAuthStorage()
+  },
+
+  onAuthExpired(callback: () => void) {
+    const handler = () => callback()
+    window.addEventListener(AUTH_EXPIRED_EVENT, handler)
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handler)
   },
 
   getSession(): Session | null {
+    const token = readToken()
     const session = readJson<Session | null>(SESSION_KEY, null)
-    if (!session) return null
+    if (!token || !session) return null
     return {
       ...session,
       kind: session.kind ?? "customer",
@@ -136,7 +164,7 @@ export const api = {
   },
 
   async requestPasswordReset(email: string) {
-    const response = await fetch("/api/auth/password-reset", {
+    const response = await request("/api/auth/password-reset", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
@@ -148,7 +176,7 @@ export const api = {
   },
 
   async getDashboard(): Promise<DashboardData> {
-    const response = await fetch("/api/dashboard", { headers: authHeaders() })
+    const response = await request("/api/dashboard", { headers: authHeaders() })
     if (!response.ok) {
       throw new Error(await readError(response, "Could not load the dashboard."))
     }
@@ -156,7 +184,7 @@ export const api = {
   },
 
   async getQuotes(): Promise<QuoteListItem[]> {
-    const response = await fetch("/api/quotes", { headers: authHeaders() })
+    const response = await request("/api/quotes", { headers: authHeaders() })
     if (!response.ok) {
       throw new Error(await readError(response, "Could not load quotations."))
     }
@@ -164,7 +192,7 @@ export const api = {
   },
 
   async getQuote(id: string): Promise<Quote> {
-    const response = await fetch(`/api/quotes/${id}`, { headers: authHeaders() })
+    const response = await request(`/api/quotes/${id}`, { headers: authHeaders() })
     if (!response.ok) {
       throw new Error(await readError(response, "Quote not found"))
     }
@@ -176,7 +204,7 @@ export const api = {
     const session = this.getSession()
     const customerId = sessionStorage.getItem("quotecraft.salesCustomerId")
     const isStaff = session?.kind === "staff"
-    const response = await fetch(isStaff ? "/api/sales/quotes" : "/api/quotes", {
+    const response = await request(isStaff ? "/api/sales/quotes" : "/api/quotes", {
       method: "POST",
       headers: authHeaders(true),
       body: JSON.stringify(
@@ -192,7 +220,7 @@ export const api = {
   },
 
   async downloadPdf(id: string) {
-    const response = await fetch(`/api/quotes/${id}/pdf`, { headers: authHeaders() })
+    const response = await request(`/api/quotes/${id}/pdf`, { headers: authHeaders() })
     if (!response.ok) {
       throw new Error(await readError(response, "Could not download the PDF."))
     }
@@ -210,7 +238,7 @@ export const api = {
   },
 
   async sendQuoteEmail(id: string) {
-    const response = await fetch(`/api/quotes/${id}/email`, {
+    const response = await request(`/api/quotes/${id}/email`, {
       method: "POST",
       headers: authHeaders(true),
     })
@@ -221,7 +249,7 @@ export const api = {
   },
 
   async acceptQuote(id: string) {
-    const response = await fetch(`/api/quotes/${id}/accept`, {
+    const response = await request(`/api/quotes/${id}/accept`, {
       method: "POST",
       headers: authHeaders(true),
     })
@@ -232,7 +260,7 @@ export const api = {
   },
 
   async rejectQuote(id: string, message: string) {
-    const response = await fetch(`/api/quotes/${id}/reject`, {
+    const response = await request(`/api/quotes/${id}/reject`, {
       method: "POST",
       headers: authHeaders(true),
       body: JSON.stringify({ message }),
@@ -244,7 +272,7 @@ export const api = {
   },
 
   async requestRevision(id: string, message: string) {
-    const response = await fetch(`/api/quotes/${id}/revision`, {
+    const response = await request(`/api/quotes/${id}/revision`, {
       method: "POST",
       headers: authHeaders(true),
       body: JSON.stringify({ message }),
@@ -256,7 +284,7 @@ export const api = {
   },
 
   async getProfile(): Promise<CustomerProfile> {
-    const response = await fetch("/api/profile", { headers: authHeaders() })
+    const response = await request("/api/profile", { headers: authHeaders() })
     if (!response.ok) {
       throw new Error(await readError(response, "Could not load your profile."))
     }
@@ -264,7 +292,7 @@ export const api = {
   },
 
   async saveProfile(profile: CustomerProfile) {
-    const response = await fetch("/api/profile", {
+    const response = await request("/api/profile", {
       method: "PUT",
       headers: authHeaders(true),
       body: JSON.stringify({
@@ -299,29 +327,29 @@ export const api = {
   },
 
   async salesDashboard() {
-    const response = await fetch("/api/sales/dashboard", { headers: authHeaders() })
+    const response = await request("/api/sales/dashboard", { headers: authHeaders() })
     if (!response.ok) throw new Error(await readError(response, "Could not load the sales dashboard."))
     return response.json()
   },
   async salesCustomers(search = "") {
-    const response = await fetch(`/api/sales/customers?search=${encodeURIComponent(search)}`, {
+    const response = await request(`/api/sales/customers?search=${encodeURIComponent(search)}`, {
       headers: authHeaders(),
     })
     if (!response.ok) throw new Error(await readError(response, "Could not load customers."))
     return response.json()
   },
   async salesCustomer(id: string) {
-    const response = await fetch(`/api/sales/customers/${id}`, { headers: authHeaders() })
+    const response = await request(`/api/sales/customers/${id}`, { headers: authHeaders() })
     if (!response.ok) throw new Error(await readError(response, "Customer not found"))
     return response.json()
   },
   async salesCustomerQuotes(id: string) {
-    const response = await fetch(`/api/sales/customers/${id}/quotes`, { headers: authHeaders() })
+    const response = await request(`/api/sales/customers/${id}/quotes`, { headers: authHeaders() })
     if (!response.ok) throw new Error(await readError(response, "Could not load quotations."))
     return response.json()
   },
   async createSalesCustomer(payload: Record<string, unknown>) {
-    const response = await fetch("/api/sales/customers", {
+    const response = await request("/api/sales/customers", {
       method: "POST",
       headers: authHeaders(true),
       body: JSON.stringify(payload),
@@ -330,7 +358,7 @@ export const api = {
     return response.json()
   },
   async assignCustomer(customerId: string, staffId: number | null) {
-    const response = await fetch(`/api/sales/customers/${customerId}/assign`, {
+    const response = await request(`/api/sales/customers/${customerId}/assign`, {
       method: "POST",
       headers: authHeaders(true),
       body: JSON.stringify({ staffId }),
@@ -339,23 +367,23 @@ export const api = {
     return response.json()
   },
   async salesAssignees() {
-    const response = await fetch("/api/sales/assignees", { headers: authHeaders() })
+    const response = await request("/api/sales/assignees", { headers: authHeaders() })
     if (!response.ok) throw new Error(await readError(response, "Could not load sales users."))
     return response.json()
   },
   async salesQuotes(params: Record<string, string> = {}) {
     const query = new URLSearchParams(params).toString()
-    const response = await fetch(`/api/sales/quotes${query ? `?${query}` : ""}`, { headers: authHeaders() })
+    const response = await request(`/api/sales/quotes${query ? `?${query}` : ""}`, { headers: authHeaders() })
     if (!response.ok) throw new Error(await readError(response, "Could not load quotations."))
     return response.json()
   },
   async salesQuote(id: string) {
-    const response = await fetch(`/api/sales/quotes/${id}`, { headers: authHeaders() })
+    const response = await request(`/api/sales/quotes/${id}`, { headers: authHeaders() })
     if (!response.ok) throw new Error(await readError(response, "Quote not found"))
     return mapApiQuote((await response.json()) as Record<string, unknown>)
   },
   async downloadSalesPdf(id: string) {
-    const response = await fetch(`/api/sales/quotes/${id}/pdf`, { headers: authHeaders() })
+    const response = await request(`/api/sales/quotes/${id}/pdf`, { headers: authHeaders() })
     if (!response.ok) throw new Error(await readError(response, "Could not download the PDF."))
     const blob = await response.blob()
     const url = URL.createObjectURL(blob)
@@ -368,7 +396,7 @@ export const api = {
     URL.revokeObjectURL(url)
   },
   async issueQuoteVersion(id: string, payload: { reason: string; unitPrice: number }) {
-    const response = await fetch(`/api/sales/quotes/${id}/versions`, {
+    const response = await request(`/api/sales/quotes/${id}/versions`, {
       method: "POST",
       headers: authHeaders(true),
       body: JSON.stringify({ reason: payload.reason, unitPrice: payload.unitPrice }),
@@ -378,7 +406,7 @@ export const api = {
   },
   async compareQuoteVersions(id: string, fromVersion: number, toVersion: number) {
     const query = new URLSearchParams({ from: String(fromVersion), to: String(toVersion) })
-    const response = await fetch(`/api/sales/quotes/${id}/versions/compare?${query}`, {
+    const response = await request(`/api/sales/quotes/${id}/versions/compare?${query}`, {
       headers: authHeaders(),
     })
     if (!response.ok) throw new Error(await readError(response, "Could not compare versions."))
@@ -389,7 +417,7 @@ export const api = {
     }>
   },
   async sendSalesEmail(id: string) {
-    const response = await fetch(`/api/sales/quotes/${id}/email`, {
+    const response = await request(`/api/sales/quotes/${id}/email`, {
       method: "POST",
       headers: authHeaders(true),
     })
@@ -397,7 +425,7 @@ export const api = {
     return response.json()
   },
   async salesManualPricing(id: string, action: string, note: string) {
-    const response = await fetch(`/api/sales/quotes/${id}/manual-pricing`, {
+    const response = await request(`/api/sales/quotes/${id}/manual-pricing`, {
       method: "POST",
       headers: authHeaders(true),
       body: JSON.stringify({ action, note }),
@@ -406,12 +434,12 @@ export const api = {
     return response.json()
   },
   async adminUsers() {
-    const response = await fetch("/api/admin/users", { headers: authHeaders() })
+    const response = await request("/api/admin/users", { headers: authHeaders() })
     if (!response.ok) throw new Error(await readError(response, "Could not load users."))
     return response.json()
   },
   async createAdminUser(payload: Record<string, unknown>) {
-    const response = await fetch("/api/admin/users", {
+    const response = await request("/api/admin/users", {
       method: "POST",
       headers: authHeaders(true),
       body: JSON.stringify(payload),
@@ -420,7 +448,7 @@ export const api = {
     return response.json()
   },
   async updateAdminUser(id: number, payload: Record<string, unknown>) {
-    const response = await fetch(`/api/admin/users/${id}`, {
+    const response = await request(`/api/admin/users/${id}`, {
       method: "PATCH",
       headers: authHeaders(true),
       body: JSON.stringify(payload),

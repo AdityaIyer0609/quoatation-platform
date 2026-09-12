@@ -16,7 +16,6 @@ from app.services.pricing.book4 import (
     MANUAL,
     MATERIAL_CLASSIFICATION,
     MIN_KG,
-    MIN_WEIGHT_MANUAL,
     PE_RM_PER_T,
     PP_RM_PER_T,
     RULE_VERSION,
@@ -111,14 +110,8 @@ class Book4PricingService:
         min_kg = MIN_KG.get(design or "")
         if min_kg is not None and total_kg < d(min_kg):
             warnings.append(
-                f"Bag weight {kg4(total_kg)} kg is below the Book4 minimum of {min_kg} kg "
-                f"for {design}. Extra cost is mentioned in Book4 but no amount is given."
-            )
-            errors.append(
-                PricingIssue(
-                    code="MIN_WEIGHT",
-                    message=MIN_WEIGHT_MANUAL,
-                )
+                f"Bag weight {kg4(total_kg)} kg is below the Book4 note of {min_kg} kg "
+                f"for {design}. No extra amount is listed; conversion uses the same $/t as any other bag."
             )
 
         surcharges: list[PricingLineOut] = []
@@ -200,7 +193,7 @@ class Book4PricingService:
                 unit += d(printing.amount_per_bag)
             total = unit * d(qty)
 
-        requires_manual = (not numeric_ok) or ("MIN_WEIGHT" in blocking)
+        requires_manual = not numeric_ok
 
         return PricingPreviewResponse(
             currency="USD",
@@ -323,6 +316,12 @@ def _addons(
         names.append("MF Webbing")
     if spec.liner_enabled and (spec.liner_material or "").strip() == "ALU" and "Alu Liner" not in names:
         names.append("Alu Liner")
+    colour = (spec.fabric_colour or "").strip()
+    if colour in {"Blue", "Green", "Black"}:
+        if "Colour Fabric" not in names:
+            names.append("Colour Fabric")
+        if spec.loop_enabled and "Colour Webbing" not in names:
+            names.append("Colour Webbing")
 
     lines: list[PricingLineOut] = []
     errors: list[PricingIssue] = []

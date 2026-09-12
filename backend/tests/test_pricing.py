@@ -166,7 +166,7 @@ def test_usa_and_shuttle_and_two_loop():
     assert rates["TWO_LOOP"] == 50
 
 
-def test_below_min_weight_flags_manual_without_invented_surcharge():
+def test_below_min_weight_still_prices_without_invented_surcharge():
     spec = _spec(
         loopEnabled=False,
         sameFabricForPanels=False,
@@ -174,9 +174,11 @@ def test_below_min_weight_flags_manual_without_invented_surcharge():
     )
     result = preview_pricing(spec)
     assert result.total_kg_per_bag < 1.75
-    assert any(err.code == "MIN_WEIGHT" for err in result.errors)
-    assert result.requires_manual_pricing is True
-    assert not any("invent" in (err.message.lower()) for err in result.errors)
+    assert all(err.code != "MIN_WEIGHT" for err in result.errors)
+    assert result.priced is True
+    assert result.requires_manual_pricing is False
+    assert result.unit_price is not None
+    assert any("below the Book4 note" in warning for warning in result.warnings)
     assert all(item.code != "MIN_WEIGHT_SURCHARGE" for item in result.surcharges)
 
 
@@ -235,6 +237,34 @@ def test_per_ton_addon_uses_total_kg():
     line = next(item for item in result.addons if item.label == "Colour Fabric")
     assert line.unit == "per_ton"
     assert line.amount_per_bag == round(result.total_kg_per_bag * 100 / 1000, 2)
+
+
+def test_pigment_fabric_applies_colour_addons():
+    spec = _spec(fabricColour="Blue")
+    result = preview_pricing(spec)
+    labels = {item.label for item in result.addons}
+    assert "Colour Fabric" in labels
+    assert "Colour Webbing" in labels
+    fabric = next(item for item in result.addons if item.label == "Colour Fabric")
+    webbing = next(item for item in result.addons if item.label == "Colour Webbing")
+    assert fabric.amount_per_bag == round(result.total_kg_per_bag * 100 / 1000, 2)
+    assert webbing.amount_per_bag == round(result.total_kg_per_bag * 50 / 1000, 2)
+
+
+def test_white_fabric_does_not_apply_colour_addons():
+    spec = _spec(fabricColour="White")
+    result = preview_pricing(spec)
+    labels = {item.label for item in result.addons}
+    assert "Colour Fabric" not in labels
+    assert "Colour Webbing" not in labels
+
+
+def test_coloured_bag_without_loops_skips_colour_webbing():
+    spec = _spec(fabricColour="Green", loopEnabled=False)
+    result = preview_pricing(spec)
+    labels = {item.label for item in result.addons}
+    assert "Colour Fabric" in labels
+    assert "Colour Webbing" not in labels
 
 
 def test_unmapped_complication_not_inferred():

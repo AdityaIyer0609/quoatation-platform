@@ -14,25 +14,33 @@ export function shade(hex: string, amount: number) {
 export function fabricColor(colour: string) {
   switch (colour) {
     case "Blue":
-      return "#3d6a9a"
+      return "#5b92cc"
     case "Green":
-      return "#4a7c5c"
+      return "#6bb56e"
     case "Black":
-      return "#2c2c2a"
+      return "#5c5c5a"
     case "Natural":
-      return "#e4d4b8"
+      return "#c9a36a"
     case "Milky White":
-      return "#f3efe6"
+      return "#f4e2b8"
+    case "White":
+      return "#f5f6f8"
     default:
-      return "#f2eee4"
+      return "#f5f6f8"
   }
 }
 
 export function webbingColor(colour: string) {
-  if (colour === "Blue" || colour === "Green" || colour === "Black") {
-    return colour === "Black" ? "#1a1a18" : colour === "Green" ? "#2d4a38" : "#243f5c"
+  switch (colour) {
+    case "Black":
+      return "#8a8a86"
+    case "Green":
+      return "#2f7a3f"
+    case "Blue":
+      return "#1f4e82"
+    default:
+      return "#c4d02a"
   }
-  return "#c4d02a"
 }
 
 let weaveTexture: THREE.CanvasTexture | null = null
@@ -43,11 +51,11 @@ export function getWeave() {
   canvas.width = canvas.height = size
   const ctx = canvas.getContext("2d")
   if (!ctx) throw new Error("weave")
-  ctx.fillStyle = "#dcd6c8"
+  ctx.fillStyle = "#f3f3f3"
   ctx.fillRect(0, 0, size, size)
   for (let y = 0; y < size; y += 2) {
     for (let x = 0; x < size; x += 2) {
-      ctx.fillStyle = (x + y) % 4 === 0 ? "#efeae0" : "#c9c2b4"
+      ctx.fillStyle = (x + y) % 4 === 0 ? "#ffffff" : "#e6e6e6"
       ctx.fillRect(x, y, 2, 2)
     }
   }
