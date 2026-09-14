@@ -682,7 +682,7 @@ export const defaultSpecification: QuoteSpecification = {
   bottomVelcroSize: "0",
   bottomSpoutColor: "Milky White",
   bottomSpoutRemarks: "",
-  duffleHeight: "80",
+  duffleHeight: "",
   conicalTop: "",
   bottomConicalHeight: "",
   slitHt: "",

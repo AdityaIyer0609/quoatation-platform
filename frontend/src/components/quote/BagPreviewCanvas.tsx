@@ -4,6 +4,8 @@ import { useEffect, useMemo } from "react"
 import * as THREE from "three"
 
 import {
+  BaffleKit,
+  CornerSeamKit,
   DischargeKit,
   Fabric,
   FillingKit,
@@ -11,6 +13,7 @@ import {
   LoopKit,
   StitchKit,
   UPanelWrap,
+  VentilatedFaces,
   fabricColor,
   shade,
   webbingColor,
@@ -104,7 +107,8 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
     const length = num(spec.length, 90)
     const width = num(spec.width, 90)
     const height = num(spec.height, 110)
-    const scale = 2.35 / Math.max(length, width, height)
+    // Fit longest body edge; keep cm ratios (spouts/loops use same scale — no artificial clamps).
+    const scale = 2.2 / Math.max(length, width, height)
     const sx = length * scale
     const sy = height * scale
     const sz = width * scale
@@ -118,30 +122,52 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
     const baffle = construction.includes("buffle") || construction.includes("baffle")
     const upanel = construction.includes("upanel") && !liftBag
     const fourPanel = construction.includes("4panel") && !liftBag
-    const footprint = Math.min(sx, sz)
+    const topSpoutDia = num(spec.topSpoutDia, 40)
+    const botSpoutDia = num(spec.bottomSpoutDia, 35)
+    const loopLenCm = num(spec.loopLength, 30)
+    const loopWCm = num(spec.loopWidth, 5)
+    const duffleCm = num(spec.duffleHeight, 0)
+    const bodyColor = fabricColor(spec.fabricColour)
+    const loopColor = fabricColor(spec.loopColour || spec.fabricColour)
+    const laminated = num(spec.bodyLami, 0) > 0
+    // ~1 weave tile per 6–8 cm of fabric face
+    const weaveU = Math.max(6, Math.round(length / 7))
+    const weaveV = Math.max(8, Math.round(height / 7))
+    // Filled look: soft belly; baffle stays near-square (drawing accuracy).
+    const belly = circular ? 0.07 : baffle ? 0.015 : liftBag ? 0.055 : 0.05
     return {
       sx,
       sy,
       sz,
+      scale,
       circular,
       liftBag,
       baffle,
       upanel,
       fourPanel,
-      color: fabricColor(spec.fabricColour),
-      strap: webbingColor(spec.fabricColour),
-      spoutTopH: Math.min(sy * 0.2, Math.max(0.16, num(spec.topSpoutHeight, 50) * scale * 0.7)),
-      spoutTopR: Math.min(footprint * 0.16, Math.max(0.09, (num(spec.topSpoutDia, 40) * scale) / 2)),
-      spoutBotH: Math.min(sy * 0.16, Math.max(0.14, num(spec.bottomSpoutHeight, 40) * scale * 0.7)),
-      spoutBotR: Math.min(footprint * 0.14, Math.max(0.08, (num(spec.bottomSpoutDia, 35) * scale) / 2)),
-      duffleH: Math.min(sy * 0.18, Math.max(0.16, num(spec.duffleHeight, 50) * scale * 0.28)),
-      conicalH: Math.min(sy * 0.16, Math.max(0.14, num(spec.conicalTop || spec.bottomConicalHeight, 30) * scale * 0.32)),
-      loopCount: Math.min(8, Math.max(0, Number.parseInt(spec.loopCount || "4", 10) || 4)),
+      ventilated: /ventilat/i.test(spec.bodyStyle),
+      laminated,
+      weaveRepeat: [weaveU, weaveV] as [number, number],
+      color: bodyColor,
+      baffleColor: shade(bodyColor, 28),
+      strap: (spec.loopColour || "").trim() ? loopColor : webbingColor(spec.fabricColour),
+      spoutTopH: Math.max(0.08, num(spec.topSpoutHeight, 50) * scale),
+      spoutTopR: Math.min(Math.min(sx, sz) * 0.48, Math.max(0.05, (topSpoutDia * scale) / 2)),
+      spoutBotH: Math.max(0.08, num(spec.bottomSpoutHeight, 40) * scale),
+      spoutBotR: Math.min(Math.min(sx, sz) * 0.48, Math.max(0.05, (botSpoutDia * scale) / 2)),
+      duffleH: Math.max(0, duffleCm * scale),
+      conicalH: Math.max(0.08, num(spec.conicalTop || spec.bottomConicalHeight, 30) * scale),
+      loopAbove: Math.max(0.1, loopLenCm * scale),
+      sewDown: Math.max(0.08, Math.min(height * 0.55, loopLenCm * 1.15) * scale),
+      strapWidth: Math.max(0.02, (loopWCm * scale) / 2),
+      loopCount: Math.min(12, Math.max(0, Number.parseInt(spec.loopCount || "4", 10) || 4)),
       doc: spec.docPouch,
+      docW: Math.max(0.1, num(spec.docWidth || spec.docLength, 30) * scale * 0.45),
+      docH: Math.max(0.08, num(spec.docLength || spec.docWidth, 35) * scale * 0.4),
       printed: isPrinted(spec.printing),
       twoSided: /^2S/i.test(spec.printing || ""),
       twoColor: /2C/i.test(spec.printing || ""),
-      belly: circular ? 0.08 : baffle ? 0.035 : liftBag ? 0.07 : 0.06,
+      belly,
       gatherTop: false,
     }
   }, [spec])
@@ -155,7 +181,11 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
     baffle,
     upanel,
     fourPanel,
+    ventilated,
+    laminated,
+    weaveRepeat,
     color,
+    baffleColor,
     strap,
     spoutTopH,
     spoutTopR,
@@ -163,8 +193,13 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
     spoutBotR,
     duffleH,
     conicalH,
+    loopAbove,
+    sewDown,
+    strapWidth,
     loopCount,
     doc,
+    docW,
+    docH,
     printed,
     twoSided,
     twoColor,
@@ -181,8 +216,8 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
   const stitch = shade(color, -28)
   const lift =
     (/spout/i.test(spec.bottomType) ? spoutBotH : /conical|skirt/i.test(spec.bottomType) ? conicalH : 0) +
-    (upanel ? 0.16 : 0)
-  const faceZ = (circular ? sz / 2 : sz / 2) + 0.02
+    (upanel ? 0.12 : 0)
+  const faceZ = sz / 2 + 0.02
   const inset = 0.02
   const corners = circular
     ? ([Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4] as const).map(
@@ -198,11 +233,13 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
   return (
     <group position={[0, lift + 0.02, 0]}>
       <mesh geometry={sack} position={[0, sy / 2, 0]} castShadow>
-        <Fabric color={color} />
+        <Fabric color={color} repeat={weaveRepeat} laminated={laminated} />
       </mesh>
       <group position={[0, sy / 2, 0]}>
         <InkEdges geometry={sack} color={shade(color, -85)} />
       </group>
+
+      <CornerSeamKit sx={sx} sy={sy} sz={sz} color={color} circular={circular} />
 
       {upanel ? <UPanelWrap sx={sx} sy={sy} sz={sz} color={color} stitch={stitch} /> : null}
 
@@ -225,36 +262,8 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
           })
         : null}
 
-      {baffle ? (
-        <group>
-          <mesh position={[0, sy / 2, 0]} rotation={[0, Math.PI / 4, 0]}>
-            <boxGeometry args={[Math.min(sx, sz) * 0.9, sy * 0.86, 0.016]} />
-            <meshStandardMaterial color={shade(color, -36)} roughness={0.82} transparent opacity={0.5} />
-          </mesh>
-          <mesh position={[0, sy / 2, 0]} rotation={[0, -Math.PI / 4, 0]}>
-            <boxGeometry args={[Math.min(sx, sz) * 0.9, sy * 0.86, 0.016]} />
-            <meshStandardMaterial color={shade(color, -36)} roughness={0.82} transparent opacity={0.5} />
-          </mesh>
-        </group>
-      ) : null}
-
-      {/ventilat/i.test(spec.bodyStyle)
-        ? Array.from({ length: 5 }, (_, row) =>
-            Array.from({ length: 4 }, (_, col) => (
-              <mesh
-                key={`v-${row}-${col}`}
-                position={[
-                  -sx * 0.28 + col * ((sx * 0.56) / 3),
-                  sy * 0.22 + row * ((sy * 0.56) / 4),
-                  sz / 2 + 0.012,
-                ]}
-              >
-                <circleGeometry args={[0.035, 12]} />
-                <meshStandardMaterial color="#8aa0b8" roughness={0.4} />
-              </mesh>
-            )),
-          )
-        : null}
+      {baffle ? <BaffleKit sx={sx} sy={sy} sz={sz} color={color} baffleColor={baffleColor} /> : null}
+      {ventilated ? <VentilatedFaces sx={sx} sy={sy} sz={sz} color={color} /> : null}
 
       {spec.linerEnabled && !liftBag ? (
         <mesh position={[0, sy / 2, 0]}>
@@ -309,27 +318,30 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
         stevedore={spec.stevedore || spec.steveCover}
         stevedorePortion={spec.stevedorePortion || "Diagonal"}
         protector={spec.loopProtector}
+        loopAbove={loopAbove}
+        sewDown={sewDown}
+        strapWidth={strapWidth}
       />
       {liftBag ? null : (
-      <StitchKit
-        sx={sx}
-        sy={sy}
-        sz={sz}
-        color={color}
-        hiracle={spec.hiracle}
-        hiracleTop={spec.hiracleTop}
-        hiracleBottom={spec.hiracleBottom}
-        felt={spec.felt}
-        feltTop={spec.feltTop}
-        feltBottom={spec.feltBottom}
-        feltBody={spec.feltBody}
-        fillerCord={spec.fillerCord}
-        fillerDouble={
-          spec.threadNeedle === "Double" ||
-          spec.fillerCordBodyType === "Double" ||
-          spec.fillerCordTopType === "Double"
-        }
-      />
+        <StitchKit
+          sx={sx}
+          sy={sy}
+          sz={sz}
+          color={color}
+          hiracle={spec.hiracle}
+          hiracleTop={spec.hiracleTop}
+          hiracleBottom={spec.hiracleBottom}
+          felt={spec.felt}
+          feltTop={spec.feltTop}
+          feltBottom={spec.feltBottom}
+          feltBody={spec.feltBody}
+          fillerCord={spec.fillerCord}
+          fillerDouble={
+            spec.threadNeedle === "Double" ||
+            spec.fillerCordBodyType === "Double" ||
+            spec.fillerCordTopType === "Double"
+          }
+        />
       )}
 
       {printed ? (
@@ -357,11 +369,32 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
         </>
       ) : null}
 
+      {/* Safety / Palmetto-style label */}
+      <group position={[-sx * 0.2, sy * 0.74, faceZ + 0.01]}>
+        <mesh>
+          <planeGeometry args={[sx * 0.14, sy * 0.09]} />
+          <meshStandardMaterial color="#f0d24a" roughness={0.5} />
+        </mesh>
+        <mesh position={[0, 0, 0.002]}>
+          <planeGeometry args={[sx * 0.1, sy * 0.012]} />
+          <meshStandardMaterial color="#1a1a18" roughness={0.6} />
+        </mesh>
+        <mesh position={[0, -sy * 0.02, 0.002]}>
+          <planeGeometry args={[sx * 0.08, sy * 0.008]} />
+          <meshStandardMaterial color="#333" roughness={0.6} />
+        </mesh>
+      </group>
+
       {doc ? (
-        <group position={[sx * 0.22, sy * 0.32, faceZ + 0.01]}>
+        <group position={[sx * 0.28, sy * 0.68, faceZ + 0.014]}>
+          {/* PE open pouch — clear-ish plastic */}
           <mesh castShadow>
-            <boxGeometry args={[sx * 0.16, sy * 0.1, 0.024]} />
-            <Fabric color={shade(color, 12)} />
+            <boxGeometry args={[docW, docH, 0.018]} />
+            <meshStandardMaterial color="#dceaf2" transparent opacity={0.55} roughness={0.25} metalness={0.08} />
+          </mesh>
+          <mesh position={[0, docH * 0.35, 0.01]}>
+            <boxGeometry args={[docW * 0.92, 0.008, 0.004]} />
+            <meshStandardMaterial color="#9bb0c0" roughness={0.4} />
           </mesh>
         </group>
       ) : null}

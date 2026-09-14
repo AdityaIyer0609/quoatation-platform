@@ -87,6 +87,7 @@ export function topTypeDefaults(topType: string, spec: QuoteSpecification): Part
   if (topType === "Top Spout") {
     return {
       topType,
+      duffleHeight: "",
       topSpoutType: "Simple",
       topSpoutDia: spec.topSpoutDia || "35",
       topSpoutHeight: spec.topSpoutHeight || "50",
@@ -103,6 +104,7 @@ export function topTypeDefaults(topType: string, spec: QuoteSpecification): Part
   if (topType === "Conical Top" || topType === "Conical PlateTop") {
     return {
       topType,
+      duffleHeight: "",
       topSpoutType: "None",
       topSpoutGsm: "0",
       topSpoutLami: "0",
@@ -112,7 +114,11 @@ export function topTypeDefaults(topType: string, spec: QuoteSpecification): Part
       topSpoutTie: false,
     }
   }
-  return { topType }
+  // Open / other: clear skirt height so preview never builds a giant collar.
+  if (topType === "Open") {
+    return { topType, duffleHeight: "" }
+  }
+  return { topType, duffleHeight: "" }
 }
 
 /** frmBOM_NEW comboBoxbottomtype / comboBoxbottomdia / petal subtype remarks */

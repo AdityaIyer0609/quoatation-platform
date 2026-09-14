@@ -33,20 +33,40 @@ export function webbingColor(colour: string) {
 }
 
 let weaveTexture: THREE.CanvasTexture | null = null
+let webbingTexture: THREE.CanvasTexture | null = null
+
+/** Dense PP weave tile (shared). Callers clone + set repeat for bag-cm scaling. */
 export function getWeave() {
   if (weaveTexture) return weaveTexture
-  const size = 128
+  const size = 256
   const canvas = document.createElement("canvas")
   canvas.width = canvas.height = size
   const ctx = canvas.getContext("2d")
   if (!ctx) throw new Error("weave")
-  ctx.fillStyle = "#f3f3f3"
+  ctx.fillStyle = "#ececec"
   ctx.fillRect(0, 0, size, size)
-  for (let y = 0; y < size; y += 2) {
-    for (let x = 0; x < size; x += 2) {
-      ctx.fillStyle = (x + y) % 4 === 0 ? "#ffffff" : "#e6e6e6"
-      ctx.fillRect(x, y, 2, 2)
+  const cell = 8
+  for (let y = 0; y < size; y += cell) {
+    for (let x = 0; x < size; x += cell) {
+      const warp = (x / cell + y / cell) % 2 === 0
+      ctx.fillStyle = warp ? "#ffffff" : "#d8d8d6"
+      ctx.fillRect(x, y, cell / 2, cell)
+      ctx.fillStyle = warp ? "#e2e2e0" : "#f7f7f5"
+      ctx.fillRect(x + cell / 2, y, cell / 2, cell)
     }
+  }
+  // Fine pick lines
+  ctx.strokeStyle = "rgba(0,0,0,0.06)"
+  ctx.lineWidth = 1
+  for (let i = 0; i <= size; i += cell / 2) {
+    ctx.beginPath()
+    ctx.moveTo(i, 0)
+    ctx.lineTo(i, size)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(0, i)
+    ctx.lineTo(size, i)
+    ctx.stroke()
   }
   weaveTexture = new THREE.CanvasTexture(canvas)
   weaveTexture.colorSpace = THREE.SRGBColorSpace
@@ -56,23 +76,121 @@ export function getWeave() {
   return weaveTexture
 }
 
-export function Fabric({ color, doubleSide }: { color: string; doubleSide?: boolean }) {
-  const weave = getWeave()
+function getWebbingStripe() {
+  if (webbingTexture) return webbingTexture
+  const size = 64
+  const canvas = document.createElement("canvas")
+  canvas.width = canvas.height = size
+  const ctx = canvas.getContext("2d")
+  if (!ctx) throw new Error("webbing")
+  ctx.fillStyle = "#dddddd"
+  ctx.fillRect(0, 0, size, size)
+  for (let x = 0; x < size; x += 4) {
+    ctx.fillStyle = x % 8 === 0 ? "#f2f2f2" : "#c8c8c6"
+    ctx.fillRect(x, 0, 2, size)
+  }
+  webbingTexture = new THREE.CanvasTexture(canvas)
+  webbingTexture.colorSpace = THREE.SRGBColorSpace
+  webbingTexture.wrapS = webbingTexture.wrapT = THREE.RepeatWrapping
+  webbingTexture.repeat.set(4, 1)
+  return webbingTexture
+}
+
+function useScaledMap(base: THREE.Texture, repX: number, repY: number) {
+  const tex = useMemo(() => {
+    const clone = base.clone()
+    clone.needsUpdate = true
+    clone.wrapS = clone.wrapT = THREE.RepeatWrapping
+    clone.repeat.set(repX, repY)
+    return clone
+  }, [base, repX, repY])
+  useEffect(() => () => tex.dispose(), [tex])
+  return tex
+}
+
+/**
+ * Body fabric. `repeat` ≈ tiles across the face; pass cm-based values from the bag.
+ * `laminated` slightly glosses coated fabric.
+ */
+export function Fabric({
+  color,
+  doubleSide,
+  repeat = [14, 18],
+  laminated = false,
+}: {
+  color: string
+  doubleSide?: boolean
+  repeat?: [number, number]
+  laminated?: boolean
+}) {
+  const weave = useScaledMap(getWeave(), repeat[0], repeat[1])
   return (
     <meshStandardMaterial
       color={color}
       map={weave}
-      roughness={0.92}
-      metalness={0}
+      roughness={laminated ? 0.68 : 0.9}
+      metalness={laminated ? 0.04 : 0}
       bumpMap={weave}
-      bumpScale={0.025}
+      bumpScale={laminated ? 0.012 : 0.028}
       side={doubleSide ? THREE.DoubleSide : THREE.FrontSide}
     />
   )
 }
 
 export function Webbing({ color }: { color: string }) {
-  return <meshStandardMaterial color={color} roughness={0.52} metalness={0.04} />
+  const map = useScaledMap(getWebbingStripe(), 6, 1)
+  return (
+    <meshStandardMaterial
+      color={color}
+      map={map}
+      roughness={0.48}
+      metalness={0.06}
+      bumpMap={map}
+      bumpScale={0.02}
+    />
+  )
+}
+
+/** Vertical corner reinforcement / safety-seam ribbons (drawing look). */
+export function CornerSeamKit({
+  sx,
+  sy,
+  sz,
+  color,
+  circular,
+}: {
+  sx: number
+  sy: number
+  sz: number
+  color: string
+  circular?: boolean
+}) {
+  if (circular) return null
+  const stitch = shade(color, -40)
+  const inset = 0.015
+  const pts: [number, number][] = [
+    [sx / 2 - inset, sz / 2 - inset],
+    [-sx / 2 + inset, sz / 2 - inset],
+    [sx / 2 - inset, -sz / 2 + inset],
+    [-sx / 2 + inset, -sz / 2 + inset],
+  ]
+  return (
+    <group>
+      {pts.map(([x, z], i) => (
+        <group key={i}>
+          <mesh position={[x, sy / 2, z]}>
+            <boxGeometry args={[0.022, sy * 0.96, 0.022]} />
+            <meshStandardMaterial color={stitch} roughness={0.75} />
+          </mesh>
+          {/* Cross-stitch block near top (loop anchorage) */}
+          <mesh position={[x, sy * 0.82, z]}>
+            <boxGeometry args={[0.05, 0.1, 0.05]} />
+            <meshStandardMaterial color={shade(color, -55)} roughness={0.7} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  )
 }
 
 export function InkEdges({ geometry, color = CATALOG_INK }: { geometry: THREE.BufferGeometry; color?: string }) {
@@ -169,29 +287,41 @@ export function FaceSlackLoop({
   y0,
   y1,
   color,
+  above = 0.32,
+  width = 0.055,
 }: {
   x: number
   z: number
   y0: number
   y1: number
   color: string
+  /** Loop height above bag top (scene units). */
+  above?: number
+  /** Half-strap width (scene units). */
+  width?: number
 }) {
   const yaw = Math.atan2(x, z)
+  const peak = Math.max(0.12, above)
   const geometry = useMemo(() => {
     const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.11, y0, 0.02),
-      new THREE.Vector3(-0.12, y1 + 0.08, 0.1),
-      new THREE.Vector3(0, y1 + 0.32, 0.14),
-      new THREE.Vector3(0.12, y1 + 0.08, 0.1),
-      new THREE.Vector3(0.11, y0, 0.02),
+      new THREE.Vector3(-width * 2, y0, 0.02),
+      new THREE.Vector3(-width * 2.2, y1 + peak * 0.35, peak * 0.28),
+      new THREE.Vector3(0, y1 + peak, peak * 0.38),
+      new THREE.Vector3(width * 2.2, y1 + peak * 0.35, peak * 0.28),
+      new THREE.Vector3(width * 2, y0, 0.02),
     ])
-    return strapGeo(curve, 0.055, 0.012)
-  }, [y0, y1])
+    return strapGeo(curve, width, Math.max(0.008, width * 0.22))
+  }, [y0, y1, peak, width])
   useEffect(() => () => geometry.dispose(), [geometry])
   return (
     <group position={[x, 0, z]} rotation={[0, yaw, 0]}>
       <mesh geometry={geometry} castShadow>
         <Webbing color={color} />
+      </mesh>
+      {/* Reinforcement sew patch */}
+      <mesh position={[0, y0 + (y1 - y0) * 0.15, 0.01]}>
+        <boxGeometry args={[width * 3.2, Math.max(0.06, (y1 - y0) * 0.35), 0.012]} />
+        <meshStandardMaterial color={shade(color, -25)} roughness={0.7} />
       </mesh>
     </group>
   )
@@ -203,27 +333,32 @@ export function SlackLoop({
   y0,
   y1,
   color,
+  above = 0.3,
+  width = 0.055,
 }: {
   x: number
   z: number
   y0: number
   y1: number
   color: string
+  above?: number
+  width?: number
 }) {
   const dx = Math.sign(x) || 1
   const dz = Math.sign(z) || 1
+  const peak = Math.max(0.12, above)
   const geometry = useMemo(() => {
     const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(x - dx * 0.1, y0, z + dz * 0.02),
-      new THREE.Vector3(x - dx * 0.12, (y0 + y1) * 0.5, z + dz * 0.08),
-      new THREE.Vector3(x - dx * 0.04, y1 + 0.1, z - dz * 0.02),
-      new THREE.Vector3(x + dx * 0.02, y1 + 0.3, z - dz * 0.08),
-      new THREE.Vector3(x + dx * 0.06, y1 + 0.08, z - dz * 0.12),
-      new THREE.Vector3(x + dx * 0.02, (y0 + y1) * 0.5, z - dz * 0.12),
-      new THREE.Vector3(x + dx * 0.02, y0, z - dz * 0.1),
+      new THREE.Vector3(x - dx * width * 1.8, y0, z + dz * 0.02),
+      new THREE.Vector3(x - dx * width * 2.2, (y0 + y1) * 0.5, z + dz * width * 1.4),
+      new THREE.Vector3(x - dx * width * 0.7, y1 + peak * 0.35, z - dz * width * 0.4),
+      new THREE.Vector3(x + dx * width * 0.4, y1 + peak, z - dz * width * 1.4),
+      new THREE.Vector3(x + dx * width * 1.1, y1 + peak * 0.3, z - dz * width * 2.1),
+      new THREE.Vector3(x + dx * width * 0.4, (y0 + y1) * 0.5, z - dz * width * 2.1),
+      new THREE.Vector3(x + dx * width * 0.4, y0, z - dz * width * 1.8),
     ])
-    return strapGeo(curve, 0.055, 0.012)
-  }, [x, z, y0, y1, dx, dz])
+    return strapGeo(curve, width, Math.max(0.008, width * 0.22))
+  }, [x, z, y0, y1, dx, dz, peak, width])
   useEffect(() => () => geometry.dispose(), [geometry])
   return (
     <mesh geometry={geometry} castShadow>
@@ -326,10 +461,203 @@ function Iris({ radius, height, strap, flip }: { radius: number; height: number;
   const dir = flip ? -1 : 1
   return (
     <group>
-      {[0.45, 0.62, 0.78].map((t, index) => (
+      {/* Iris disc at spout root */}
+      <mesh position={[0, dir * height * 0.08, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[radius * 0.35, radius * 1.05, 28]} />
+        <meshStandardMaterial color={shade(strap, -20)} roughness={0.65} side={THREE.DoubleSide} />
+      </mesh>
+      {[0.35, 0.52, 0.7].map((t, index) => (
         <mesh key={t} position={[0, dir * height * t, 0]} rotation={[Math.PI / 2, index * 0.35, 0]}>
-          <torusGeometry args={[radius * (0.95 - index * 0.08), 0.014, 8, 20]} />
+          <torusGeometry args={[radius * (0.95 - index * 0.1), 0.012, 8, 24]} />
           <Webbing color={strap} />
+        </mesh>
+      ))}
+      {/* Fibrillated / web ties */}
+      {[0, Math.PI / 2].map((a) => (
+        <mesh key={a} position={[0, dir * height * 0.55, 0]} rotation={[0, a, 0]}>
+          <boxGeometry args={[radius * 2.1, 0.014, 0.014]} />
+          <Webbing color={strap} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+function SpoutTies({ radius, height, strap, flip }: { radius: number; height: number; strap: string; flip?: boolean }) {
+  const dir = flip ? -1 : 1
+  return (
+    <group>
+      <mesh position={[0, dir * height * 0.55, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[radius * 0.92, 0.011, 8, 20]} />
+        <Webbing color={strap} />
+      </mesh>
+      <mesh position={[0, dir * height * 0.55, 0]} rotation={[0, 0, 0]}>
+        <boxGeometry args={[radius * 2.4, 0.012, 0.012]} />
+        <Webbing color={strap} />
+      </mesh>
+    </group>
+  )
+}
+
+/** Full-open / open-top rectangular collar matching mill drawings. */
+function OpenCollar({
+  sx,
+  sy,
+  sz,
+  height,
+  color,
+}: {
+  sx: number
+  sy: number
+  sz: number
+  height: number
+  color: string
+}) {
+  const t = 0.018
+  const h = Math.max(0.12, height)
+  const y = sy + h / 2
+  return (
+    <group>
+      <mesh position={[0, y, sz / 2 - t / 2]}>
+        <boxGeometry args={[sx, h, t]} />
+        <Fabric color={color} />
+      </mesh>
+      <mesh position={[0, y, -sz / 2 + t / 2]}>
+        <boxGeometry args={[sx, h, t]} />
+        <Fabric color={color} />
+      </mesh>
+      <mesh position={[sx / 2 - t / 2, y, 0]}>
+        <boxGeometry args={[t, h, sz - t * 2]} />
+        <Fabric color={color} />
+      </mesh>
+      <mesh position={[-sx / 2 + t / 2, y, 0]}>
+        <boxGeometry args={[t, h, sz - t * 2]} />
+        <Fabric color={color} />
+      </mesh>
+      {/* Soft hem at collar rim */}
+      <mesh position={[0, sy + h - 0.01, 0]}>
+        <boxGeometry args={[sx * 0.98, 0.02, sz * 0.98]} />
+        <meshStandardMaterial color={shade(color, -18)} roughness={0.9} wireframe={false} transparent opacity={0.85} />
+      </mesh>
+    </group>
+  )
+}
+
+function baffleAlphaMap() {
+  const size = 256
+  const canvas = document.createElement("canvas")
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext("2d")!
+  ctx.fillStyle = "#ffffff"
+  ctx.fillRect(0, 0, size, size)
+  ctx.fillStyle = "#000000"
+  const cols = 2
+  const rows = 5
+  for (let r = 0; r < rows; r += 1) {
+    for (let c = 0; c < cols; c += 1) {
+      const x = ((c + 0.5) / cols) * size
+      const y = ((r + 0.5) / rows) * size
+      ctx.beginPath()
+      ctx.ellipse(x, y, size * 0.12, size * 0.07, 0, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+}
+
+export function BaffleKit({
+  sx,
+  sy,
+  sz,
+  color,
+  baffleColor,
+}: {
+  sx: number
+  sy: number
+  sz: number
+  color: string
+  /** Distinct baffle tint (CAD drawings often use a cooler fabric). */
+  baffleColor?: string
+}) {
+  const alpha = useMemo(() => (typeof document !== "undefined" ? baffleAlphaMap() : null), [])
+  useEffect(() => () => alpha?.dispose(), [alpha])
+  // Cooler internal-panel look when no explicit baffle colour.
+  const safeTint = baffleColor || shade(color, 22)
+  const depth = Math.min(sx, sz) * 0.4
+  const panels: { x: number; z: number; rot: number }[] = [
+    { x: sx / 2 - depth * 0.35, z: sz / 2 - depth * 0.35, rot: -Math.PI / 4 },
+    { x: -sx / 2 + depth * 0.35, z: sz / 2 - depth * 0.35, rot: Math.PI / 4 },
+    { x: sx / 2 - depth * 0.35, z: -sz / 2 + depth * 0.35, rot: Math.PI / 4 },
+    { x: -sx / 2 + depth * 0.35, z: -sz / 2 + depth * 0.35, rot: -Math.PI / 4 },
+  ]
+  return (
+    <group>
+      {panels.map((p, i) => (
+        <mesh key={i} position={[p.x, sy / 2, p.z]} rotation={[0, p.rot, 0]}>
+          <planeGeometry args={[depth, sy * 0.88]} />
+          <meshStandardMaterial
+            color={safeTint}
+            roughness={0.86}
+            transparent
+            opacity={0.78}
+            alphaMap={alpha ?? undefined}
+            alphaTest={0.35}
+            side={THREE.DoubleSide}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+function ventTexture() {
+  const size = 256
+  const canvas = document.createElement("canvas")
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext("2d")!
+  // Alpha map: white = fabric, black = vent slots
+  ctx.fillStyle = "#ffffff"
+  ctx.fillRect(0, 0, size, size)
+  ctx.fillStyle = "#000000"
+  for (let i = 0; i < 14; i += 1) {
+    const y = ((i + 0.5) / 14) * size
+    ctx.fillRect(size * 0.06, y - 3, size * 0.88, 5)
+  }
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+  tex.repeat.set(2, 6)
+  return tex
+}
+
+export function VentilatedFaces({ sx, sy, sz, color }: { sx: number; sy: number; sz: number; color: string }) {
+  const alpha = useMemo(() => (typeof document !== "undefined" ? ventTexture() : null), [])
+  useEffect(() => () => alpha?.dispose(), [alpha])
+  const faces = [
+    { pos: [0, sy / 2, sz / 2 + 0.005] as const, rot: [0, 0, 0] as const, w: sx * 0.86, h: sy * 0.78 },
+    { pos: [0, sy / 2, -sz / 2 - 0.005] as const, rot: [0, Math.PI, 0] as const, w: sx * 0.86, h: sy * 0.78 },
+    { pos: [sx / 2 + 0.005, sy / 2, 0] as const, rot: [0, Math.PI / 2, 0] as const, w: sz * 0.86, h: sy * 0.78 },
+    { pos: [-sx / 2 - 0.005, sy / 2, 0] as const, rot: [0, -Math.PI / 2, 0] as const, w: sz * 0.86, h: sy * 0.78 },
+  ]
+  return (
+    <group>
+      {faces.map((f, i) => (
+        <mesh key={i} position={[...f.pos]} rotation={[...f.rot]}>
+          <planeGeometry args={[f.w, f.h]} />
+          <meshStandardMaterial
+            color={shade(color, -6)}
+            roughness={0.88}
+            transparent
+            opacity={0.92}
+            alphaMap={alpha ?? undefined}
+            alphaTest={0.45}
+            side={THREE.DoubleSide}
+            depthWrite={false}
+          />
         </mesh>
       ))}
     </group>
@@ -345,6 +673,9 @@ function Skirt({
   jute,
   drawstring,
   flip,
+  rectangular,
+  sx,
+  sz,
 }: {
   y: number
   span: number
@@ -354,17 +685,33 @@ function Skirt({
   jute?: boolean
   drawstring?: boolean
   flip?: boolean
+  /** Soft gathered duffle vs rectangular open skirt. */
+  rectangular?: boolean
+  sx?: number
+  sz?: number
 }) {
   const dir = flip ? -1 : 1
   const cloth = jute ? "#c4a574" : color
+  const h = Math.max(0.12, height)
+  if (rectangular && sx && sz) {
+    return (
+      <group position={[0, y, 0]}>
+        <OpenCollar sx={sx * 0.98} sy={0} sz={sz * 0.98} height={h} color={cloth} />
+        <mesh position={[0, dir * h * 0.55, sx ? 0 : 0]}>
+          <boxGeometry args={[0.012, 0.012, Math.min(sx, sz) * 0.9]} />
+          <Webbing color={drawstring ? strap : shade(cloth, -15)} />
+        </mesh>
+      </group>
+    )
+  }
   return (
     <group position={[0, y, 0]}>
-      <mesh position={[0, dir * height * 0.45, 0]} rotation={flip ? [Math.PI, 0, 0] : [0, 0, 0]}>
-        <cylinderGeometry args={[span * 0.18, span * 0.42, height, 24, 1, true]} />
+      <mesh position={[0, dir * h * 0.45, 0]} rotation={flip ? [Math.PI, 0, 0] : [0, 0, 0]}>
+        <cylinderGeometry args={[span * 0.22, span * 0.48, h, 28, 1, true]} />
         <Fabric color={cloth} doubleSide />
       </mesh>
-      <mesh position={[0, dir * height * 0.88, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[span * 0.16, 0.016, 8, 20]} />
+      <mesh position={[0, dir * h * 0.88, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[span * 0.2, 0.014, 8, 22]} />
         <Webbing color={drawstring ? strap : shade(cloth, -15)} />
       </mesh>
     </group>
@@ -402,18 +749,18 @@ export function FillingKit({
   clearHandle?: boolean
   flapColor?: string
 }) {
-  const open = /^open$/i.test(topType)
+  const open = /^open$/i.test(topType.trim()) || /^open\s/i.test(topType.trim())
   const spout = /spout/i.test(topType)
-  const skirt = /duffle|skrit|skirt|leno|jute|drawstring/i.test(topType)
+  const skirt = /duffle|skrit|skirt|leno|jute|drawstring|top \+ skrit|oversize/i.test(topType)
   const conical = /conical/i.test(topType)
   const petal = /petal/i.test(spoutType)
   const iris = /iris|pyjama/i.test(spoutType)
   const jute = /jute/i.test(topType)
   const drawstring = /drawstring/i.test(topType)
   const span = Math.min(sx, sz)
-  const skirtH = Math.max(0.18, duffleH)
+  const skirtH = Math.max(0.12, duffleH)
   const shownSpoutH = clearHandle ? Math.min(0.1, spoutH * 0.35) : spoutH
-  const shownSpoutR = clearHandle ? Math.min(spoutR, span * 0.1) : spoutR
+  const shownSpoutR = clearHandle ? Math.min(spoutR, span * 0.22) : spoutR
 
   return (
     <group>
@@ -447,7 +794,15 @@ export function FillingKit({
         </group>
       ) : null}
       {skirt && !clearHandle ? (
-        <Skirt y={sy} span={span} height={skirtH} color={color} strap={strap} jute={jute} drawstring={drawstring} />
+        <Skirt
+          y={sy}
+          span={span}
+          height={skirtH}
+          color={color}
+          strap={strap}
+          jute={jute}
+          drawstring={drawstring}
+        />
       ) : null}
       {conical && !clearHandle ? (
         <mesh position={[0, sy + conicalH / 2, 0]}>
@@ -460,7 +815,7 @@ export function FillingKit({
           <mesh position={[0, shownSpoutH / 2, 0]} castShadow>
             <cylinderGeometry
               args={[
-                shownSpoutR * (petal ? 0.78 : 0.86),
+                shownSpoutR * (petal ? 0.78 : 0.9),
                 shownSpoutR,
                 shownSpoutH,
                 28,
@@ -476,25 +831,17 @@ export function FillingKit({
                 <circleGeometry args={[shownSpoutR * 0.76, 20]} />
                 <meshStandardMaterial color="#161410" roughness={1} />
               </mesh>
-              <Petals
-                radius={shownSpoutR * 1.05}
-                height={shownSpoutH}
-                color={color}
-                bagSpan={span}
-              />
+              <Petals radius={shownSpoutR * 1.05} height={shownSpoutH} color={color} bagSpan={span} />
             </>
           ) : null}
           {iris && !clearHandle ? <Iris radius={shownSpoutR * 1.05} height={shownSpoutH} strap={strap} /> : null}
           {!petal && !iris && !clearHandle ? (
             <>
               <mesh position={[0, shownSpoutH + 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <circleGeometry args={[shownSpoutR * 0.86, 20]} />
+                <circleGeometry args={[shownSpoutR * 0.9, 20]} />
                 <Fabric color={shade(color, -8)} />
               </mesh>
-              <mesh position={[0, shownSpoutH * 0.72, 0]}>
-                <boxGeometry args={[shownSpoutR * 1.85, 0.022, 0.022]} />
-                <Webbing color={strap} />
-              </mesh>
+              <SpoutTies radius={shownSpoutR} height={shownSpoutH} strap={strap} />
             </>
           ) : null}
         </group>
@@ -582,6 +929,7 @@ export function DischargeKit({
             <Petals radius={spoutR * 1.05} height={spoutH} color={color} bagSpan={span} flip />
           ) : null}
           {iris ? <Iris radius={spoutR} height={spoutH} strap={strap} flip /> : null}
+          {!petal && !iris ? <SpoutTies radius={spoutR} height={spoutH} strap={strap} flip /> : null}
           {flap ? (
             <mesh position={[span * 0.12, -0.03, 0]} rotation={[0.55, 0.1, 0]}>
               <boxGeometry args={[span * 0.55, 0.016, span * 0.55]} />
@@ -634,6 +982,9 @@ export function LoopKit({
   stevedore,
   stevedorePortion,
   protector,
+  loopAbove = 0.3,
+  sewDown = 0.35,
+  strapWidth = 0.05,
 }: {
   sx: number
   sy: number
@@ -651,6 +1002,9 @@ export function LoopKit({
   stevedore: boolean
   stevedorePortion: string
   protector: boolean
+  loopAbove?: number
+  sewDown?: number
+  strapWidth?: number
 }) {
   const c = construction.replace(/[-\s+/]/g, "").toLowerCase()
   const style = bodyStyle.toLowerCase()
@@ -662,13 +1016,16 @@ export function LoopKit({
   const single4 = c.includes("single") && c.includes("4")
   const double4 = c.includes("double") && c.includes("4")
   const liftBag = single || double || single4 || double4
-  const eight = loopCount >= 8 && !liftBag
+  const multi = loopCount > 4 && !liftBag
   const cross = /cross/i.test(loopKind)
   const full = /full/i.test(loopKind)
   const cornerKind = /corner/i.test(loopKind) && !cross
-  const y0Corner = sy * 0.84
-  const y0Cross = tillBottom || full ? 0.08 : sy * 0.38
-  const y1 = sy + 0.02
+  const above = Math.max(0.12, loopAbove)
+  const down = tillBottom || full ? sy * 0.92 : Math.min(sy * 0.55, Math.max(above * 0.9, sewDown))
+  const y0Corner = sy - down
+  const y0Cross = tillBottom || full ? 0.06 : sy - down
+  const y1 = sy + 0.01
+  const width = Math.max(0.028, strapWidth)
   const inset = 0.02
   const boxCorners: [number, number][] = [
     [sx / 2 - inset, sz / 2 - inset],
@@ -686,11 +1043,22 @@ export function LoopKit({
     [0, sz / 2 - inset],
     [0, -sz / 2 + inset],
   ]
-  const nCorner = Math.min(4, loopCount < 8 ? Math.max(2, loopCount) : 4)
+  const edgeExtra: [number, number][] = [
+    [sx / 2 - inset, sz * 0.25],
+    [sx / 2 - inset, -sz * 0.25],
+    [-sx / 2 + inset, sz * 0.25],
+    [-sx / 2 + inset, -sz * 0.25],
+    [sx * 0.25, sz / 2 - inset],
+    [-sx * 0.25, sz / 2 - inset],
+  ]
+  const none = !loopEnabled || /none/i.test(loopKind)
+  const nCorner = Math.min(4, Math.max(2, loopCount <= 4 ? loopCount : 4))
   const showCorner =
-    (single4 || double4) ||
-    (loopEnabled && !liftBag && !hood && (cornerKind || (eight && !cross)))
-  const showCross = loopEnabled && !liftBag && !hood && (cross || full)
+    !none &&
+    (single4 ||
+      double4 ||
+      (!liftBag && !hood && (cornerKind || (!cross && !full))))
+  const showCross = !none && !liftBag && !hood && (cross || full)
   const cornerSet = (showCorner || showCross ? corners : []).slice(0, single4 || double4 ? 4 : nCorner)
   const portion = stevedorePortion.toLowerCase()
   const stevePoints: [number, number][] =
@@ -706,23 +1074,29 @@ export function LoopKit({
           ]
         : corners
   const span = Math.min(sx, sz)
+  const extraLoops =
+    multi && loopCount > 4
+      ? [...mids, ...edgeExtra].slice(0, Math.min(loopCount - 4, mids.length + edgeExtra.length))
+      : []
 
   return (
     <group>
-      {single || single4 ? <FabricBodyLoop sx={sx} sy={sy} sz={sz} color={color} strap={strap} ribbon={span * 0.22} /> : null}
+      {single || single4 ? (
+        <FabricBodyLoop sx={sx} sy={sy} sz={sz} color={color} strap={strap} ribbon={Math.max(span * 0.18, width * 4)} />
+      ) : null}
       {double || double4 ? (
         <group>
-          <FabricBodyLoop sx={sx} sy={sy} sz={sz} x={sx * 0.2} color={color} strap={strap} ribbon={span * 0.12} />
-          <FabricBodyLoop sx={sx} sy={sy} sz={sz} x={-sx * 0.2} color={color} strap={strap} ribbon={span * 0.12} />
+          <FabricBodyLoop sx={sx} sy={sy} sz={sz} x={sx * 0.2} color={color} strap={strap} ribbon={Math.max(span * 0.1, width * 2.5)} />
+          <FabricBodyLoop sx={sx} sy={sy} sz={sz} x={-sx * 0.2} color={color} strap={strap} ribbon={Math.max(span * 0.1, width * 2.5)} />
         </group>
       ) : null}
       {showCorner
         ? cornerSet.map(([x, z]) => (
             <group key={`corner-${x}-${z}`}>
-              <FaceSlackLoop x={x} z={z} y0={y0Corner} y1={y1} color={strap} />
+              <FaceSlackLoop x={x} z={z} y0={y0Corner} y1={y1} color={strap} above={above} width={width} />
               {protector ? (
-                <mesh position={[x, y0Corner + 0.04, z]}>
-                  <boxGeometry args={[0.1, 0.08, 0.04]} />
+                <mesh position={[x, y0Corner + down * 0.15, z]}>
+                  <boxGeometry args={[width * 3.5, Math.max(0.06, down * 0.25), 0.04]} />
                   <Fabric color={shade(color, -12)} />
                 </mesh>
               ) : null}
@@ -731,12 +1105,12 @@ export function LoopKit({
         : null}
       {showCross
         ? cornerSet.map(([x, z]) => (
-            <SlackLoop key={`cross-${x}-${z}`} x={x} z={z} y0={y0Cross} y1={y1} color={strap} />
+            <SlackLoop key={`cross-${x}-${z}`} x={x} z={z} y0={y0Cross} y1={y1} color={strap} above={above} width={width} />
           ))
         : null}
-      {eight
-        ? mids.map(([x, z]) => <FaceSlackLoop key={`m-${x}-${z}`} x={x} z={z} y0={sy * 0.5} y1={y1} color={strap} />)
-        : null}
+      {extraLoops.map(([x, z]) => (
+        <FaceSlackLoop key={`extra-${x}-${z}`} x={x} z={z} y0={y0Corner} y1={y1} color={strap} above={above} width={width} />
+      ))}
       {tunnel || sleeve ? (
         <group>
           <mesh position={[0, sy * 0.88, sz / 2 + 0.08]} rotation={[0, 0, Math.PI / 2]}>
@@ -755,7 +1129,7 @@ export function LoopKit({
             <coneGeometry args={[Math.min(sx, sz) * 0.48, 0.38, 4]} />
             <Fabric color={color} />
           </mesh>
-          <FaceSlackLoop x={0} z={0.02} y0={sy + 0.2} y1={sy + 0.38} color={strap} />
+          <FaceSlackLoop x={0} z={0.02} y0={sy + 0.2} y1={sy + 0.38} color={strap} above={above * 0.5} width={width} />
         </group>
       ) : null}
       {stevedore ? (
@@ -769,7 +1143,9 @@ export function LoopKit({
           </mesh>
         </group>
       ) : null}
-      {dropLoop && !liftBag ? <FaceSlackLoop x={0} z={sz / 2} y0={sy * 0.72} y1={sy + 0.02} color={strap} /> : null}
+      {dropLoop && !liftBag ? (
+        <FaceSlackLoop x={0} z={sz / 2} y0={sy * 0.72} y1={y1} color={strap} above={above} width={width} />
+      ) : null}
     </group>
   )
 }
