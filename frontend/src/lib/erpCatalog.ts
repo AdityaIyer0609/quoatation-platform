@@ -91,9 +91,14 @@ export const BOTTOM_TYPES = [
 ] as const
 
 export const TOP_SPOUT_TYPES = [
+  "None",
   "Simple",
   "Petal/Bonnet Closure",
+  "Swan Neck",
   "Iris/Pyjama Closure",
+  "Goose Neck",
+  "Duffle Closure",
+  "Reinforced Square",
   "Tube",
 ] as const
 
@@ -101,14 +106,23 @@ export const BOTTOM_SPOUT_TYPES = [
   "Simple",
   "Petal Closure",
   "Iris/Pyjama/Bonnet Closure",
+  "Duffle Closure",
+  "Star Based",
+  "None",
   "Tube",
+  "Full Discharge",
+  "Remote Release",
 ] as const
 
 export const LOOP_CONSTS = ["None", "Corner", "Cross Corner", "Full Loop + Cross Corner"] as const
 
 export const LOOP_MATERIALS = ["PP", "MultiFilament", "Seal belt", "PP Stiff "] as const
 
-export const LINER_MATERIALS = ["None", "LD", "HD", "LLD", "ALU"] as const
+export const LINER_MATERIALS = ["None", "LD", "HD", "LLD", "ALU", "Cond", "Anti Static"] as const
+
+export const LINER_SUBTYPES = ["Normal", "Tabbed", "Glued"] as const
+
+export const LINER_AT_POINTS = ["0", "4", "8"] as const
 
 export const LINER_TYPES = [
   "None",
@@ -141,7 +155,7 @@ export const DOC_OPENINGS = [
 
 export const DOC_UNITS = ["CMS", "INCH"] as const
 
-export const TUNNEL_DESIGNS = ["Flexcon", "Store", "Plastene", "Wickes", "Greif", "Beef Bag  "] as const
+export const TUNNEL_DESIGNS = ["Flexcon", "Plastene", "Wickes", "Greif", "Beef Bag  "] as const
 
 /** comboBodyGSM: 0–250 in steps of 5 */
 export const GSM_OPTIONS = Array.from({ length: 51 }, (_, index) => String(index * 5))
@@ -155,9 +169,19 @@ export const LOOP_PROTECTOR_TYPES = ["None", "Webbing / Reinforcement", "Fabric 
 
 export const BUFFLE_KINDS = ["Standard", "Net Buffle", "Rectangular", "Special"] as const
 
-export const STEVEDORE_PORTIONS = ["Length", "Width", "Diagonal"] as const
+export const STEVEDORE_PORTIONS = ["Lenght wise", "Width Wise", "Digonal Wise"] as const
 
-export const PACKING = ["Bale", "Pallet 2 Way", "Pallet 4 Way"] as const
+export const PACKING = ["Bale", "Pallet  2 Way", "Pallet  4 Way"] as const
+
+export const SUPPLY_TYPES = ["Export", "CT1", "Advance License", "Deemed Export"] as const
+
+export const MILL_CURRENCIES = ["INR", "USD", "GBP", "EURO"] as const
+
+export const PAPER_SIZES = ["A1", "A2", "A3", "A4", "A5", "A6"] as const
+
+export const EXTRA_LABEL_TYPES = ["Tyvac", "PP", "Others"] as const
+
+export const DOC_COLORS = ["Transparent"] as const
 
 export const TRANSPORT = ["20 ft", "40 ft"] as const
 

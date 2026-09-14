@@ -312,8 +312,8 @@ def _addons(
     for item in options.addons:
         if item not in names:
             names.append(item)
-    if (spec.loop_type or "").strip() == "MultiFilament" and "MF Webbing" not in names:
-        names.append("MF Webbing")
+    if (spec.loop_type or "").strip() == "MultiFilament" and "MFWeb" not in names and "MF Webbing" not in names:
+        names.append("MFWeb")
     if spec.liner_enabled and (spec.liner_material or "").strip() == "ALU" and "Alu Liner" not in names:
         names.append("Alu Liner")
     colour = (spec.fabric_colour or "").strip()

@@ -27,6 +27,7 @@ from app.services.bom.helpers import (
     resolve_liner_density,
     resolve_sf_bucket,
     resolve_single_double_multiplier,
+    buffle_uses_four_panel_fabric,
     resolve_thread_buffle_factor,
     resolve_tie_cut_length,
     round0,
@@ -93,7 +94,94 @@ def populate_body(request: BomRequest) -> None:
         if is_double:
             body_cut = height + (Decimal("18") if is_inner else Decimal("14"))
         body_weight_raw = body_cut * body_fabric * 2 * (gsm + lami)
-    elif equals(construction, "4 Panel"):
+    elif equals(construction, "Single Loop") or equals(construction, "Single + 4 Loop"):
+        # frmBOM_NEW BodyWtFormula for Single Loop / SingleLoop+4 Side (~3110).
+        slit = num(values, "SlitHt")
+        fill = num(values, "FillHt")
+        start_sewn = num(values, "StartSewnBaseHt")
+        if slit <= 0:
+            slit = ((length * length) + (width * width)).sqrt() / Decimal("2")
+            slit = round4(slit)
+            # WinForms rounds slit to 2 dp for display/use.
+            slit = Decimal(str(round(float(slit), 2)))
+        if fill <= 0:
+            fill = height
+        if is_inner:
+            total_ht = slit + fill + start_sewn + Decimal("12")
+        else:
+            total_ht = slit + fill + Decimal("8")
+        swl = swl_of(request)
+        if swl <= 1000:
+            total_ht += Decimal("10")
+        elif swl <= 1500:
+            total_ht += Decimal("15")
+        else:
+            total_ht += Decimal("20")
+        body_fabric = length + width
+        body_cut = total_ht
+        if is_double:
+            if equals(construction, "Single Loop"):
+                body_fabric = length + width
+            else:
+                body_fabric = width + Decimal("18")
+            body_cut = total_ht + Decimal("18")
+        body_weight_raw = Decimal("2") * body_cut * (gsm + lami) * body_fabric
+        set_if_missing(values, "SlitHt", slit)
+        set_if_missing(values, "TotalHt", body_cut if not is_double else total_ht)
+    elif equals(construction, "Double Loop") or equals(construction, "Double + 4 Loop"):
+        # frmBOM_NEW BodyWtFormula for Double Loop (~3159).
+        slit = num(values, "SlitHt")
+        fill = num(values, "FillHt")
+        if fill <= 0:
+            fill = height
+        if is_inner:
+            total_ht = slit + fill + Decimal("12")
+        else:
+            total_ht = slit + fill + Decimal("8")
+        swl = swl_of(request)
+        sf_bucket = resolve_sf_bucket(request.header.sf_ratio)
+        if swl <= 1000:
+            total_ht += Decimal("10")
+        elif (sf_bucket == 6 and swl <= 1250) or (sf_bucket == 5 and swl <= 1500):
+            total_ht += Decimal("15")
+        else:
+            total_ht += Decimal("20")
+        if equals(main_bottom_type(request), "Star Base") or contains(bottom_sub_type(request), "Star"):
+            total_ht += (length if length > width else width) / Decimal("2")
+        body_fabric = length + width
+        body_cut = total_ht
+        if is_double:
+            if equals(construction, "Double Loop"):
+                body_fabric = length + width
+            else:
+                body_fabric = width + Decimal("18")
+            body_cut = total_ht + Decimal("18")
+        body_weight_raw = body_cut * (gsm + lami) * body_fabric * Decimal("2")
+        set_if_missing(values, "TotalHt", total_ht)
+    elif equals(construction, "4 Panel") and contains(body_style, "Tunnel"):
+        # Mill "4 Panel/Tunnel Bag" stores panel kg on Side and a Reinforce fabric strip.
+        # Do not emit a separate Body panel (that double-counts vs mill TotalKg).
+        tunnel_design = first_non_empty(
+            get_value(request.bom3, "TunnelDesign"),
+            get_value(values, "TunnelDesign"),
+            "Store",
+        )
+        tunnel_fabric = width + (Decimal("18") if is_double else (Decimal("15") if is_inner else Decimal("10")))
+        if contains(tunnel_design, "Greif"):
+            tunnel_cut = Decimal("22")
+        elif contains(tunnel_design, "Flexcon"):
+            tunnel_cut = Decimal("22")
+        else:
+            tunnel_cut = Decimal("28")
+        tunnel_gsm = num(values, "TunnelGSM") or gsm
+        tunnel_lami = num(values, "TunnelLami") or lami
+        if tunnel_fabric > 0 and tunnel_cut > 0 and tunnel_gsm + tunnel_lami > 0:
+            tunnel_weight = round4(
+                (tunnel_cut * (tunnel_gsm + tunnel_lami) * tunnel_fabric * 2) / WEIGHT_DIV
+            )
+            tunnel_total_mtr = round4((tunnel_cut * qty * 2) / Decimal("100"))
+        # Leave body_fabric/cut at 0 so Body line is skipped.
+    elif equals(construction, "4 Panel") or buffle_uses_four_panel_fabric(request):
         is_ventilated = contains(body_style, "Ventilated") or contains(body_style, "Sulzer")
         if is_ventilated:
             if is_inner:
@@ -236,18 +324,6 @@ def populate_body(request: BomRequest) -> None:
                     body_cut = (height * 2) + width + (Decimal("13") if is_double else Decimal("6"))
             body_weight_raw = body_cut * (gsm + lami) * body_fabric
 
-    if body_fabric <= 0 or body_cut <= 0 or body_weight_raw <= 0:
-        return
-
-    body_factor = (
-        (Decimal("4") if nearly_equal(length, width) else Decimal("2"))
-        if equals(construction, "4 Panel")
-        else Decimal("1")
-    )
-    set_if_missing(values, "BodyFabric", body_fabric)
-    set_if_missing(values, "BodyCutSize", body_cut)
-    set_if_missing(values, "BodyTotalKg", round4(body_weight_raw / WEIGHT_DIV))
-    set_if_missing(values, "BodyTotalMtr", round4((body_cut / Decimal("100")) * qty * body_factor) * body_no)
     if tunnel_fabric is not None and tunnel_fabric > 0:
         set_if_missing(values, "TunnelFabric", tunnel_fabric)
     if tunnel_cut is not None and tunnel_cut > 0:
@@ -256,6 +332,19 @@ def populate_body(request: BomRequest) -> None:
         set_if_missing(values, "TunnelTotalKg", tunnel_weight)
     if tunnel_total_mtr is not None and tunnel_total_mtr > 0:
         set_if_missing(values, "TunnelTotalMtr", tunnel_total_mtr)
+
+    if body_fabric <= 0 or body_cut <= 0 or body_weight_raw <= 0:
+        return
+
+    body_factor = (
+        (Decimal("4") if nearly_equal(length, width) else Decimal("2"))
+        if equals(construction, "4 Panel") or equals(construction, "Buffle")
+        else Decimal("1")
+    )
+    set_if_missing(values, "BodyFabric", body_fabric)
+    set_if_missing(values, "BodyCutSize", body_cut)
+    set_if_missing(values, "BodyTotalKg", round4(body_weight_raw / WEIGHT_DIV))
+    set_if_missing(values, "BodyTotalMtr", round4((body_cut / Decimal("100")) * qty * body_factor) * body_no)
 
 
 def populate_loop(request: BomRequest) -> None:
@@ -322,6 +411,11 @@ def populate_loop(request: BomRequest) -> None:
         loop_cut = (loop_l * 2) + extra
         if has_drop:
             loop_cut += drop_loop_length * 2
+    elif equals(loop_const, "Corner") or equals(loop_const, "Side Seam") or equals(loop_const, "Side-Seam"):
+        # frmBOM_NEW Corner / Side-Seam: short legs ×2 + bag height (+5 seam).
+        loop_cut = (loop_l * 2) + bag_height + Decimal("5")
+        if has_drop:
+            loop_cut += drop_loop_length * 2
 
     if loop_override is not None and loop_override > 0:
         loop_cut = loop_override
@@ -350,6 +444,8 @@ def populate_top(request: BomRequest) -> None:
     is_inner = is_inner_placement(request)
     is_double = is_truthy(get_value(request.bom3, "DoubleFoldTop"))
     top_type = first_non_empty(get_value(request.bom3, "toptypes"), "Open")
+    if equals(top_type, "Open") or equals(top_type, "Open Top"):
+        return
     duffle_height = num(values, "DuffleHt")
     conical_top = num(values, "conicaltop")
     top_fabric = ZERO
@@ -522,7 +618,7 @@ def populate_side(request: BomRequest) -> None:
             )
         factor = Decimal("2")
         total_mtr_factor = Decimal("2")
-    elif equals(construction, "4 Panel"):
+    elif equals(construction, "4 Panel") or buffle_uses_four_panel_fabric(request):
         if contains(body_style, "Ventilated") or contains(body_style, "Sulzer"):
             fabric = width + (
                 Decimal("18") if is_double and is_inner else Decimal("8") if is_double else Decimal("4") if is_inner else ZERO
@@ -973,20 +1069,28 @@ def populate_doc(request: BomRequest) -> None:
     values = request.bom1
     if get_value(values, "DocTotalKg"):
         return
+    doc_raw = (request.header.doc or "").strip()
+    if not doc_raw or equals(doc_raw, "N/A") or equals(doc_raw, "NA") or equals(doc_raw, "-"):
+        return
     length = num(values, "docl")
     width = num(values, "docw")
     micron = num(values, "DocGSM", Decimal("100"))
     qty = qty_of(request)
     if length <= 0 or width <= 0 or qty <= 0:
         return
-    doc_parts = [p.strip() for p in (request.header.doc or "").split("/") if p.strip()]
+    doc_parts = [p.strip() for p in doc_raw.split("/") if p.strip()]
     doc_type = doc_parts[0] if doc_parts else ""
     open_type = doc_parts[1] if len(doc_parts) > 1 else ""
     count = parse_num(request.header.doc_number) or (parse_num(doc_parts[3]) if len(doc_parts) > 3 else None) or Decimal("1")
     is_inch = equals(request.header.doc_unit, "INCH")
     fabric = length
     cut = width
-    horizontal = contains(open_type, "RHS Open") or contains(open_type, "Upside Open") or contains(open_type, "Horizontal Open")
+    horizontal = (
+        contains(open_type, "RHS Open")
+        or contains(open_type, "Upside Open")
+        or contains(open_type, "Horizontal Open")
+        or contains(open_type, "Top Seam")
+    )
     if horizontal:
         fabric += 4
     else:
@@ -1133,6 +1237,12 @@ def populate_thread(request: BomRequest) -> None:
         "4 panel + conical bag(single piece)",
     }:
         thread += (height + 5 if is_inner else height) * 8
+    if contains(get_value(request.bom3, "ThreadNeedle"), "Double"):
+        thread *= Decimal("2")
+
+    # WinForms `ThreadWtFormula` applies 2.85 to base sewing length before loop/hiracle extras.
+    thread = thread * Decimal("2.85")
+
     if equals(loop_const, "Cross Corner"):
         thread += Decimal("2500") if swl > 1250 else (Decimal("2000") if swl >= 500 else ZERO)
     if is_truthy(get_value(request.bom3, "Hiracle")):

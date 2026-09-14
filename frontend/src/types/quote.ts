@@ -6,6 +6,19 @@ export type QuoteStatus =
   | "rejected"
   | "revision_requested"
 
+export type OtherBomRow = {
+  name: string
+  gsm: string
+  lami: string
+  color: string
+  fabricSize: string
+  cutLength: string
+  totalMtr: string
+  totalKg: string
+  remarks: string
+  category: string
+}
+
 export type QuoteSpecification = {
   productType: string
   productCategory: string
@@ -19,6 +32,7 @@ export type QuoteSpecification = {
   swl: string
   sfRatio: string
   fabricColour: string
+  fabricPantone: string
   bodyGsm: string
   bodyLami: string
   sameFabricForPanels: boolean
@@ -30,11 +44,37 @@ export type QuoteSpecification = {
   topSpoutLami: string
   bottomGsm: string
   bottomLami: string
+  topEnabled: boolean
   topType: string
+  topCount: string
+  topColour: string
+  topRemarks: string
+  topSpoutConical: boolean
+  topSpoutTie: boolean
+  topVelcroSize: string
+  topSpoutColor: string
   bottomType: string
+  bottomEnabled: boolean
+  bottomCount: string
+  bottomColour: string
+  bottomRemarks: string
+  bottomSkirtHeight: string
+  bottomTieExtra: boolean
+  bottomWireTie: boolean
+  bottomWireTieCount: string
+  bottomHoseSlider: boolean
+  bottomHoseSliderCount: string
+  bottomCableTie: boolean
+  bottomCableTieCount: string
+  bottomVelcroSize: string
+  bottomSpoutColor: string
+  bottomSpoutRemarks: string
   duffleHeight: string
   conicalTop: string
   bottomConicalHeight: string
+  slitHt: string
+  fillHt: string
+  startSewnBaseHt: string
   topSpoutType: string
   topSpoutDia: string
   topSpoutHeight: string
@@ -72,6 +112,14 @@ export type QuoteSpecification = {
   linerMaterial: string
   linerType: string
   linerMicron: string
+  linerHeight: string
+  linerWidth: string
+  linerSubtype: string
+  linerAtPoint: string
+  linerColour: string
+  linerRemarks: string
+  linerBaffle: boolean
+  linerBaffleMicron: string
   bLock: boolean
   bLockCount: string
   labelCount: string
@@ -87,6 +135,8 @@ export type QuoteSpecification = {
   labelLength: string
   labelWidth: string
   labelMicron: string
+  labelColour: string
+  labelRemarks: string
   printing: string
   quantity: string
   deliveryLocation: string
@@ -319,8 +369,58 @@ export type QuoteSpecification = {
   bottomSpout3Gsm: string
   bottomSpout3Lami: string
   packing: string
+  packingPcs: string
   transport: string
+  typeOfSupply: string
   partyName: string
+  loopColour: string
+  loopShortLeg: string
+  loopLongLeg: string
+  loopCoverColor: string
+  tunnelWidth: string
+  tunnelLength: string
+  tunnelColor: string
+  stevedoreColor: string
+  stevedoreLength: string
+  steveCoverColor: string
+  bottomLoopColor: string
+  bottomLoopFabricSize: string
+  bellyBand1Color: string
+  bellyBand2Color: string
+  ancerieWidth: string
+  extraLabelType: string
+  extraLabelSubtype: string
+  extraLabelLami: string
+  docSubtype: string
+  docColor: string
+  docRemarks: string
+  docFlap: boolean
+  docFlapSize: string
+  buffleCutLength: string
+  buffleRemarks: string
+  millCurrency: string
+  millUsdInr: string
+  millUsdGbp: string
+  millUsdEuro: string
+  millRmType: string
+  millRmMaterial: string
+  millRmStdConv: string
+  millLinerRateType: string
+  millLinerMaterial: string
+  millLinerStdConv: string
+  millDustProof: string
+  millFeltRate: string
+  millLoopStdConv: string
+  millAddonDoc: string
+  millAddonPallets: string
+  millAddonPrinting: string
+  millAddonBLock: string
+  millAddonHoseSlider: string
+  millAddonVelcro: string
+  millFreight: string
+  millDiscount: string
+  millOrderConfirmed: boolean
+  otherBomRows: OtherBomRow[]
   cableTie: boolean
   cableTieCount: string
   topVelcro: boolean
@@ -545,6 +645,7 @@ export const defaultSpecification: QuoteSpecification = {
   swl: "1000",
   sfRatio: "5:1",
   fabricColour: "White",
+  fabricPantone: "PMS White",
   bodyGsm: "180",
   bodyLami: "0",
   sameFabricForPanels: true,
@@ -556,11 +657,37 @@ export const defaultSpecification: QuoteSpecification = {
   topSpoutLami: "",
   bottomGsm: "",
   bottomLami: "",
+  topEnabled: true,
   topType: "Open",
+  topCount: "1",
+  topColour: "Milky White",
+  topRemarks: "",
+  topSpoutConical: false,
+  topSpoutTie: false,
+  topVelcroSize: "0",
+  topSpoutColor: "Milky White",
   bottomType: "Flat",
+  bottomEnabled: true,
+  bottomCount: "1",
+  bottomColour: "Milky White",
+  bottomRemarks: "",
+  bottomSkirtHeight: "80",
+  bottomTieExtra: false,
+  bottomWireTie: false,
+  bottomWireTieCount: "",
+  bottomHoseSlider: false,
+  bottomHoseSliderCount: "1",
+  bottomCableTie: false,
+  bottomCableTieCount: "",
+  bottomVelcroSize: "0",
+  bottomSpoutColor: "Milky White",
+  bottomSpoutRemarks: "",
   duffleHeight: "80",
   conicalTop: "",
   bottomConicalHeight: "",
+  slitHt: "",
+  fillHt: "",
+  startSewnBaseHt: "",
   topSpoutType: "Simple",
   topSpoutDia: "35",
   topSpoutHeight: "50",
@@ -596,8 +723,16 @@ export const defaultSpecification: QuoteSpecification = {
   dropLoopLength: "",
   linerEnabled: false,
   linerMaterial: "LD",
-  linerType: "Gusseted Liner",
+  linerType: "None",
   linerMicron: "70",
+  linerHeight: "0",
+  linerWidth: "0",
+  linerSubtype: "Normal",
+  linerAtPoint: "0",
+  linerColour: "Natural",
+  linerRemarks: "",
+  linerBaffle: false,
+  linerBaffleMicron: "",
   bLock: false,
   bLockCount: "1",
   labelCount: "1",
@@ -610,9 +745,11 @@ export const defaultSpecification: QuoteSpecification = {
   docUnit: "CMS",
   docCount: "1",
   label: false,
-  labelLength: "10",
-  labelWidth: "8",
-  labelMicron: "100",
+  labelLength: "6",
+  labelWidth: "9",
+  labelMicron: "150",
+  labelColour: "Milky White",
+  labelRemarks: "",
   printing: "UnPrinted",
   quantity: "100",
   deliveryLocation: "Mumbai, Maharashtra",
@@ -758,7 +895,7 @@ export const defaultSpecification: QuoteSpecification = {
   stevedoreGsm: "",
   stevedoreSize: "",
   stevedoreCount: "1",
-  stevedorePortion: "Length",
+  stevedorePortion: "Lenght wise",
   ancerie: false,
   ancerieType: "PP",
   ancerieGsm: "",
@@ -845,8 +982,58 @@ export const defaultSpecification: QuoteSpecification = {
   bottomSpout3Gsm: "",
   bottomSpout3Lami: "0",
   packing: "",
+  packingPcs: "1",
   transport: "",
+  typeOfSupply: "Export",
   partyName: "",
+  loopColour: "Milky White",
+  loopShortLeg: "",
+  loopLongLeg: "",
+  loopCoverColor: "Milky White",
+  tunnelWidth: "95",
+  tunnelLength: "",
+  tunnelColor: "Milky White",
+  stevedoreColor: "Milky White",
+  stevedoreLength: "",
+  steveCoverColor: "Milky White",
+  bottomLoopColor: "Milky White",
+  bottomLoopFabricSize: "0",
+  bellyBand1Color: "Milky White",
+  bellyBand2Color: "Milky White",
+  ancerieWidth: "",
+  extraLabelType: "Tyvac",
+  extraLabelSubtype: "A4",
+  extraLabelLami: "0",
+  docSubtype: "A4",
+  docColor: "Transparent",
+  docRemarks: "",
+  docFlap: false,
+  docFlapSize: "1",
+  buffleCutLength: "",
+  buffleRemarks: "",
+  millCurrency: "USD",
+  millUsdInr: "",
+  millUsdGbp: "",
+  millUsdEuro: "",
+  millRmType: "PP",
+  millRmMaterial: "",
+  millRmStdConv: "",
+  millLinerRateType: "PE",
+  millLinerMaterial: "",
+  millLinerStdConv: "",
+  millDustProof: "4.5",
+  millFeltRate: "8",
+  millLoopStdConv: "",
+  millAddonDoc: "",
+  millAddonPallets: "",
+  millAddonPrinting: "",
+  millAddonBLock: ".2",
+  millAddonHoseSlider: ".05",
+  millAddonVelcro: ".2",
+  millFreight: "",
+  millDiscount: "",
+  millOrderConfirmed: false,
+  otherBomRows: [],
   cableTie: false,
   cableTieCount: "",
   topVelcro: false,

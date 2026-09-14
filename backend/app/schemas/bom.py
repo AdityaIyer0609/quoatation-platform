@@ -1,6 +1,21 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class OtherBomRowSpec(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+    name: str = ""
+    gsm: str = ""
+    lami: str = ""
+    color: str = ""
+    fabric_size: str = Field(default="", alias="fabricSize")
+    cut_length: str = Field(default="", alias="cutLength")
+    total_mtr: str = Field(default="", alias="totalMtr")
+    total_kg: str = Field(default="", alias="totalKg")
+    remarks: str = ""
+    category: str = ""
+
+
 class BomCustomerSpec(BaseModel):
     """Customer-facing FIBC specification. Maps internally to ERP header/Bom1/Bom3 keys."""
 
@@ -18,6 +33,7 @@ class BomCustomerSpec(BaseModel):
     swl: str = "1000"
     sf_ratio: str = Field(default="5:1", alias="sfRatio")
     fabric_colour: str = Field(default="White", alias="fabricColour")
+    fabric_pantone: str = Field(default="", alias="fabricPantone")
     body_gsm: str = Field(alias="bodyGsm")
     body_lami: str = Field(default="0", alias="bodyLami")
     same_fabric_for_panels: bool = Field(default=True, alias="sameFabricForPanels")
@@ -82,6 +98,9 @@ class BomCustomerSpec(BaseModel):
     tunnel_design: str = Field(default="", alias="tunnelDesign")
     tunnel_gsm: str = Field(default="", alias="tunnelGsm")
     tunnel_lami: str = Field(default="", alias="tunnelLami")
+    slit_ht: str = Field(default="", alias="slitHt")
+    fill_ht: str = Field(default="", alias="fillHt")
+    start_sewn_base_ht: str = Field(default="", alias="startSewnBaseHt")
     top_spout_tie_gsm: str = Field(default="", alias="topSpoutTieGsm")
     top_spout_tie_size: str = Field(default="", alias="topSpoutTieSize")
     top_spout_tie_remarks: str = Field(default="", alias="topSpoutTieRemarks")
@@ -208,6 +227,10 @@ class BomCustomerSpec(BaseModel):
     mf_web_buffle: bool = Field(default=False, alias="mfWebBuffle")
     buffle_gsm: str = Field(default="", alias="buffleGsm")
     buffle_kind: str = Field(default="Standard", alias="buffleKind")
+    buffle_single_coated_gsm: str = Field(default="", alias="buffleSingleCoatedGsm")
+    buffle_double_coated_gsm: str = Field(default="", alias="buffleDoubleCoatedGsm")
+    buffle_cut_length: str = Field(default="", alias="buffleCutLength")
+    loop_long_leg: str = Field(default="", alias="loopLongLeg")
     inner_skin: bool = Field(default=False, alias="innerSkin")
     inner_skin_gsm: str = Field(default="", alias="innerSkinGsm")
     inner_skin_lami: str = Field(default="0", alias="innerSkinLami")
@@ -315,6 +338,7 @@ class BomCustomerSpec(BaseModel):
     cable_tie_count: str = Field(default="", alias="cableTieCount")
     top_velcro: bool = Field(default=False, alias="topVelcro")
     bottom_velcro: bool = Field(default=False, alias="bottomVelcro")
+    other_bom_rows: list[OtherBomRowSpec] = Field(default_factory=list, alias="otherBomRows")
 
     # Legacy display fields kept so existing quotes still parse.
     fabric: str = "Virgin PP Woven"

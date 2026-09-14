@@ -14,6 +14,10 @@ CONSTRUCTION_MAP = {
     "4 panel": "4 Panel",
     "baffle": "Buffle",
     "buffle": "Buffle",
+    "single loop": "Single Loop",
+    "single + 4 loop": "Single + 4 Loop",
+    "double loop": "Double Loop",
+    "double + 4 loop": "Double + 4 Loop",
     "cross corner": "4 Panel",
 }
 
@@ -26,6 +30,10 @@ STYLE_MAP = {
 GRADE_MAP = {
     "standard": "Std",
     "std": "Std",
+    "fda": "FDA",
+    "fda/type a": "FDA",
+    "un": "UN",
+    "un+fda": "UN+FDA",
 }
 
 TOP_MAP = {
@@ -153,12 +161,17 @@ def map_customer_spec(spec: BomCustomerSpec) -> BomRequest:
         qty_unit="PCS",
         fs_type=spec.top_spout_type.strip(),
         ds_type=spec.bottom_spout_type.strip(),
-        fab_color=spec.fabric_colour.strip() or "White",
+        fab_color=(
+            f"{spec.fabric_colour.strip()} / {spec.fabric_pantone.strip()}"
+            if spec.fabric_pantone.strip() and spec.fabric_colour.strip()
+            else (spec.fabric_colour.strip() or "White")
+        ),
         instruction=" | ".join(
             part
             for part in [
                 spec.notes.strip(),
                 f"Party: {spec.party_name.strip()}" if spec.party_name.strip() else "",
+                f"Pantone: {spec.fabric_pantone.strip()}" if spec.fabric_pantone.strip() else "",
                 f"Packing: {spec.packing.strip()}" if spec.packing.strip() else "",
                 f"Transport: {spec.transport.strip()}" if spec.transport.strip() else "",
                 "Cable tie" + (f" x{spec.cable_tie_count}" if spec.cable_tie_count.strip() else "") if spec.cable_tie else "",
@@ -193,6 +206,9 @@ def map_customer_spec(spec: BomCustomerSpec) -> BomRequest:
             "SideLami": side_lami or "0",
             "SideColor": spec.fabric_colour,
             "DuffleHt": spec.duffle_height,
+            "SlitHt": spec.slit_ht,
+            "FillHt": spec.fill_ht,
+            "StartSewnBaseHt": spec.start_sewn_base_ht,
             "conicaltop": spec.conical_top,
             "FSL": spec.top_spout_dia,
             "FSW": spec.top_spout_height,
@@ -299,6 +315,9 @@ def map_customer_spec(spec: BomCustomerSpec) -> BomRequest:
             "LoopCoverCutSize": spec.loop_cover_cut if spec.loop_cover else "",
             "LoopCoverNo": spec.loop_cover_count if spec.loop_cover else "",
             "BuffleGSM": spec.buffle_gsm,
+            "BuffleSingleCoatedGSM": spec.buffle_single_coated_gsm,
+            "BuffleDoubleCoatedGSM": spec.buffle_double_coated_gsm,
+            "BuffleCutSize": spec.buffle_cut_length,
             "BuffleKind": spec.buffle_kind,
             "InnerSkinGSM": spec.inner_skin_gsm if spec.inner_skin else "",
             "InnerSkinLami": spec.inner_skin_lami if spec.inner_skin else "",
@@ -380,6 +399,7 @@ def map_customer_spec(spec: BomCustomerSpec) -> BomRequest:
             "DoubleFoldTop": "yes" if spec.double_fold_top else "no",
             "DoubleFoldBottom": "yes" if spec.double_fold_bottom else "no",
             "TillTheBottom": "yes" if spec.loop_till_bottom else "no",
+            "LoopLength": spec.loop_long_leg.strip(),
             "TunnelDesign": spec.tunnel_design,
             "fsno": spec.top_spout_count or "1",
             "dsno": spec.bottom_spout_count or "1",
@@ -487,4 +507,4 @@ def map_customer_spec(spec: BomCustomerSpec) -> BomRequest:
             "DS3": "yes" if spec.bottom_spout3 else "no",
         }
     )
-    return BomRequest(header=header, bom1=bom1, bom3=bom3)
+    return BomRequest(header=header, bom1=bom1, bom3=bom3, other_bom_rows=list(spec.other_bom_rows or []))

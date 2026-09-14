@@ -1,46 +1,35 @@
 import { useEffect, useMemo } from "react"
 import * as THREE from "three"
 
+import { resolveFabricHex } from "@/lib/colourPreview"
+
 export const CATALOG_INK = "#1c1c1c"
 
 export function shade(hex: string, amount: number) {
-  const n = Number.parseInt(hex.slice(1), 16)
+  const normalized = hex.startsWith("#") ? hex : `#${hex}`
+  const n = Number.parseInt(normalized.slice(1, 7), 16)
+  if (Number.isNaN(n)) return "#f5f6f8"
   const r = Math.min(255, Math.max(0, ((n >> 16) & 255) + amount))
   const g = Math.min(255, Math.max(0, ((n >> 8) & 255) + amount))
   const b = Math.min(255, Math.max(0, (n & 255) + amount))
   return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`
 }
 
+/** Body / panel fabric colour for 3D — names, CSS colours, or #hex. */
 export function fabricColor(colour: string) {
-  switch (colour) {
-    case "Blue":
-      return "#5b92cc"
-    case "Green":
-      return "#6bb56e"
-    case "Black":
-      return "#5c5c5a"
-    case "Natural":
-      return "#c9a36a"
-    case "Milky White":
-      return "#f4e2b8"
-    case "White":
-      return "#f5f6f8"
-    default:
-      return "#f5f6f8"
-  }
+  return resolveFabricHex(colour)
 }
 
+/** Loop / webbing tint derived from fabric colour. */
 export function webbingColor(colour: string) {
-  switch (colour) {
-    case "Black":
-      return "#8a8a86"
-    case "Green":
-      return "#2f7a3f"
-    case "Blue":
-      return "#1f4e82"
-    default:
-      return "#c4d02a"
-  }
+  const key = (colour || "").trim().toLowerCase()
+  if (key === "black") return "#8a8a86"
+  if (key === "green") return "#2f7a3f"
+  if (key === "blue") return "#1f4e82"
+  const base = resolveFabricHex(colour)
+  // Light / near-white fabrics keep the classic yellow webbing look.
+  if (base === "#f5f6f8" || base === "#f4e2b8" || base === "#c9a36a") return "#c4d02a"
+  return shade(base, -40)
 }
 
 let weaveTexture: THREE.CanvasTexture | null = null

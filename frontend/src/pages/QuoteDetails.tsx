@@ -142,6 +142,7 @@ export default function QuoteDetails() {
 
   const spec = quote.specification
   const specRows = [
+    ...(spec.partyName ? [{ label: "Party", value: spec.partyName }] : []),
     { label: "Product type", value: spec.productType },
     { label: "Category", value: spec.productCategory },
     { label: "Construction", value: spec.constructionType },
@@ -153,6 +154,10 @@ export default function QuoteDetails() {
     { label: "Safe working load", value: `${spec.swl} kg` },
     { label: "Fabric GSM", value: `${spec.bodyGsm || spec.gsm || "—"} g/m²` },
     { label: "Lamination", value: spec.bodyLami ? `${spec.bodyLami} g/m²` : "—" },
+    {
+      label: "Fabric colour",
+      value: spec.fabricPantone ? `${spec.fabricColour} (${spec.fabricPantone})` : spec.fabricColour || "—",
+    },
     { label: "Top", value: spec.topType || spec.topConstruction || "—" },
     { label: "Bottom", value: spec.bottomType || spec.bottomConstruction || "—" },
     { label: "Loops", value: spec.loopEnabled === false ? "None" : spec.loopType || spec.loops || "—" },
@@ -160,7 +165,6 @@ export default function QuoteDetails() {
     { label: "Document pouch", value: spec.docPouch ? `${spec.docType || "Yes"}` : "None" },
     { label: "Label", value: spec.label ? `${spec.labelLength}×${spec.labelWidth}` : "None" },
     { label: "Printing", value: spec.printing || "—" },
-    ...(spec.partyName ? [{ label: "Party", value: spec.partyName }] : []),
     ...(spec.packing ? [{ label: "Packing", value: spec.packing }] : []),
     ...(spec.transport ? [{ label: "Transport", value: spec.transport }] : []),
     ...(spec.bellyBand1 ? [{ label: "Belly band 1", value: `${spec.bellyBand1Gsm} GPM` }] : []),

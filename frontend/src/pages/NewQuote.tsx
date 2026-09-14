@@ -160,8 +160,17 @@ export default function NewQuote() {
             {step === 1 && (
               <div key="step-1" className="qc-rise">
                 <h2 className="font-heading mb-1 text-lg font-bold tracking-tight">What product do you need?</h2>
-                <p className="mb-6 text-sm text-[var(--text-secondary)]">Choose the bag family and electrostatic type.</p>
+                <p className="mb-6 text-sm text-[var(--text-secondary)]">Party, bag family, and electrostatic type.</p>
                 <div className="space-y-7">
+                  <div>
+                    <FieldLabel>Party name</FieldLabel>
+                    <Input
+                      value={spec.partyName}
+                      onChange={(event) => update("partyName", event.target.value)}
+                      placeholder="Customer / party as in ERP"
+                      className={fieldClassName}
+                    />
+                  </div>
                   <div>
                     <FieldLabel>Product type</FieldLabel>
                     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -232,6 +241,7 @@ export default function NewQuote() {
                         }}
                         options={CONSTRUCTIONS.filter((item) => !FEATURED_CONSTRUCTIONS.includes(item as (typeof FEATURED_CONSTRUCTIONS)[number]))}
                         placeholder="More constructions…"
+                        strict
                       />
                     </div>
                   </div>
@@ -241,6 +251,7 @@ export default function NewQuote() {
                       value={spec.bodyStyle}
                       onChange={(value) => update("bodyStyle", value)}
                       options={styleOptions}
+                      allowCustom
                     />
                   </div>
                   <div>
@@ -301,6 +312,30 @@ export default function NewQuote() {
                       ))}
                     </div>
                   </div>
+                  {["Single Loop", "Double Loop", "Single + 4 Loop", "Double + 4 Loop"].includes(spec.constructionType) ? (
+                    <div>
+                      <FieldLabel>Loop body heights (cm)</FieldLabel>
+                      <div className="grid grid-cols-3 gap-3">
+                        {(
+                          [
+                            ["slitHt", "Slit Ht"],
+                            ["fillHt", "Fill Ht"],
+                            ["startSewnBaseHt", "Start sewn"],
+                          ] as const
+                        ).map(([key, label]) => (
+                          <div key={key}>
+                            <div className="mb-1 text-[10px] text-[var(--text-muted)]">{label}</div>
+                            <Input
+                              value={spec[key]}
+                              onChange={(event) => update(key, event.target.value)}
+                              placeholder="cm"
+                              className={fieldClassName}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <FieldLabel>Safe working load (kg)</FieldLabel>
@@ -310,6 +345,7 @@ export default function NewQuote() {
                           patch({ swl: value, ...constructionDefaults(spec.constructionType, { ...spec, swl: value }) })
                         }
                         options={["500", "750", "1000", "1250", "1500", "2000"]}
+                        allowCustom
                       />
                     </div>
                     <div>
@@ -323,6 +359,7 @@ export default function NewQuote() {
                           })
                         }
                         options={[...SF_RATIOS]}
+                        strict
                       />
                     </div>
                   </div>
@@ -332,6 +369,8 @@ export default function NewQuote() {
                       value={spec.fabricColour}
                       options={COLOURS}
                       onChange={(value) => update("fabricColour", value)}
+                      pantone={spec.fabricPantone}
+                      onPantoneChange={(value) => update("fabricPantone", value)}
                     />
                   </div>
                   <div>

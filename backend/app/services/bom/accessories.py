@@ -16,6 +16,7 @@ from app.services.bom.helpers import (
     is_inner_placement,
     is_truthy,
     num,
+    parse_additive_gsm,
     parse_num,
     qty_of,
     resolve_bag_type_parts,
@@ -350,11 +351,14 @@ def populate_bag_tie(request: BomRequest, which: str) -> None:
     qty = qty_of(request)
     if grm <= 0 or no <= 0:
         return
+    explicit_cut = num(values, f"{prefix}CutSize")
     if which == "top":
         dia = num(values, "FSL")
         spout_type = request.header.fs_type
         cut_in = num(values, "TopTieCutInput")
-        if contains(spout_type, "Iris") or contains(spout_type, "Pyjama") or contains(spout_type, "Bonnet") or contains(spout_type, "Petal"):
+        if explicit_cut > 0:
+            cut = explicit_cut
+        elif contains(spout_type, "Iris") or contains(spout_type, "Pyjama") or contains(spout_type, "Bonnet") or contains(spout_type, "Petal"):
             cut = (PI * dia) + Decimal("35") if dia > 0 else ZERO
         elif cut_in > 0:
             cut = cut_in * 2 + Decimal("5")
@@ -363,10 +367,12 @@ def populate_bag_tie(request: BomRequest, which: str) -> None:
     else:
         dia = num(values, "DSL")
         sub = request.header.ds_type
-        if contains(sub, "Petal") or contains(sub, "Iris") or contains(sub, "Pyjama") or contains(sub, "Bonnet"):
+        if explicit_cut > 0:
+            cut = explicit_cut
+        elif contains(sub, "Petal") or contains(sub, "Iris") or contains(sub, "Pyjama") or contains(sub, "Bonnet"):
             cut = (PI * dia) + Decimal("35") if dia > 0 else ZERO
         else:
-            cut = num(values, "BottomTieCutInput") or num(values, f"{prefix}CutSize")
+            cut = num(values, "BottomTieCutInput")
             if cut <= 0 and size > 0:
                 cut = size * 2 + Decimal("5")
     _set_webbing(values, prefix, cut, size, grm, no, qty)
@@ -465,10 +471,13 @@ def populate_hook(request: BomRequest, which: str) -> None:
     size = num(values, f"{prefix}Fabric")
     no = parse_num(get_value(request.bom3, f"{prefix}No")) or num(values, f"{prefix}No", Decimal("1"))
     cut = num(values, f"{prefix}CutSize")
-    if cut <= 0:
-        cut = Decimal("20")
-    else:
+    # Mill BOM lines store the final cut length; form inputs use the pre-formula size.
+    if cut > 0 and is_truthy(get_value(values, f"{prefix}CutIsFinal")):
+        pass
+    elif cut > 0:
         cut = cut * 2 + Decimal("5")
+    else:
+        cut = Decimal("20")
     _set_webbing(values, prefix, cut, size, grm, no, qty_of(request))
 
 
@@ -480,8 +489,8 @@ def populate_top_flap(request: BomRequest) -> None:
     length = request.header.size_l
     width = request.header.size_w
     qty = qty_of(request)
-    gsm = num(values, "TopFlapGSM")
-    lami = num(values, "TopFlapLamiType") or num(values, "TopFlapLami")
+    gsm = parse_additive_gsm(get_value(values, "TopFlapGSM")) or num(values, "TopFlapGSM")
+    lami = parse_additive_gsm(get_value(values, "TopFlapLamiType")) or num(values, "TopFlapLamiType") or num(values, "TopFlapLami")
     no = parse_num(get_value(request.bom3, "TopFlapNo")) or num(values, "TopFlapNo", Decimal("1"))
     if gsm + lami <= 0 or length <= 0 or width <= 0 or no <= 0:
         return
@@ -564,8 +573,8 @@ def populate_loop_cover(request: BomRequest) -> None:
     cut = num(values, "LoopCoverCutSize")
     size = num(values, "LoopCoverFabric") or num(values, "LoopCoverSize")
     no = parse_num(get_value(request.bom3, "LoopCoverNo")) or num(values, "LoopCoverNo", Decimal("1"))
-    gsm = num(values, "LoopCoverGSM")
-    lami = num(values, "LoopCoverLami") or num(values, "LoopCoverLamiType")
+    gsm = parse_additive_gsm(get_value(values, "LoopCoverGSM")) or num(values, "LoopCoverGSM")
+    lami = parse_additive_gsm(get_value(values, "LoopCoverLami")) or num(values, "LoopCoverLami") or num(values, "LoopCoverLamiType")
     qty = qty_of(request)
     if cut <= 0 or size <= 0 or gsm + lami <= 0 or no <= 0:
         return
@@ -656,7 +665,11 @@ def populate_buffle(request: BomRequest) -> None:
     construction, _, _ = resolve_bag_type_parts(request)
     if not equals(construction, "Buffle") or get_value(values, "BuffleTotalKg"):
         return
-    gsm = num(values, "BuffleGSM")
+    gsm = (
+        num(values, "BuffleGSM")
+        + num(values, "BuffleSingleCoatedGSM")
+        + num(values, "BuffleDoubleCoatedGSM")
+    )
     length = request.header.size_l
     width = request.header.size_w
     height = request.header.size_h

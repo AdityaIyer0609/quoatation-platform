@@ -161,6 +161,7 @@ class BomRequest:
     header: BomHeader
     bom1: Values = field(default_factory=Values)
     bom3: Values = field(default_factory=Values)
+    other_bom_rows: list = field(default_factory=list)
 
 
 def resolve_bag_type_parts(request: BomRequest) -> tuple[str, str, str]:
@@ -266,3 +267,30 @@ def bottom_sub_type(request: BomRequest) -> str:
     ) or ""
     parts = [p.strip() for p in raw.split("/") if p.strip()]
     return parts[1] if len(parts) > 1 else ""
+
+
+def parse_additive_gsm(value: str | None) -> Decimal:
+    """Sum ERP-style GSM strings such as ``182 + 25`` or ``120+20+20``."""
+    if not value or not str(value).strip():
+        return ZERO
+    total = ZERO
+    for part in re.split(r"\s*\+\s*", str(value).strip()):
+        part = part.strip()
+        if not part:
+            continue
+        parsed = parse_num(part)
+        if parsed is not None:
+            total += parsed
+    return total
+
+
+def buffle_uses_four_panel_fabric(request: BomRequest) -> bool:
+    """WinForms 4-side / middle-seam Buffle uses the same body/side math as 4 Panel."""
+    construction, _, _ = resolve_bag_type_parts(request)
+    if not equals(construction, "Buffle"):
+        return False
+    kind = first_non_empty(get_value(request.bom3, "BuffleType"), get_value(request.bom1, "BuffleKind"), "Standard")
+    normalized = kind.strip().lower()
+    if contains(normalized, "net"):
+        return False
+    return normalized in {"standard", "rectangular", "special"} or contains(normalized, "middle")

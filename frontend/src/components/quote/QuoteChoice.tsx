@@ -1,5 +1,8 @@
 import { Check } from "lucide-react"
+import { useId } from "react"
 
+import { PANTONE_OPTIONS, isKnownPantone, pantoneForColour, reconcileFromPantone } from "@/lib/pantone"
+import { resolveFabricHex } from "@/lib/colourPreview"
 import { cn } from "@/lib/utils"
 import type { QuoteSpecification } from "@/types/quote"
 
@@ -76,36 +79,123 @@ export function ColourSwatches({
   value,
   options,
   onChange,
+  pantone,
+  onPantoneChange,
 }: {
   value: string
   options: readonly string[]
   onChange: (value: string) => void
+  pantone?: string
+  onPantoneChange?: (value: string) => void
 }) {
+  const pantoneListId = useId()
+  const colourListId = useId()
+  const previewHex = resolveFabricHex(value)
+  const pantoneTrimmed = (pantone || "").trim()
+  const pantoneUnknown = Boolean(pantoneTrimmed) && !isKnownPantone(pantoneTrimmed)
+
+  function setColour(next: string) {
+    onChange(next)
+    if (onPantoneChange) {
+      const mapped = pantoneForColour(next)
+      if (mapped) onPantoneChange(mapped)
+    }
+  }
+
+  function setPantone(next: string) {
+    const hit = reconcileFromPantone(next)
+    if (hit) {
+      onChange(hit.colour)
+      onPantoneChange?.(hit.pantone)
+    } else {
+      onPantoneChange?.(next)
+    }
+  }
+
   return (
-    <div className="flex flex-wrap gap-4">
-      {options.map((colour) => {
-        const selected = value === colour
-        const fill = FABRIC_SWATCH[colour] || "#e4e4e2"
-        return (
-          <button
-            key={colour}
-            type="button"
-            onClick={() => onChange(colour)}
-            className="flex w-[72px] flex-col items-center gap-2"
-          >
-            <span
-              className={cn(
-                "size-12 rounded-full border border-black/10 shadow-[inset_0_1px_2px_rgba(255,255,255,0.7),0_8px_18px_rgba(17,17,16,0.12)] transition-transform duration-200",
-                selected ? "qc-swatch-ring scale-110 ring-2 ring-[var(--navy)] ring-offset-2 ring-offset-[var(--surface)]" : "hover:scale-105",
-              )}
-              style={{ background: fill }}
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-4">
+        {options.map((colour) => {
+          const selected = value.trim().toLowerCase() === colour.toLowerCase()
+          const fill = FABRIC_SWATCH[colour] || "#e4e4e2"
+          return (
+            <button
+              key={colour}
+              type="button"
+              onClick={() => setColour(colour)}
+              className="flex w-[72px] flex-col items-center gap-2"
+            >
+              <span
+                className={cn(
+                  "size-12 rounded-full border border-black/10 shadow-[inset_0_1px_2px_rgba(255,255,255,0.7),0_8px_18px_rgba(17,17,16,0.12)] transition-transform duration-200",
+                  selected ? "qc-swatch-ring scale-110 ring-2 ring-[var(--navy)] ring-offset-2 ring-offset-[var(--surface)]" : "hover:scale-105",
+                )}
+                style={{ background: fill }}
+              />
+              <span className={cn("font-heading text-center text-[11px] font-semibold leading-4", selected ? "text-[var(--navy)]" : "text-[var(--text-secondary)]")}>
+                {colour}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <div className={cn("grid gap-3", onPantoneChange ? "sm:grid-cols-2" : "grid-cols-1")}>
+        <div>
+          <div className="mb-1 text-[10px] text-[var(--text-muted)]">Colour name</div>
+          <div className="flex items-center gap-2">
+            <input
+              list={colourListId}
+              value={value}
+              placeholder="red, Blue, #c62828…"
+              onChange={(event) => setColour(event.target.value)}
+              className="w-full min-w-0 flex-1 rounded-2xl border border-[var(--border)] bg-[var(--bg)] px-3.5 py-3 text-sm outline-none transition-all duration-200 hover:border-[var(--navy-border)] focus:border-[var(--navy)] focus:bg-[var(--surface)] focus:ring-[4px] focus:ring-[var(--navy-bg)]"
             />
-            <span className={cn("font-heading text-center text-[11px] font-semibold leading-4", selected ? "text-[var(--navy)]" : "text-[var(--text-secondary)]")}>
-              {colour}
-            </span>
-          </button>
-        )
-      })}
+            <label
+              className="relative flex size-12 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border border-[var(--border)] shadow-inner"
+              title="Preview colour (for 3D bag)"
+              style={{ background: previewHex }}
+            >
+              <input
+                type="color"
+                value={previewHex}
+                onChange={(event) => setColour(event.target.value)}
+                className="absolute inset-0 cursor-pointer opacity-0"
+                aria-label="Pick preview colour"
+              />
+            </label>
+          </div>
+          <datalist id={colourListId}>
+            {options.map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
+          <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">
+            3D preview follows colour name or #hex (picker sets hex).
+          </p>
+        </div>
+        {onPantoneChange ? (
+          <div>
+            <div className="mb-1 text-[10px] text-[var(--text-muted)]">Pantone code</div>
+            <input
+              list={pantoneListId}
+              value={pantone || ""}
+              placeholder="e.g. PMS 286 C"
+              onChange={(event) => setPantone(event.target.value)}
+              className="w-full min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg)] px-3.5 py-3 text-sm outline-none transition-all duration-200 hover:border-[var(--navy-border)] focus:border-[var(--navy)] focus:bg-[var(--surface)] focus:ring-[4px] focus:ring-[var(--navy-bg)]"
+            />
+            <datalist id={pantoneListId}>
+              {PANTONE_OPTIONS.map((option) => (
+                <option key={option} value={option} />
+              ))}
+            </datalist>
+            <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">
+              {pantoneUnknown
+                ? "Pantone saved for ERP. Not in mill list — set colour/picker for 3D preview."
+                : "Known Pantone fills colour; colour suggests Pantone. Preview uses colour/#hex."}
+            </p>
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

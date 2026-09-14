@@ -103,13 +103,50 @@ export function topTypeDefaults(topType: string, spec: QuoteSpecification): Part
   if (topType === "Conical Top" || topType === "Conical PlateTop") {
     return {
       topType,
-      topSpoutType: spec.topSpoutType || "Simple",
-      topSpoutDia: spec.topSpoutDia || "35",
-      topSpoutHeight: spec.topSpoutHeight || "50",
-      conicalTop: spec.conicalTop || spec.height,
+      topSpoutType: "None",
+      topSpoutGsm: "0",
+      topSpoutLami: "0",
+      topSpoutDia: spec.topSpoutDia || "0",
+      topSpoutHeight: spec.topSpoutHeight || "0",
+      topSpoutRope: false,
+      topSpoutTie: false,
     }
   }
   return { topType }
+}
+
+/** frmBOM_NEW comboBoxbottomtype / comboBoxbottomdia / petal subtype remarks */
+export function bottomPunchRemarks(bottomType: string, bottomSpoutType: string, dia: string): string | undefined {
+  const n = Number.parseInt(dia, 10)
+  if (!Number.isFinite(n)) return undefined
+  if (bottomSpoutType.toLowerCase().includes("petal")) return `CROSS PUNCH - ${n - 5}`
+  if (bottomType === "Bottom Spout") return `ROUND PUNCH - ${n - 5}`
+  return undefined
+}
+
+/** frmBOM_NEW comboBoxbottomtype_SelectedIndexChanged */
+export function bottomTypeDefaults(bottomType: string, spec: QuoteSpecification): Partial<QuoteSpecification> {
+  const tieOn =
+    bottomType === "Bottom Spout" ||
+    bottomType === "Square Bottom" ||
+    bottomType === "Star Bottom" ||
+    bottomType === "Bottom + Skirt"
+  const patch: Partial<QuoteSpecification> = {
+    bottomType,
+    bottomSpoutTie: tieOn,
+  }
+  if (bottomType === "Bottom Spout") {
+    const dia = spec.bottomSpoutDia || "35"
+    patch.bottomSpoutType = "Simple"
+    patch.bottomSpoutDia = dia
+    patch.bottomSpoutHeight = spec.bottomSpoutHeight || "40"
+    const punch = bottomPunchRemarks(bottomType, "Simple", dia)
+    if (punch) patch.bottomRemarks = punch
+  }
+  if (bottomType === "Bottom + Skirt") {
+    patch.bottomSkirtHeight = spec.bottomSkirtHeight || "80"
+  }
+  return patch
 }
 
 export function bottomGsmFromBody(construction: string, bodyGsm: string): string {

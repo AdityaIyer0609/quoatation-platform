@@ -48,6 +48,9 @@ Desktop.ini
 # Cursor local
 .cursor/
 
+# Mill parity audit output (customer PO numbers)
+backend/scripts/_mill_bom_parity_report.json
+
 # Generated PDFs / uploads
 *.pdf
 uploads/

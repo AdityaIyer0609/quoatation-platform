@@ -1,6 +1,7 @@
 import { Check } from "lucide-react"
-import type { ReactNode } from "react"
+import { useId, type ReactNode } from "react"
 
+import { COLOURS } from "@/lib/erpCatalog"
 import { cn } from "@/lib/utils"
 
 export function OptionChips({
@@ -84,27 +85,70 @@ export function CheckboxChips({
   )
 }
 
+const SELECT_CLASS =
+  "w-full min-w-0 appearance-none rounded-2xl border border-[var(--border)] bg-[var(--bg)] px-3.5 py-3 pr-8 text-sm outline-none transition-all duration-200 hover:border-[var(--navy-border)] focus:border-[var(--navy)] focus:bg-[var(--surface)] focus:ring-[4px] focus:ring-[var(--navy-bg)]"
+
+const COLOUR_OPTION_SET = new Set<string>([...COLOURS, "Transparent"])
+
+function optionsAreNumeric(options: string[]): boolean {
+  if (!options.length) return false
+  return options.every((option) => /^-?\d+(\.\d+)?$/.test(String(option).trim()))
+}
+
+function optionsAreColours(options: string[]): boolean {
+  if (!options.length || options.length > 16) return false
+  return options.every((option) => !option || COLOUR_OPTION_SET.has(option))
+}
+
+/** Dropdown with optional free typing (datalist). Auto-enabled for GSM/sizes and colour lists. */
 export function FormSelect({
   value,
   onChange,
   options,
   placeholder,
+  allowCustom,
+  strict,
 }: {
   value: string
   onChange: (value: string) => void
   options: string[]
   placeholder?: string
+  /** Force free-text entry with suggestion list. */
+  allowCustom?: boolean
+  /** Force native select only (no free text). */
+  strict?: boolean
 }) {
+  const listId = useId()
+  const custom =
+    !strict && (allowCustom ?? (optionsAreNumeric(options) || optionsAreColours(options)))
   const list = options.includes(value) ? options : value ? [value, ...options] : options
+
+  if (custom) {
+    return (
+      <>
+        <input
+          list={listId}
+          value={value}
+          placeholder={placeholder || "Select or type…"}
+          onChange={(event) => onChange(event.target.value)}
+          className={SELECT_CLASS}
+        />
+        <datalist id={listId}>
+          {list.map((option) => (
+            <option key={option} value={option} />
+          ))}
+        </datalist>
+      </>
+    )
+  }
+
   return (
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="w-full appearance-none rounded-2xl border border-[var(--border)] bg-[var(--bg)] px-3.5 py-3 pr-8 text-sm outline-none transition-all duration-200 hover:border-[var(--navy-border)] focus:border-[var(--navy)] focus:bg-[var(--surface)] focus:ring-[4px] focus:ring-[var(--navy-bg)]"
+      className={SELECT_CLASS}
     >
-      {placeholder ? (
-        <option value="">{placeholder}</option>
-      ) : null}
+      {placeholder ? <option value="">{placeholder}</option> : null}
       {list.map((option) => (
         <option key={option} value={option}>
           {option || "—"}
@@ -133,11 +177,11 @@ export function GsmLamiFields({
     <div className="grid grid-cols-2 gap-3">
       <div>
         <div className="mb-1 text-[10px] text-[var(--text-muted)]">GSM</div>
-        <FormSelect value={gsm} onChange={onGsm} options={gsmOptions} />
+        <FormSelect value={gsm} onChange={onGsm} options={gsmOptions} allowCustom />
       </div>
       <div>
         <div className="mb-1 text-[10px] text-[var(--text-muted)]">Lamination</div>
-        <FormSelect value={lami} onChange={onLami} options={lamiOptions} />
+        <FormSelect value={lami} onChange={onLami} options={lamiOptions} allowCustom />
       </div>
     </div>
   )
@@ -165,6 +209,28 @@ export function CheckRow({
   )
 }
 
+export function CompactCheck({
+  checked,
+  onChange,
+  children,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  children: ReactNode
+}) {
+  return (
+    <label className="mb-1 flex h-12 shrink-0 items-center gap-2 whitespace-nowrap text-sm">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
+      />
+      {children}
+    </label>
+  )
+}
+
 export function FieldLabel({
   children,
   optional,
@@ -175,9 +241,7 @@ export function FieldLabel({
   return (
     <label className="font-heading mb-2 flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase">
       {children}
-      {optional && (
-        <span className="font-normal text-[var(--text-muted)]">(optional)</span>
-      )}
+      {optional && <span className="font-normal text-[var(--text-muted)]">(optional)</span>}
     </label>
   )
 }

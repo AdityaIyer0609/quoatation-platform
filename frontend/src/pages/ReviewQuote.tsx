@@ -59,6 +59,7 @@ export default function ReviewQuote() {
 
       <div className="space-y-4">
         <Section title="Product" onEdit={() => edit(1)}>
+          {specification.partyName ? <Row label="Party" value={specification.partyName} /> : null}
           <Row label="Product type" value={specification.productType} />
           <Row label="Category" value={specification.productCategory} />
         </Section>
@@ -81,7 +82,14 @@ export default function ReviewQuote() {
           <Row label="Safety factor" value={specification.sfRatio} />
           <Row label="Body GSM" value={`${specification.bodyGsm} g/m²`} />
           <Row label="Lamination" value={`${specification.bodyLami} g/m²`} />
-          <Row label="Fabric colour" value={specification.fabricColour} />
+          <Row
+            label="Fabric colour"
+            value={
+              specification.fabricPantone
+                ? `${specification.fabricColour} (${specification.fabricPantone})`
+                : specification.fabricColour
+            }
+          />
           {!specification.sameFabricForPanels ? (
             <>
               <Row label="Top GSM" value={`${specification.topGsm || specification.bodyGsm} g/m²`} />
@@ -157,7 +165,6 @@ export default function ReviewQuote() {
           {specification.cableTie ? <Row label="Cable tie" value={specification.cableTieCount || "Yes"} /> : null}
           {specification.topVelcro ? <Row label="Top velcro" value="Yes" /> : null}
           {specification.bottomVelcro ? <Row label="Bottom velcro" value="Yes" /> : null}
-          {specification.partyName ? <Row label="Party" value={specification.partyName} /> : null}
           {specification.packing ? <Row label="Packing" value={specification.packing} /> : null}
           {specification.transport ? <Row label="Transport" value={specification.transport} /> : null}
           <Row label="Printing" value={specification.printing || "None"} />

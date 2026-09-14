@@ -954,12 +954,12 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
     {
       id: "extra-bottom-hose",
       title: "Hose Slider",
-      on: spec.hoseSlider,
+      on: spec.bottomHoseSlider,
       search: "hose slider",
-      summary: `${spec.hoseSliderCount || "1"} × 0.005 kg`,
+      summary: `${spec.bottomHoseSliderCount || "1"} × 0.005 kg`,
       body: (
         <Labeled label="Count">
-          <Input value={spec.hoseSliderCount} onChange={(event) => update("hoseSliderCount", event.target.value)} className={fieldClassName} />
+          <Input value={spec.bottomHoseSliderCount} onChange={(event) => update("bottomHoseSliderCount", event.target.value)} className={fieldClassName} />
         </Labeled>
       ),
     },
@@ -1291,12 +1291,12 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
     {
       id: "extra-bottom-cable",
       title: "Cable Tie",
-      on: spec.cableTie,
+      on: spec.bottomCableTie,
       search: "cable tie",
-      summary: spec.cableTieCount ? `×${spec.cableTieCount} · no kg formula` : "Collected, no kg formula",
+      summary: spec.bottomCableTieCount ? `×${spec.bottomCableTieCount} · no kg formula` : "Collected, no kg formula",
       body: (
         <Labeled label="Count">
-          <Input value={spec.cableTieCount} onChange={(event) => update("cableTieCount", event.target.value)} className={fieldClassName} />
+          <Input value={spec.bottomCableTieCount} onChange={(event) => update("bottomCableTieCount", event.target.value)} className={fieldClassName} />
         </Labeled>
       ),
     },
@@ -1329,19 +1329,7 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
     "extra-belly-1": "loop",
     "extra-belly-2": "loop",
     "extra-fabric-patch": "loop",
-    "extra-fs-rope": "top",
-    "extra-top-band": "top",
-    "extra-hose": "top",
-    "extra-cable": "top",
-    "extra-top-velcro": "top",
-    "extra-ds-rope": "bottom",
-    "extra-ds-tie": "bottom",
-    "extra-tb-band": "bottom",
-    "extra-bottom-velcro": "bottom",
-    "extra-bottom-hose": "bottom",
-    "extra-bottom-cable": "bottom",
     "extra-ds2": "bottomSpout2",
-    "extra-ds3": "bottomSpout2",
     "extra-top-flap": "flap",
     "extra-top-hook": "flap",
     "extra-bottom-flap": "flap",
@@ -1393,7 +1381,7 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
     "extra-top-band": "topBand",
     "extra-stevedore": "stevedore",
     "extra-hose": "hoseSlider",
-    "extra-bottom-hose": "hoseSlider",
+    "extra-bottom-hose": "bottomHoseSlider",
     "extra-belly-1": "bellyBand1",
     "extra-belly-2": "bellyBand2",
     "extra-tb-band": "topBottomBand",
@@ -1408,7 +1396,7 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
     "extra-ds2": "bottomSpout2",
     "extra-ds3": "bottomSpout3",
     "extra-cable": "cableTie",
-    "extra-bottom-cable": "cableTie",
+    "extra-bottom-cable": "bottomCableTie",
     "extra-top-velcro": "topVelcro",
     "extra-bottom-velcro": "bottomVelcro",
   } as const satisfies Record<string, keyof QuoteSpecification>

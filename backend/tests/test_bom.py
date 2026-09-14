@@ -324,3 +324,184 @@ def test_packing_and_party_go_to_instruction():
     assert "Transport: 20 ft" in request.header.instruction
     assert "Cable tie x4" in request.header.instruction
 
+
+
+def test_buffle_golden_pous_5502():
+    """Mill snapshot POUS-5502 / 026023 / IMPO09200 (2026-09-13) — 3.2957 kg."""
+    result = preview_bom(
+        BomCustomerSpec.model_validate(
+            {
+                "constructionType": "Buffle",
+                "bodyStyle": "Non-Builder",
+                "bodyGrade": "FDA",
+                "sizeType": "INNER",
+                "length": "102",
+                "width": "117",
+                "height": "130",
+                "swl": "500",
+                "sfRatio": "5:1",
+                "bodyGsm": "182",
+                "bodyLami": "25",
+                "sameFabricForPanels": True,
+                "topType": "Conical Plate Top",
+                "conicalTop": "28",
+                "topGsm": "90",
+                "topLami": "12",
+                "bottomType": "Bottom Spout",
+                "bottomGsm": "182",
+                "bottomLami": "25",
+                "topSpoutDia": "36",
+                "topSpoutHeight": "44",
+                "topSpoutGsm": "90",
+                "topSpoutLami": "12",
+                "bottomSpoutDia": "53",
+                "bottomSpoutHeight": "66",
+                "bottomSpoutGsm": "90",
+                "bottomSpoutLami": "12",
+                "topSpoutTieGsm": "6",
+                "topSpoutTieSize": "15",
+                "topSpoutTieRemarks": "60X2",
+                "topSpoutTieCount": "1",
+                "bottomSpoutTieGsm": "6",
+                "bottomSpoutTieSize": "15",
+                "bottomSpoutTieRemarks": "60X2",
+                "bottomSpoutTieCount": "1",
+                "loopEnabled": True,
+                "loopGsm": "30",
+                "loopLength": "50",
+                "loopWidth": "50",
+                "loopCount": "4",
+                "loopLongLeg": "195",
+                "loopConstruction": "Cross Corner",
+                "buffleGsm": "120",
+                "buffleSingleCoatedGsm": "20",
+                "buffleDoubleCoatedGsm": "20",
+                "buffleKind": "Standard",
+                "docPouch": True,
+                "docLength": "35",
+                "docWidth": "30",
+                "docMicron": "90",
+                "docType": "Zip Lock",
+                "docOpening": "Horizontal Open",
+                "label": True,
+                "labelLength": "8",
+                "labelWidth": "7",
+                "labelMicron": "150",
+                "fillerCord": True,
+                "fillerCordGpm": "4.5",
+                "fillerCordTop": True,
+                "fillerCordBottom": True,
+                "fillerCordTopSpout": True,
+                "fillerCordBottomSpout": True,
+                "fillerCordBuffle": True,
+                "fillerCordTopType": "Double",
+                "fillerCordBottomType": "Double",
+                "fillerCordTopSpoutType": "Double",
+                "fillerCordBottomSpoutType": "Double",
+                "fillerCordBuffleType": "Double",
+                "threadBuffleSeam": "Eight Seam",
+                "hiracle": True,
+                "hiracleTop": True,
+                "hiracleBottom": True,
+                "quantity": "2",
+                "otherBomRows": [
+                    {
+                        "name": "D/S FLAP",
+                        "gsm": "180+30",
+                        "lami": "",
+                        "color": "",
+                        "fabricSize": "65",
+                        "cutLength": "65",
+                        "totalMtr": "1.3",
+                        "totalKg": "0.0887",
+                        "remarks": "FLAP CLOSURE",
+                        "category": "Other",
+                    },
+                    {
+                        "name": "MALE VELCRO",
+                        "gsm": "20",
+                        "fabricSize": "50",
+                        "cutLength": "65",
+                        "totalKg": "0.0065",
+                        "category": "Other",
+                    },
+                    {
+                        "name": "FEMALE VELCRO",
+                        "gsm": "20",
+                        "fabricSize": "50",
+                        "cutLength": "65",
+                        "totalKg": "0.0065",
+                        "category": "Other",
+                    },
+                ],
+            }
+        )
+    )
+
+    def kg(heading: str) -> float:
+        line = _line(result, heading)
+        assert line is not None, heading
+        return float(line.total_kg)
+
+    assert abs(kg("Body") - 0.6596) < 0.0002
+    assert abs(kg("Side") - 0.7472) < 0.0002
+    assert abs(kg("Loop") - 0.234) < 0.0002
+    assert abs(kg("Buffle") - 0.4346) < 0.0002
+    assert abs(kg("Filler Cord") - 0.2188) < 0.002
+    # WinForms thread includes hiracle buffle length; stored mill line was 0.145 kg.
+    assert abs(kg("Thread") - 0.165) < 0.002
+    assert abs(kg("DocPouch") - 0.0224) < 0.0002
+    assert abs(kg("D/S FLAP ~") - 0.0887) < 0.0002
+    assert abs(result.total_kg_per_bag - 3.2957) < 0.02
+
+
+def test_single_loop_body_uses_slit_fill_start_sewn():
+    """WinForms Single Loop BodyWtFormula (~3110): INNER +12+StartSewn + SWL band."""
+    result = preview_bom(
+        _spec(
+            constructionType="Single Loop",
+            length="62.5",
+            width="62.5",
+            height="160",
+            swl="600",
+            bodyGsm="160",
+            bodyLami="0",
+            slitHt="30",
+            fillHt="160",
+            startSewnBaseHt="0",
+            loopEnabled=False,
+            sameFabricForPanels=False,
+        )
+    )
+    body = _line(result, "Body")
+    assert body is not None
+    # cut = 30+160+0+12+10 = 212; fabric = 125; kg = 2*212*160*125 / 10_000_000
+    assert body.cut_size == "212"
+    assert body.fabric_size == "125"
+    assert abs(float(body.total_kg) - 0.848) < 0.001
+
+
+def test_four_panel_tunnel_skips_body_emits_reinforce():
+    result = preview_bom(
+        _spec(
+            constructionType="4-Panel",
+            bodyStyle="Tunnel Bag",
+            length="107",
+            width="107",
+            height="137",
+            bodyGsm="180",
+            bodyLami="20",
+            tunnelDesign="Store",
+            tunnelGsm="192",
+            tunnelLami="0",
+            loopEnabled=False,
+            sameFabricForPanels=True,
+        )
+    )
+    assert _line(result, "Body") is None
+    reinforce = _line(result, "Reinforce fabric")
+    assert reinforce is not None
+    assert reinforce.total_kg and float(reinforce.total_kg) > 0
+    side = _line(result, "Side")
+    assert side is not None
+    assert side.total_kg and float(side.total_kg) > 0

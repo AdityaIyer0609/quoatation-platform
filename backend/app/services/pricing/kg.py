@@ -56,7 +56,7 @@ PP_HEADINGS = {
     "Bottom Spout 3",
 }
 
-ADDON_ONLY_HEADINGS = {"Felt", "MF Webbing"}
+ADDON_ONLY_HEADINGS = {"Felt", "MF Webbing", "MFWeb"}
 
 PE_LINER_MATERIALS = {"ld", "lld", "hd", "pe"}
 

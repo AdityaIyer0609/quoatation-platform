@@ -4,12 +4,17 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from app.services.bom.helpers import (
+    LOOP_DIV,
+    WEIGHT_DIV,
     BomRequest,
     Values,
     contains,
+    equals,
     first_non_empty,
     get_value,
     parse_num,
+    parse_additive_gsm,
+    resolve_bag_type_parts,
     round4,
     ZERO,
 )
@@ -133,7 +138,31 @@ def _tunnel_heading(request: BomRequest) -> str:
     tunnel = first_non_empty(get_value(request.bom3, "TunnelDesign"), get_value(request.bom1, "TunnelDesign"))
     if contains(tunnel, "Cross Corner") or contains(tunnel, "Leno"):
         return "Reinforce fabric"
+    construction, body_style, _ = resolve_bag_type_parts(request)
+    if equals(construction, "4 Panel") and contains(body_style, "Tunnel"):
+        return "Reinforce fabric"
     return "Tunnel"
+
+
+def _top_heading(request: BomRequest) -> str:
+    top_type = first_non_empty(get_value(request.bom3, "toptypes"), "")
+    lowered = top_type.lower()
+    if equals(top_type, "Leno"):
+        return "Leno"
+    if equals(top_type, "Jute Skirt"):
+        return "Jute Skirt"
+    if equals(top_type, "Drawstring Skirt") or equals(top_type, "Oversize Duffle or Skrit"):
+        return f"Top {top_type}"
+    if lowered in {
+        "duffle or skrit",
+        "top + skrit",
+        "oversize duffle or skrit",
+        "drawstring skirt",
+        "jute skirt",
+        "leno",
+    }:
+        return "Top Duffle/Skrit"
+    return "Top"
 
 
 def build_derived_lines(request: BomRequest) -> list[BomLine]:
@@ -158,7 +187,7 @@ def build_derived_lines(request: BomRequest) -> list[BomLine]:
         parse_num(g("SideTotalMtr")), parse_num(g("SideTotalKg")), g("SideRemarks"),
     )
     _add_line(
-        lines, sort_order, "Top", g("TopGSM"), g("TopLami"),
+        lines, sort_order, _top_heading(request), g("TopGSM"), g("TopLami"),
         first_non_empty(g("TopColor"), header.fab_color), g("TopFabric"), g("TopCutSize"),
         parse_num(g("TopTotalMtr")), parse_num(g("TopTotalKg")),
         first_non_empty(g("TopRemarks"), g("TopRemarks1")),
@@ -240,7 +269,7 @@ def build_derived_lines(request: BomRequest) -> list[BomLine]:
         ("Buffle", ["BuffleGSM"], ["BuffleLamiType"], ["BuffleColor"], ["BuffleFabric"], ["BuffleCutSize"], ["BuffleTotalMtr"], ["BuffleTotalKg"], ["BuffleRemarks"]),
         ("Loop Cover", ["LoopCoverGSM"], ["LoopCoverLamiType"], ["LoopCoverColor"], ["LoopCoverFabric"], ["LoopCoverCutSize"], ["LoopCoverTotalMtr"], ["LoopCoverTotalKg"], ["LoopCoverRemarks"]),
         ("Felt", ["FeltGSM"], ["FeltType"], ["FeltColor"], ["FeltFabric"], ["FeltCutSize"], ["FeltTotalMtr"], ["FeltTotalKg"], ["FeltRemarks"]),
-        ("MF Webbing", ["MFWebGSM"], [], [], ["MFWebFabric"], ["MFWebCutSize"], ["MFWebTotalMtr"], ["MFWebTotalKg"], ["MFWebRemarks"]),
+        ("MFWeb", ["MFWebGSM"], [], [], ["MFWebFabric"], ["MFWebCutSize"], ["MFWebTotalMtr"], ["MFWebTotalKg"], ["MFWebRemarks"]),
         ("Inner Skin", ["InnerSkinGSM"], ["InnerSkinLamiType", "InnerSkinLami"], ["InnerSkinColor"], ["InnerSkinFabric"], ["InnerSkinCutSize"], ["InnerSkinTotalMtr"], ["InnerSkinTotalKg"], ["InnerSkinRemarks"]),
         ("Inner Box", ["InnerBoxGSM"], ["InnerBoxLami"], ["InnerBoxColor"], ["InnerBoxFabric"], ["InnerBoxCutSize"], ["InnerBoxTotalMtr"], ["InnerBoxTotalKg"], ["InnerBoxRemarks"]),
         ("Top Band", ["TopBandGSM"], [], ["TopBandColor"], ["TopBandFabric"], ["TopBandCutSize"], ["TopBandTotalMtr"], ["TopBandTotalKg"], ["TopBandRemarks"]),
@@ -273,7 +302,55 @@ def build_derived_lines(request: BomRequest) -> list[BomLine]:
         ["TunnelGSM"], ["TunnelLami"], ["TunnelColor"], ["TunnelFabric"], ["TunnelCutSize"],
         ["TunnelTotalMtr"], ["TunnelTotalKg"], ["TunnelRemarks"],
     )
+    append_other_bom_lines(lines, sort_order, request.other_bom_rows)
     return lines
+
+
+
+def _other_bom_heading(name: str) -> str:
+    cleaned = (name or "").strip()
+    if not cleaned:
+        return "Other ~"
+    return cleaned if cleaned.endswith("~") else f"{cleaned} ~"
+
+
+def _other_bom_kg(row: dict[str, str]) -> Decimal | None:
+    explicit = parse_num(row.get("total_kg") or row.get("totalKg") or "")
+    if explicit is not None and explicit > 0:
+        return round4(explicit)
+    gsm = parse_additive_gsm(row.get("gsm") or "")
+    lami = parse_additive_gsm(row.get("lami") or "")
+    fabric = parse_num(row.get("fabric_size") or row.get("fabricSize") or "") or ZERO
+    cut = parse_num(row.get("cut_length") or row.get("cutLength") or "") or ZERO
+    total_gsm = gsm + lami
+    if fabric <= 0 or cut <= 0 or total_gsm <= 0:
+        return None
+    name = (row.get("name") or "").lower()
+    if "velcro" in name or "tie" in name or "rope" in name or "webbing" in name:
+        return round4((cut * fabric * total_gsm) / LOOP_DIV)
+    return round4((cut * fabric * total_gsm) / WEIGHT_DIV)
+
+
+def append_other_bom_lines(lines: list[BomLine], sort_order: list[int], rows: list) -> None:
+    for row in rows:
+        payload = row.model_dump(by_alias=True) if hasattr(row, "model_dump") else dict(row)
+        kg = _other_bom_kg(payload)
+        if kg is None or kg <= 0:
+            continue
+        total_mtr = parse_num(payload.get("total_mtr") or payload.get("totalMtr") or "")
+        _add_line(
+            lines,
+            sort_order,
+            _other_bom_heading(str(payload.get("name") or "")),
+            str(payload.get("gsm") or ""),
+            str(payload.get("lami") or ""),
+            str(payload.get("color") or ""),
+            str(payload.get("fabric_size") or payload.get("fabricSize") or ""),
+            str(payload.get("cut_length") or payload.get("cutLength") or ""),
+            total_mtr,
+            kg,
+            str(payload.get("remarks") or ""),
+        )
 
 
 def calculate_total_kg(lines: list[BomLine]) -> Decimal:
