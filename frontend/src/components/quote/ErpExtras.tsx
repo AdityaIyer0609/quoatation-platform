@@ -2,12 +2,11 @@ import { Search } from "lucide-react"
 import { useState, type ReactNode } from "react"
 
 import { fieldClassName } from "@/components/login/fieldStyles"
-import { FieldLabel, FormSelect, GsmLamiFields } from "@/components/quote/FormControls"
+import { BomColourField, FieldLabel, FormSelect, GsmLamiFields } from "@/components/quote/FormControls"
 import { Input } from "@/components/ui/input"
 import {
   ANCILLARY_LOOP_TYPES,
   BUFFLE_KINDS,
-  COLOURS,
   CUT_0_20,
   DOC_OPENINGS,
   DOC_TYPES,
@@ -58,8 +57,9 @@ function ExtraRow({
   cut,
   onCut,
   cutOptions,
-  color,
-  onColor,
+  colourKey,
+  spec,
+  update,
   count,
   onCount,
   countLabel = "Count",
@@ -78,8 +78,9 @@ function ExtraRow({
   cut?: string
   onCut?: (value: string) => void
   cutOptions?: readonly string[]
-  color?: string
-  onColor?: (value: string) => void
+  colourKey?: keyof QuoteSpecification
+  spec?: QuoteSpecification
+  update?: DraftApi["update"]
   count: string
   onCount: (value: string) => void
   countLabel?: string
@@ -87,6 +88,7 @@ function ExtraRow({
   onRemarks?: (value: string) => void
 }) {
   return (
+    <div className="space-y-3">
     <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
       {onType && typeOptions ? (
         <Labeled label="Type">
@@ -104,11 +106,6 @@ function ExtraRow({
           <FormSelect value={cut || ""} onChange={onCut} options={[...(cutOptions ?? CUT_0_20)]} placeholder="Select" />
         </Labeled>
       ) : null}
-      {onColor ? (
-        <Labeled label="Color">
-          <FormSelect value={color || COLOURS[0]} onChange={onColor} options={[...COLOURS]} />
-        </Labeled>
-      ) : null}
       <Labeled label={countLabel}>
         <Input value={count} onChange={(event) => onCount(event.target.value)} className={fieldClassName} />
       </Labeled>
@@ -119,6 +116,10 @@ function ExtraRow({
           </Labeled>
         </div>
       ) : null}
+    </div>
+    {colourKey && spec && update ? (
+      <BomColourField spec={spec} update={update} colourKey={colourKey} className="w-full" />
+    ) : null}
     </div>
   )
 }
@@ -252,8 +253,9 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
           sizeOptions={ROPE_SIZE_10_25}
           cut={spec.topTieCut}
           onCut={(value) => update("topTieCut", value)}
-          color={spec.topTieColor}
-          onColor={(value) => update("topTieColor", value)}
+          colourKey="topTieColor"
+          spec={spec}
+          update={update}
           count={spec.topTieCount}
           onCount={(value) => update("topTieCount", value)}
           countLabel="No of tie"
@@ -278,8 +280,9 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
           sizeOptions={ROPE_SIZE_10_25}
           cut={spec.topRopeCut}
           onCut={(value) => update("topRopeCut", value)}
-          color={spec.topRopeColor}
-          onColor={(value) => update("topRopeColor", value)}
+          colourKey="topRopeColor"
+          spec={spec}
+          update={update}
           count={spec.topRopeCount}
           onCount={(value) => update("topRopeCount", value)}
           countLabel="No (rope)"
@@ -302,8 +305,9 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
           sizeOptions={ROPE_SIZE_10_25}
           cut={spec.bottomTieCut}
           onCut={(value) => update("bottomTieCut", value)}
-          color={spec.bottomTieColor}
-          onColor={(value) => update("bottomTieColor", value)}
+          colourKey="bottomTieColor"
+          spec={spec}
+          update={update}
           count={spec.bottomTieCount}
           onCount={(value) => update("bottomTieCount", value)}
           countLabel="No of tie"
@@ -328,8 +332,9 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
           sizeOptions={ROPE_SIZE_10_25}
           cut={spec.bottomRopeCut}
           onCut={(value) => update("bottomRopeCut", value)}
-          color={spec.bottomRopeColor}
-          onColor={(value) => update("bottomRopeColor", value)}
+          colourKey="bottomRopeColor"
+          spec={spec}
+          update={update}
           count={spec.bottomRopeCount}
           onCount={(value) => update("bottomRopeCount", value)}
           countLabel="No (rope)"
@@ -353,8 +358,9 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
             size={spec.topSpoutRopeSize}
             onSize={(value) => update("topSpoutRopeSize", value)}
             sizeOptions={ROPE_SIZES}
-            color={spec.topSpoutRopeColor}
-            onColor={(value) => update("topSpoutRopeColor", value)}
+            colourKey="topSpoutRopeColor"
+            spec={spec}
+            update={update}
             count={spec.topSpoutRopeCount}
             onCount={(value) => update("topSpoutRopeCount", value)}
             countLabel="No (rope)"
@@ -390,8 +396,9 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
             size={spec.bottomSpoutRopeSize}
             onSize={(value) => update("bottomSpoutRopeSize", value)}
             sizeOptions={ROPE_SIZES}
-            color={spec.bottomSpoutRopeColor}
-            onColor={(value) => update("bottomSpoutRopeColor", value)}
+            colourKey="bottomSpoutRopeColor"
+            spec={spec}
+            update={update}
             count={spec.bottomSpoutRopeCount}
             onCount={(value) => update("bottomSpoutRopeCount", value)}
             countLabel="No (rope)"
@@ -444,9 +451,6 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
             <Labeled label="Type">
               <FormSelect value={spec.threadType} onChange={(value) => update("threadType", value)} options={[...THREAD_TYPES]} />
             </Labeled>
-            <Labeled label="Color">
-              <FormSelect value={spec.threadColour} onChange={(value) => update("threadColour", value)} options={[...COLOURS]} />
-            </Labeled>
             <Labeled label="Needle">
               <FormSelect value={spec.threadNeedle} onChange={(value) => update("threadNeedle", value)} options={[...THREAD_NEEDLES]} />
             </Labeled>
@@ -454,6 +458,7 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
               <Input value={spec.threadDenier} onChange={(event) => update("threadDenier", event.target.value)} className={fieldClassName} />
             </Labeled>
           </div>
+          <BomColourField spec={spec} update={update} colourKey="threadColour" className="w-full" />
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-sm font-medium">
               <input
@@ -494,14 +499,10 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
             gsmOptions={[...GSM_OPTIONS]}
             lamiOptions={[...LAMI_OPTIONS]}
           />
-          <div className="grid grid-cols-2 gap-x-3 gap-y-4">
-            <Labeled label="Color">
-              <FormSelect value={spec.topFlapColor} onChange={(value) => update("topFlapColor", value)} options={[...COLOURS]} />
-            </Labeled>
-            <Labeled label="Count">
-              <Input value={spec.topFlapCount} onChange={(event) => update("topFlapCount", event.target.value)} className={fieldClassName} />
-            </Labeled>
-          </div>
+          <Labeled label="Count">
+            <Input value={spec.topFlapCount} onChange={(event) => update("topFlapCount", event.target.value)} className={fieldClassName} />
+          </Labeled>
+          <BomColourField spec={spec} update={update} colourKey="topFlapColor" className="w-full" />
         </div>
       ),
     },
@@ -521,14 +522,10 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
             gsmOptions={[...GSM_OPTIONS]}
             lamiOptions={[...LAMI_OPTIONS]}
           />
-          <div className="grid grid-cols-2 gap-x-3 gap-y-4">
-            <Labeled label="Color">
-              <FormSelect value={spec.bottomFlapColor} onChange={(value) => update("bottomFlapColor", value)} options={[...COLOURS]} />
-            </Labeled>
-            <Labeled label="Count">
-              <Input value={spec.bottomFlapCount} onChange={(event) => update("bottomFlapCount", event.target.value)} className={fieldClassName} />
-            </Labeled>
-          </div>
+          <Labeled label="Count">
+            <Input value={spec.bottomFlapCount} onChange={(event) => update("bottomFlapCount", event.target.value)} className={fieldClassName} />
+          </Labeled>
+          <BomColourField spec={spec} update={update} colourKey="bottomFlapColor" className="w-full" />
         </div>
       ),
     },
@@ -548,8 +545,9 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
           cut={spec.topHookCut}
           onCut={(value) => update("topHookCut", value)}
           cutOptions={HOOK_CUTS}
-          color={spec.topHookColor}
-          onColor={(value) => update("topHookColor", value)}
+          colourKey="topHookColor"
+          spec={spec}
+          update={update}
           count={spec.topHookCount}
           onCount={(value) => update("topHookCount", value)}
         />
@@ -571,8 +569,9 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
           cut={spec.bottomHookCut}
           onCut={(value) => update("bottomHookCut", value)}
           cutOptions={HOOK_CUTS}
-          color={spec.bottomHookColor}
-          onColor={(value) => update("bottomHookColor", value)}
+          colourKey="bottomHookColor"
+          spec={spec}
+          update={update}
           count={spec.bottomHookCount}
           onCount={(value) => update("bottomHookCount", value)}
         />
@@ -685,25 +684,25 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
       search: "anchor ancerie ancillary loop",
       summary: `${spec.ancerieType} · ${spec.ancerieGsm || "—"} grm`,
       body: (
-        <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
-          <Labeled label="Type">
-            <FormSelect value={spec.ancerieType} onChange={(value) => update("ancerieType", value)} options={[...ANCILLARY_LOOP_TYPES]} />
-          </Labeled>
-          <Labeled label="GPM">
-            <Input value={spec.ancerieGsm} onChange={(event) => update("ancerieGsm", event.target.value)} className={fieldClassName} />
-          </Labeled>
-          <Labeled label="Size">
-            <Input value={spec.ancerieSize} onChange={(event) => update("ancerieSize", event.target.value)} className={fieldClassName} />
-          </Labeled>
-          <Labeled label="Attachment">
-            <Input value={spec.ancerieAtt} onChange={(event) => update("ancerieAtt", event.target.value)} className={fieldClassName} />
-          </Labeled>
-          <Labeled label="Count">
-            <Input value={spec.ancerieCount} onChange={(event) => update("ancerieCount", event.target.value)} className={fieldClassName} />
-          </Labeled>
-          <Labeled label="Color">
-            <FormSelect value={spec.ancerieColor} onChange={(value) => update("ancerieColor", value)} options={[...COLOURS]} />
-          </Labeled>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
+            <Labeled label="Type">
+              <FormSelect value={spec.ancerieType} onChange={(value) => update("ancerieType", value)} options={[...ANCILLARY_LOOP_TYPES]} />
+            </Labeled>
+            <Labeled label="GPM">
+              <Input value={spec.ancerieGsm} onChange={(event) => update("ancerieGsm", event.target.value)} className={fieldClassName} />
+            </Labeled>
+            <Labeled label="Size">
+              <Input value={spec.ancerieSize} onChange={(event) => update("ancerieSize", event.target.value)} className={fieldClassName} />
+            </Labeled>
+            <Labeled label="Attachment">
+              <Input value={spec.ancerieAtt} onChange={(event) => update("ancerieAtt", event.target.value)} className={fieldClassName} />
+            </Labeled>
+            <Labeled label="Count">
+              <Input value={spec.ancerieCount} onChange={(event) => update("ancerieCount", event.target.value)} className={fieldClassName} />
+            </Labeled>
+          </div>
+          <BomColourField spec={spec} update={update} colourKey="ancerieColor" className="w-full" />
         </div>
       ),
     },

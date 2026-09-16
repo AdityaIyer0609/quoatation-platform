@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import * as THREE from "three"
 
 import { resolveFabricHex } from "@/lib/colourPreview"
@@ -200,6 +200,102 @@ export function InkEdges({ geometry, color = CATALOG_INK }: { geometry: THREE.Bu
     <lineSegments geometry={edges}>
       <lineBasicMaterial color={color} transparent opacity={0.45} />
     </lineSegments>
+  )
+}
+
+const PRINT_LOGO_URL = "/logo.png"
+let printLogoPromise: Promise<THREE.Texture> | null = null
+
+/** Load logo.png once; key near-black pixels so the mark sits on fabric. */
+function loadPrintLogoTexture() {
+  if (!printLogoPromise) {
+    printLogoPromise = new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement("canvas")
+        canvas.width = img.width
+        canvas.height = img.height
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          reject(new Error("print logo canvas"))
+          return
+        }
+        ctx.drawImage(img, 0, 0)
+        try {
+          const data = ctx.getImageData(0, 0, canvas.width, canvas.height)
+          for (let i = 0; i < data.data.length; i += 4) {
+            const r = data.data[i]
+            const g = data.data[i + 1]
+            const b = data.data[i + 2]
+            if (r < 28 && g < 28 && b < 28) {
+              data.data[i + 3] = 0
+            }
+          }
+          ctx.putImageData(data, 0, 0)
+        } catch {
+          // Same-origin should allow this; if not, keep the raw image.
+        }
+        const tex = new THREE.CanvasTexture(canvas)
+        tex.colorSpace = THREE.SRGBColorSpace
+        tex.anisotropy = 8
+        tex.needsUpdate = true
+        tex.flipY = true
+        resolve(tex)
+      }
+      img.onerror = () => reject(new Error("print logo load failed"))
+      img.src = PRINT_LOGO_URL
+    })
+  }
+  return printLogoPromise
+}
+
+/** Mill-style front-panel print — centered logo like catalog drawings. */
+export function PrintedLogoKit({
+  sx,
+  sy,
+  faceZ,
+  twoSided = false,
+}: {
+  sx: number
+  sy: number
+  faceZ: number
+  twoSided?: boolean
+}) {
+  const [map, setMap] = useState<THREE.Texture | null>(null)
+
+  useEffect(() => {
+    let active = true
+    loadPrintLogoTexture()
+      .then((tex) => {
+        if (active) setMap(tex)
+      })
+      .catch(() => {
+        if (active) setMap(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  if (!map) return null
+
+  const size = Math.min(sx, sy) * 0.34
+  const y = sy * 0.52
+  const z = faceZ + 0.012
+
+  return (
+    <>
+      <mesh position={[0, y, z]} renderOrder={12}>
+        <planeGeometry args={[size, size]} />
+        <meshBasicMaterial map={map} transparent alphaTest={0.05} depthWrite={false} toneMapped={false} />
+      </mesh>
+      {twoSided ? (
+        <mesh position={[0, y, -z]} rotation={[0, Math.PI, 0]} renderOrder={12}>
+          <planeGeometry args={[size, size]} />
+          <meshBasicMaterial map={map} transparent alphaTest={0.05} depthWrite={false} toneMapped={false} />
+        </mesh>
+      ) : null}
+    </>
   )
 }
 

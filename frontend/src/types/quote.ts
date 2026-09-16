@@ -11,6 +11,7 @@ export type OtherBomRow = {
   gsm: string
   lami: string
   color: string
+  pantone: string
   fabricSize: string
   cutLength: string
   totalMtr: string
@@ -33,6 +34,8 @@ export type QuoteSpecification = {
   sfRatio: string
   fabricColour: string
   fabricPantone: string
+  /** Pantone codes keyed by colour field name (e.g. loopColour). fabric uses fabricPantone. */
+  colourPantones: Record<string, string>
   bodyGsm: string
   bodyLami: string
   sameFabricForPanels: boolean
@@ -646,6 +649,7 @@ export const defaultSpecification: QuoteSpecification = {
   sfRatio: "5:1",
   fabricColour: "White",
   fabricPantone: "PMS White",
+  colourPantones: {},
   bodyGsm: "180",
   bodyLami: "0",
   sameFabricForPanels: true,

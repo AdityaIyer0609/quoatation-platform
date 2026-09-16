@@ -14,15 +14,19 @@ import {
 import { BomCategoryNav } from "@/components/quote/QuoteChoice"
 import { fieldClassName } from "@/components/login/fieldStyles"
 import {
-  CheckRow,
+  BomColourField,
+  CompactCheck,
+  FeatureCard,
+  FieldCell,
+  FieldGrid,
   FieldLabel,
   FormSelect,
   GsmLamiFields,
+  PanelStack,
 } from "@/components/quote/FormControls"
 import { Input } from "@/components/ui/input"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import {
-  COLOURS,
   GSM_OPTIONS,
   LAMI_OPTIONS,
   LINER_MATERIALS,
@@ -186,219 +190,203 @@ function TopPanel({
   const irisTop = spec.topSpoutType.toLowerCase().includes("iris")
 
   return (
-    <>
-      <CheckRow checked={spec.topEnabled} onChange={(checked) => update("topEnabled", checked)}>
-        Top
-      </CheckRow>
-      {spec.topEnabled ? (
-        <>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-[220px] flex-[2] basis-[220px]">
-              <FieldLabel>Top Type</FieldLabel>
-              <FormSelect
-                value={spec.topType}
-                onChange={(value) => patch(topTypeDefaults(value, spec))}
-                options={[...TOP_TYPES]}
-              />
-            </div>
-            <div className="w-[88px] shrink-0">
-              <FieldLabel>Top GSM</FieldLabel>
-              <FormSelect value={spec.topGsm || "0"} onChange={(value) => update("topGsm", value)} options={[...GSM_OPTIONS]} />
-            </div>
-            <label className="mb-1 flex h-12 shrink-0 items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={Boolean(spec.topLami) && spec.topLami !== "0"}
-                onChange={(event) => update("topLami", event.target.checked ? (spec.topLami && spec.topLami !== "0" ? spec.topLami : "25") : "0")}
-                className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
-              />
+    <PanelStack>
+      <FeatureCard
+        title="Top"
+        on={spec.topEnabled}
+        onToggle={(v) => update("topEnabled", v)}
+        summary={spec.topEnabled ? `${spec.topType} · ${spec.topGsm || "0"} GSM · ${spec.topColour}` : undefined}
+      >
+        <FieldGrid>
+          <FieldCell span={2}>
+            <FieldLabel>Top Type</FieldLabel>
+            <FormSelect
+              value={spec.topType}
+              onChange={(value) => patch(topTypeDefaults(value, spec))}
+              options={[...TOP_TYPES]}
+            />
+          </FieldCell>
+          <FieldCell>
+            <FieldLabel>Top GSM</FieldLabel>
+            <FormSelect value={spec.topGsm || "0"} onChange={(value) => update("topGsm", value)} options={[...GSM_OPTIONS]} />
+          </FieldCell>
+          <FieldCell>
+            <CompactCheck
+              checked={Boolean(spec.topLami) && spec.topLami !== "0"}
+              onChange={(checked) => update("topLami", checked ? (spec.topLami && spec.topLami !== "0" ? spec.topLami : "25") : "0")}
+            >
               Lam
-            </label>
-            <div className="w-[72px] shrink-0">
-              <FieldLabel>No</FieldLabel>
-              <Input value={spec.topCount} onChange={(event) => update("topCount", event.target.value)} className={fieldClassName} />
-            </div>
-            <div className="min-w-[160px] flex-1 basis-[160px]">
-              <FieldLabel>Color</FieldLabel>
-              <FormSelect value={spec.topColour || "Milky White"} onChange={(value) => update("topColour", value)} options={[...COLOURS]} />
-            </div>
-            {showConicalHeight ? (
-              <div className="w-[88px] shrink-0">
-                <FieldLabel>Conical Top</FieldLabel>
-                <Input value={spec.conicalTop} onChange={(event) => update("conicalTop", event.target.value)} className={fieldClassName} />
-              </div>
-            ) : null}
-          </div>
-
-          {showSpout ? (
-            <div className="space-y-3 rounded-2xl border border-[var(--border)] p-4">
-              <FieldLabel>Spout</FieldLabel>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={spec.topSpoutConical}
-                  onChange={(event) => update("topSpoutConical", event.target.checked)}
-                  className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
-                />
-                Conical
-              </label>
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="min-w-[220px] flex-[2] basis-[220px]">
-                  <FieldLabel>Spout Type</FieldLabel>
-                  <FormSelect value={spec.topSpoutType || "None"} onChange={(value) => update("topSpoutType", value)} options={[...TOP_SPOUT_TYPES]} />
-                </div>
-                <div className="w-[88px] shrink-0">
-                  <FieldLabel>GSM</FieldLabel>
-                  <FormSelect value={spec.topSpoutGsm || "0"} onChange={(value) => update("topSpoutGsm", value)} options={[...GSM_OPTIONS]} />
-                </div>
-                <label className="mb-1 flex h-12 shrink-0 items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(spec.topSpoutLami) && spec.topSpoutLami !== "0"}
-                    onChange={(event) =>
-                      update("topSpoutLami", event.target.checked ? (spec.topSpoutLami && spec.topSpoutLami !== "0" ? spec.topSpoutLami : "25") : "0")
-                    }
-                    className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
-                  />
-                  Lam
-                </label>
-                <div className="w-[72px] shrink-0">
-                  <FieldLabel>Dia</FieldLabel>
-                  <Input value={spec.topSpoutDia} onChange={(event) => update("topSpoutDia", event.target.value)} className={fieldClassName} />
-                </div>
-                <div className="w-[72px] shrink-0">
-                  <FieldLabel>Height</FieldLabel>
-                  <Input value={spec.topSpoutHeight} onChange={(event) => update("topSpoutHeight", event.target.value)} className={fieldClassName} />
-                </div>
-                <div className="w-[72px] shrink-0">
-                  <FieldLabel>No</FieldLabel>
-                  <Input value={spec.topSpoutCount} onChange={(event) => update("topSpoutCount", event.target.value)} className={fieldClassName} />
-                </div>
-              </div>
-            </div>
+            </CompactCheck>
+          </FieldCell>
+          <FieldCell>
+            <FieldLabel>No</FieldLabel>
+            <Input value={spec.topCount} onChange={(event) => update("topCount", event.target.value)} className={fieldClassName} />
+          </FieldCell>
+          {showConicalHeight ? (
+            <FieldCell>
+              <FieldLabel>Conical Top</FieldLabel>
+              <Input value={spec.conicalTop} onChange={(event) => update("conicalTop", event.target.value)} className={fieldClassName} />
+            </FieldCell>
           ) : null}
+        </FieldGrid>
+        <BomColourField spec={spec} update={update} colourKey="topColour" />
 
-          {showDuffle ? (
-            <div>
+        {showSpout ? (
+          <div className="space-y-3 rounded-2xl border border-[var(--border)] p-4">
+            <FieldLabel>Spout</FieldLabel>
+            <CompactCheck checked={spec.topSpoutConical} onChange={(checked) => update("topSpoutConical", checked)}>
+              Conical
+            </CompactCheck>
+            <FieldGrid>
+              <FieldCell span={2}>
+                <FieldLabel>Spout Type</FieldLabel>
+                <FormSelect value={spec.topSpoutType || "None"} onChange={(value) => update("topSpoutType", value)} options={[...TOP_SPOUT_TYPES]} />
+              </FieldCell>
+              <FieldCell>
+                <FieldLabel>GSM</FieldLabel>
+                <FormSelect value={spec.topSpoutGsm || "0"} onChange={(value) => update("topSpoutGsm", value)} options={[...GSM_OPTIONS]} />
+              </FieldCell>
+              <FieldCell>
+                <CompactCheck
+                  checked={Boolean(spec.topSpoutLami) && spec.topSpoutLami !== "0"}
+                  onChange={(checked) =>
+                    update("topSpoutLami", checked ? (spec.topSpoutLami && spec.topSpoutLami !== "0" ? spec.topSpoutLami : "25") : "0")
+                  }
+                >
+                  Lam
+                </CompactCheck>
+              </FieldCell>
+              <FieldCell>
+                <FieldLabel>Dia</FieldLabel>
+                <Input value={spec.topSpoutDia} onChange={(event) => update("topSpoutDia", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+              <FieldCell>
+                <FieldLabel>Height</FieldLabel>
+                <Input value={spec.topSpoutHeight} onChange={(event) => update("topSpoutHeight", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+              <FieldCell>
+                <FieldLabel>No</FieldLabel>
+                <Input value={spec.topSpoutCount} onChange={(event) => update("topSpoutCount", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+            </FieldGrid>
+          </div>
+        ) : null}
+
+        {showDuffle ? (
+          <FieldGrid>
+            <FieldCell span={2}>
               <FieldLabel>Duffle / skirt height</FieldLabel>
               <Input value={spec.duffleHeight} onChange={(event) => update("duffleHeight", event.target.value)} className={fieldClassName} />
-            </div>
-          ) : null}
+            </FieldCell>
+          </FieldGrid>
+        ) : null}
 
-          {showGroup6 ? (
-            <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-              <label className="mb-1 flex h-12 shrink-0 items-center gap-2 whitespace-nowrap text-sm">
-                <input
-                  type="checkbox"
-                  checked={spec.topVelcro}
-                  onChange={(event) => update("topVelcro", event.target.checked)}
-                  className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
-                />
-                Velcro
-              </label>
+        {showGroup6 ? (
+          <>
+            <FieldGrid>
+              <FieldCell>
+                <CompactCheck checked={spec.topVelcro} onChange={(checked) => update("topVelcro", checked)}>
+                  Velcro
+                </CompactCheck>
+              </FieldCell>
               {spec.topVelcro ? (
-                <div className="w-[72px] shrink-0">
+                <FieldCell>
                   <FormSelect value={spec.topVelcroSize || "0"} onChange={(value) => update("topVelcroSize", value)} options={["0", "1", "2", "4", "6"]} />
-                </div>
+                </FieldCell>
               ) : null}
-              <label className="mb-1 flex h-12 shrink-0 items-center gap-2 whitespace-nowrap text-sm">
-                <input
-                  type="checkbox"
-                  checked={spec.hoseSlider}
-                  onChange={(event) => update("hoseSlider", event.target.checked)}
-                  className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
-                />
-                Hose Slider
-              </label>
+              <FieldCell>
+                <CompactCheck checked={spec.hoseSlider} onChange={(checked) => update("hoseSlider", checked)}>
+                  Hose Slider
+                </CompactCheck>
+              </FieldCell>
               {spec.hoseSlider ? (
-                <div className="w-[72px] shrink-0">
+                <FieldCell>
                   <Input value={spec.hoseSliderCount} onChange={(event) => update("hoseSliderCount", event.target.value)} className={fieldClassName} />
-                </div>
+                </FieldCell>
               ) : null}
-              <label className="mb-1 flex h-12 shrink-0 items-center gap-2 whitespace-nowrap text-sm">
-                <input
-                  type="checkbox"
-                  checked={spec.cableTie}
-                  onChange={(event) => update("cableTie", event.target.checked)}
-                  className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
-                />
-                Cable Tie
-              </label>
+              <FieldCell>
+                <CompactCheck checked={spec.cableTie} onChange={(checked) => update("cableTie", checked)}>
+                  Cable Tie
+                </CompactCheck>
+              </FieldCell>
               {spec.cableTie ? (
-                <div className="w-[72px] shrink-0">
+                <FieldCell>
                   <Input value={spec.cableTieCount} onChange={(event) => update("cableTieCount", event.target.value)} className={fieldClassName} />
-                </div>
+                </FieldCell>
               ) : null}
-              <div className="min-w-[160px] flex-1 basis-[160px]">
-                <FieldLabel>Color</FieldLabel>
-                <FormSelect value={spec.topSpoutColor || "Milky White"} onChange={(value) => update("topSpoutColor", value)} options={[...COLOURS]} />
-              </div>
-              <div className="min-w-[180px] flex-[2] basis-[180px]">
+              <FieldCell span={2}>
                 <FieldLabel>Top Remarks</FieldLabel>
                 <Input value={spec.topRemarks} onChange={(event) => update("topRemarks", event.target.value)} className={fieldClassName} />
-              </div>
-            </div>
-          ) : null}
+              </FieldCell>
+            </FieldGrid>
+            <BomColourField spec={spec} update={update} colourKey="topSpoutColor" />
+          </>
+        ) : null}
 
-          <CheckRow checked={spec.doubleFoldTop} onChange={(checked) => update("doubleFoldTop", checked)}>
-            Double Fold
-          </CheckRow>
-
-          {showSpoutRope ? (
-            <CheckRow checked={spec.topSpoutRope} onChange={(checked) => update("topSpoutRope", checked)}>
-              TopSpout Rope
-            </CheckRow>
-          ) : null}
-
-          <CheckRow checked={spec.topSpoutTie} onChange={(checked) => update("topSpoutTie", checked)}>
-            TopSpout Tie
-          </CheckRow>
-          {spec.topSpoutTie ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div>
-                <FieldLabel>Grm</FieldLabel>
-                <FormSelect value={spec.topSpoutTieGsm || "0"} onChange={(value) => update("topSpoutTieGsm", value)} options={[...TIE_GSM_OPTIONS]} />
-              </div>
-              <div>
-                <FieldLabel>Size</FieldLabel>
-                <Input value={spec.topSpoutTieSize} onChange={(event) => update("topSpoutTieSize", event.target.value)} className={fieldClassName} />
-              </div>
-              <div>
-                <FieldLabel>No (Tie)</FieldLabel>
-                <Input value={spec.topSpoutTieCount} onChange={(event) => update("topSpoutTieCount", event.target.value)} className={fieldClassName} />
-              </div>
-              <div>
-                <FieldLabel>Remarks</FieldLabel>
-                <Input value={spec.topSpoutTieRemarks} onChange={(event) => update("topSpoutTieRemarks", event.target.value)} className={fieldClassName} />
-              </div>
-            </div>
-          ) : null}
-
-          <CheckRow checked={spec.topBand} onChange={(checked) => update("topBand", checked)}>
-            Top Band
-          </CheckRow>
-          {spec.topBand ? (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <FieldLabel>GPM</FieldLabel>
-                <Input value={spec.topBandGsm} onChange={(event) => update("topBandGsm", event.target.value)} className={fieldClassName} />
-              </div>
-              <div>
-                <FieldLabel>Size</FieldLabel>
-                <Input value={spec.topBandSize} onChange={(event) => update("topBandSize", event.target.value)} className={fieldClassName} />
-              </div>
-            </div>
-          ) : null}
-
-          {irisTop ? (
-            <div>
+        {irisTop ? (
+          <FieldGrid>
+            <FieldCell>
               <FieldLabel optional>Iris tie count</FieldLabel>
               <Input value={spec.topIrisTieCount} onChange={(event) => update("topIrisTieCount", event.target.value)} className={fieldClassName} />
-            </div>
+            </FieldCell>
+          </FieldGrid>
+        ) : null}
+      </FeatureCard>
+
+      {spec.topEnabled ? (
+        <>
+          <FeatureCard title="Double Fold" on={spec.doubleFoldTop} onToggle={(v) => update("doubleFoldTop", v)} />
+
+          {showSpoutRope ? (
+            <FeatureCard title="TopSpout Rope" on={spec.topSpoutRope} onToggle={(v) => update("topSpoutRope", v)} />
           ) : null}
+
+          <FeatureCard
+            title="TopSpout Tie"
+            on={spec.topSpoutTie}
+            onToggle={(v) => update("topSpoutTie", v)}
+            summary={spec.topSpoutTie ? `${spec.topSpoutTieGsm || "0"} grm · ${spec.topSpoutTieCount} tie` : undefined}
+          >
+            <FieldGrid>
+              <FieldCell>
+                <FieldLabel>Grm</FieldLabel>
+                <FormSelect value={spec.topSpoutTieGsm || "0"} onChange={(value) => update("topSpoutTieGsm", value)} options={[...TIE_GSM_OPTIONS]} />
+              </FieldCell>
+              <FieldCell>
+                <FieldLabel>Size</FieldLabel>
+                <Input value={spec.topSpoutTieSize} onChange={(event) => update("topSpoutTieSize", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+              <FieldCell>
+                <FieldLabel>No (Tie)</FieldLabel>
+                <Input value={spec.topSpoutTieCount} onChange={(event) => update("topSpoutTieCount", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+              <FieldCell>
+                <FieldLabel>Remarks</FieldLabel>
+                <Input value={spec.topSpoutTieRemarks} onChange={(event) => update("topSpoutTieRemarks", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+            </FieldGrid>
+          </FeatureCard>
+
+          <FeatureCard
+            title="Top Band"
+            on={spec.topBand}
+            onToggle={(v) => update("topBand", v)}
+            summary={spec.topBand ? `${spec.topBandGsm} GPM · size ${spec.topBandSize}` : undefined}
+          >
+            <FieldGrid>
+              <FieldCell>
+                <FieldLabel>GPM</FieldLabel>
+                <Input value={spec.topBandGsm} onChange={(event) => update("topBandGsm", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+              <FieldCell>
+                <FieldLabel>Size</FieldLabel>
+                <Input value={spec.topBandSize} onChange={(event) => update("topBandSize", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+            </FieldGrid>
+          </FeatureCard>
         </>
       ) : null}
-    </>
+    </PanelStack>
   )
 }
 
@@ -425,293 +413,268 @@ function BottomPanel({
   }
 
   return (
-    <>
-      <CheckRow checked={spec.bottomEnabled} onChange={(checked) => update("bottomEnabled", checked)}>
-        Bottom
-      </CheckRow>
-      {spec.bottomEnabled ? (
-        <>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-[220px] flex-[2] basis-[220px]">
-              <FieldLabel>Type</FieldLabel>
+    <PanelStack>
+      <FeatureCard
+        title="Bottom"
+        on={spec.bottomEnabled}
+        onToggle={(v) => update("bottomEnabled", v)}
+        summary={spec.bottomEnabled ? `${spec.bottomType} · ${spec.bottomGsm || spec.bodyGsm || "0"} GSM · ${spec.bottomColour}` : undefined}
+      >
+        <FieldGrid>
+          <FieldCell span={2}>
+            <FieldLabel>Type</FieldLabel>
+            <FormSelect
+              value={spec.bottomType}
+              onChange={(value) => patch(bottomTypeDefaults(value, spec))}
+              options={[...BOTTOM_TYPES]}
+            />
+          </FieldCell>
+          <FieldCell>
+            <FieldLabel>GSM</FieldLabel>
+            <FormSelect
+              value={spec.bottomGsm || spec.bodyGsm || "0"}
+              onChange={(value) => update("bottomGsm", value)}
+              options={[...GSM_OPTIONS]}
+            />
+          </FieldCell>
+          <FieldCell>
+            <CompactCheck
+              checked={Boolean(spec.bottomLami) && spec.bottomLami !== "0"}
+              onChange={(checked) =>
+                update("bottomLami", checked ? (spec.bottomLami && spec.bottomLami !== "0" ? spec.bottomLami : "25") : "0")
+              }
+            >
+              Lam
+            </CompactCheck>
+          </FieldCell>
+          <FieldCell>
+            <FieldLabel>No</FieldLabel>
+            <Input value={spec.bottomCount} onChange={(event) => update("bottomCount", event.target.value)} className={fieldClassName} />
+          </FieldCell>
+          <FieldCell span={2}>
+            <FieldLabel>Remarks</FieldLabel>
+            <Input value={spec.bottomRemarks} onChange={(event) => update("bottomRemarks", event.target.value)} className={fieldClassName} />
+          </FieldCell>
+        </FieldGrid>
+        <BomColourField spec={spec} update={update} colourKey="bottomColour" />
+
+        <div className="space-y-3 rounded-2xl border border-[var(--border)] p-4">
+          <FieldGrid>
+            <FieldCell span={2}>
+              <FieldLabel>Sub type</FieldLabel>
               <FormSelect
-                value={spec.bottomType}
-                onChange={(value) => patch(bottomTypeDefaults(value, spec))}
-                options={[...BOTTOM_TYPES]}
+                value={spec.bottomSpoutType || "None"}
+                onChange={(value) => patchSubtype({ bottomSpoutType: value })}
+                options={[...BOTTOM_SPOUT_TYPES]}
               />
-            </div>
-            <div className="w-[88px] shrink-0">
+            </FieldCell>
+            <FieldCell>
               <FieldLabel>GSM</FieldLabel>
               <FormSelect
-                value={spec.bottomGsm || spec.bodyGsm || "0"}
-                onChange={(value) => update("bottomGsm", value)}
+                value={spec.bottomSpoutGsm || "0"}
+                onChange={(value) => update("bottomSpoutGsm", value)}
                 options={[...GSM_OPTIONS]}
               />
-            </div>
-            <label className="mb-1 flex h-12 shrink-0 items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={Boolean(spec.bottomLami) && spec.bottomLami !== "0"}
-                onChange={(event) =>
-                  update("bottomLami", event.target.checked ? (spec.bottomLami && spec.bottomLami !== "0" ? spec.bottomLami : "25") : "0")
+            </FieldCell>
+            <FieldCell>
+              <CompactCheck
+                checked={Boolean(spec.bottomSpoutLami) && spec.bottomSpoutLami !== "0"}
+                onChange={(checked) =>
+                  update(
+                    "bottomSpoutLami",
+                    checked ? (spec.bottomSpoutLami && spec.bottomSpoutLami !== "0" ? spec.bottomSpoutLami : "25") : "0",
+                  )
                 }
-                className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
-              />
-              Lam
-            </label>
-            <div className="w-[72px] shrink-0">
-              <FieldLabel>No</FieldLabel>
-              <Input value={spec.bottomCount} onChange={(event) => update("bottomCount", event.target.value)} className={fieldClassName} />
-            </div>
-            <div className="min-w-[160px] flex-1 basis-[160px]">
-              <FieldLabel>Color</FieldLabel>
-              <FormSelect value={spec.bottomColour || "Milky White"} onChange={(value) => update("bottomColour", value)} options={[...COLOURS]} />
-            </div>
-            <div className="min-w-[180px] flex-[2] basis-[180px]">
-              <FieldLabel>Remarks</FieldLabel>
-              <Input value={spec.bottomRemarks} onChange={(event) => update("bottomRemarks", event.target.value)} className={fieldClassName} />
-            </div>
-          </div>
-
-          <div className="space-y-3 rounded-2xl border border-[var(--border)] p-4">
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="min-w-[220px] flex-[2] basis-[220px]">
-                <FieldLabel>Sub type</FieldLabel>
-                <FormSelect
-                  value={spec.bottomSpoutType || "None"}
-                  onChange={(value) => patchSubtype({ bottomSpoutType: value })}
-                  options={[...BOTTOM_SPOUT_TYPES]}
-                />
-              </div>
-              <div className="w-[88px] shrink-0">
-                <FieldLabel>GSM</FieldLabel>
-                <FormSelect
-                  value={spec.bottomSpoutGsm || "0"}
-                  onChange={(value) => update("bottomSpoutGsm", value)}
-                  options={[...GSM_OPTIONS]}
-                />
-              </div>
-              <label className="mb-1 flex h-12 shrink-0 items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={Boolean(spec.bottomSpoutLami) && spec.bottomSpoutLami !== "0"}
-                  onChange={(event) =>
-                    update(
-                      "bottomSpoutLami",
-                      event.target.checked ? (spec.bottomSpoutLami && spec.bottomSpoutLami !== "0" ? spec.bottomSpoutLami : "25") : "0",
-                    )
-                  }
-                  className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
-                />
+              >
                 Lam
-              </label>
-              <div className="w-[72px] shrink-0">
-                <FieldLabel>Dia</FieldLabel>
-                <Input
-                  value={spec.bottomSpoutDia}
-                  onChange={(event) => patchSubtype({ bottomSpoutDia: event.target.value })}
-                  className={fieldClassName}
-                />
-              </div>
-              <div className="w-[72px] shrink-0">
-                <FieldLabel>Height</FieldLabel>
-                <Input value={spec.bottomSpoutHeight} onChange={(event) => update("bottomSpoutHeight", event.target.value)} className={fieldClassName} />
-              </div>
-              <div className="w-[72px] shrink-0">
-                <FieldLabel>No</FieldLabel>
-                <Input value={spec.bottomSpoutCount} onChange={(event) => update("bottomSpoutCount", event.target.value)} className={fieldClassName} />
-              </div>
-              {showSkirt ? (
-                <div className="w-[88px] shrink-0">
-                  <FieldLabel>Skirt Height</FieldLabel>
-                  <Input value={spec.bottomSkirtHeight} onChange={(event) => update("bottomSkirtHeight", event.target.value)} className={fieldClassName} />
-                </div>
-              ) : null}
-              {conicalBottom ? (
-                <div className="w-[88px] shrink-0">
-                  <FieldLabel>Conical Height</FieldLabel>
-                  <Input value={spec.bottomConicalHeight} onChange={(event) => update("bottomConicalHeight", event.target.value)} className={fieldClassName} />
-                </div>
-              ) : null}
-            </div>
+              </CompactCheck>
+            </FieldCell>
+            <FieldCell>
+              <FieldLabel>Dia</FieldLabel>
+              <Input
+                value={spec.bottomSpoutDia}
+                onChange={(event) => patchSubtype({ bottomSpoutDia: event.target.value })}
+                className={fieldClassName}
+              />
+            </FieldCell>
+            <FieldCell>
+              <FieldLabel>Height</FieldLabel>
+              <Input value={spec.bottomSpoutHeight} onChange={(event) => update("bottomSpoutHeight", event.target.value)} className={fieldClassName} />
+            </FieldCell>
+            <FieldCell>
+              <FieldLabel>No</FieldLabel>
+              <Input value={spec.bottomSpoutCount} onChange={(event) => update("bottomSpoutCount", event.target.value)} className={fieldClassName} />
+            </FieldCell>
+            {showSkirt ? (
+              <FieldCell>
+                <FieldLabel>Skirt Height</FieldLabel>
+                <Input value={spec.bottomSkirtHeight} onChange={(event) => update("bottomSkirtHeight", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+            ) : null}
+            {conicalBottom ? (
+              <FieldCell>
+                <FieldLabel>Conical Height</FieldLabel>
+                <Input value={spec.bottomConicalHeight} onChange={(event) => update("bottomConicalHeight", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+            ) : null}
+          </FieldGrid>
 
-            <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-              <label className="mb-1 flex h-12 shrink-0 items-center gap-2 whitespace-nowrap text-sm">
-                <input
-                  type="checkbox"
-                  checked={spec.bottomTieExtra}
-                  onChange={(event) => update("bottomTieExtra", event.target.checked)}
-                  className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
-                />
+          <FieldGrid>
+            <FieldCell>
+              <CompactCheck checked={spec.bottomTieExtra} onChange={(checked) => update("bottomTieExtra", checked)}>
                 Tie Extra
-              </label>
-              <label className="mb-1 flex h-12 shrink-0 items-center gap-2 whitespace-nowrap text-sm">
-                <input
-                  type="checkbox"
-                  checked={spec.bottomVelcro}
-                  onChange={(event) => update("bottomVelcro", event.target.checked)}
-                  className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
-                />
+              </CompactCheck>
+            </FieldCell>
+            <FieldCell>
+              <CompactCheck checked={spec.bottomVelcro} onChange={(checked) => update("bottomVelcro", checked)}>
                 Velcro
-              </label>
-              {spec.bottomVelcro ? (
-                <div className="w-[72px] shrink-0">
-                  <FormSelect value={spec.bottomVelcroSize || "0"} onChange={(value) => update("bottomVelcroSize", value)} options={["0", "1", "2", "4", "6"]} />
-                </div>
-              ) : null}
-              <label className="mb-1 flex h-12 shrink-0 items-center gap-2 whitespace-nowrap text-sm">
-                <input
-                  type="checkbox"
-                  checked={spec.bottomHoseSlider}
-                  onChange={(event) => update("bottomHoseSlider", event.target.checked)}
-                  className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
-                />
+              </CompactCheck>
+            </FieldCell>
+            {spec.bottomVelcro ? (
+              <FieldCell>
+                <FormSelect value={spec.bottomVelcroSize || "0"} onChange={(value) => update("bottomVelcroSize", value)} options={["0", "1", "2", "4", "6"]} />
+              </FieldCell>
+            ) : null}
+            <FieldCell>
+              <CompactCheck checked={spec.bottomHoseSlider} onChange={(checked) => update("bottomHoseSlider", checked)}>
                 Hose Slider
-              </label>
-              {spec.bottomHoseSlider ? (
-                <div className="w-[72px] shrink-0">
-                  <Input value={spec.bottomHoseSliderCount} onChange={(event) => update("bottomHoseSliderCount", event.target.value)} className={fieldClassName} />
-                </div>
-              ) : null}
-              <label className="mb-1 flex h-12 shrink-0 items-center gap-2 whitespace-nowrap text-sm">
-                <input
-                  type="checkbox"
-                  checked={spec.bottomWireTie}
-                  onChange={(event) => update("bottomWireTie", event.target.checked)}
-                  className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
-                />
+              </CompactCheck>
+            </FieldCell>
+            {spec.bottomHoseSlider ? (
+              <FieldCell>
+                <Input value={spec.bottomHoseSliderCount} onChange={(event) => update("bottomHoseSliderCount", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+            ) : null}
+            <FieldCell>
+              <CompactCheck checked={spec.bottomWireTie} onChange={(checked) => update("bottomWireTie", checked)}>
                 WireTie
-              </label>
-              {spec.bottomWireTie ? (
-                <div className="w-[72px] shrink-0">
-                  <Input value={spec.bottomWireTieCount} onChange={(event) => update("bottomWireTieCount", event.target.value)} className={fieldClassName} />
-                </div>
-              ) : null}
-              <label className="mb-1 flex h-12 shrink-0 items-center gap-2 whitespace-nowrap text-sm">
-                <input
-                  type="checkbox"
-                  checked={spec.bottomCableTie}
-                  onChange={(event) => update("bottomCableTie", event.target.checked)}
-                  className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
-                />
+              </CompactCheck>
+            </FieldCell>
+            {spec.bottomWireTie ? (
+              <FieldCell>
+                <Input value={spec.bottomWireTieCount} onChange={(event) => update("bottomWireTieCount", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+            ) : null}
+            <FieldCell>
+              <CompactCheck checked={spec.bottomCableTie} onChange={(checked) => update("bottomCableTie", checked)}>
                 Cable Tie
-              </label>
-              {spec.bottomCableTie ? (
-                <div className="w-[72px] shrink-0">
-                  <Input value={spec.bottomCableTieCount} onChange={(event) => update("bottomCableTieCount", event.target.value)} className={fieldClassName} />
-                </div>
-              ) : null}
-              <div className="min-w-[160px] flex-1 basis-[160px]">
-                <FieldLabel>Color</FieldLabel>
-                <FormSelect value={spec.bottomSpoutColor || "Milky White"} onChange={(value) => update("bottomSpoutColor", value)} options={[...COLOURS]} />
-              </div>
-              <div className="min-w-[180px] flex-[2] basis-[180px]">
-                <FieldLabel>Remarks</FieldLabel>
-                <Input value={spec.bottomSpoutRemarks} onChange={(event) => update("bottomSpoutRemarks", event.target.value)} className={fieldClassName} />
-              </div>
-            </div>
-            {irisBottom ? (
-              <div className="w-[120px]">
+              </CompactCheck>
+            </FieldCell>
+            {spec.bottomCableTie ? (
+              <FieldCell>
+                <Input value={spec.bottomCableTieCount} onChange={(event) => update("bottomCableTieCount", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+            ) : null}
+            <FieldCell span={2}>
+              <FieldLabel>Remarks</FieldLabel>
+              <Input value={spec.bottomSpoutRemarks} onChange={(event) => update("bottomSpoutRemarks", event.target.value)} className={fieldClassName} />
+            </FieldCell>
+          </FieldGrid>
+          <BomColourField spec={spec} update={update} colourKey="bottomSpoutColor" />
+          {irisBottom ? (
+            <FieldGrid>
+              <FieldCell>
                 <FieldLabel optional>Iris tie count</FieldLabel>
                 <Input value={spec.bottomIrisTieCount} onChange={(event) => update("bottomIrisTieCount", event.target.value)} className={fieldClassName} />
-              </div>
-            ) : null}
-          </div>
-
-          <CheckRow checked={spec.doubleFoldBottom} onChange={(checked) => update("doubleFoldBottom", checked)}>
-            Double Fold
-          </CheckRow>
-          <CheckRow checked={spec.bottomSpoutEdgeHemming} onChange={(checked) => update("bottomSpoutEdgeHemming", checked)}>
-            Edge Hemming
-          </CheckRow>
-
-          <CheckRow checked={spec.bottomSpoutRope} onChange={(checked) => update("bottomSpoutRope", checked)}>
-            Bottom Spout Rope
-          </CheckRow>
-          {spec.bottomSpoutRope ? (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <div>
-                  <FieldLabel>Type</FieldLabel>
-                  <FormSelect value={spec.bottomSpoutRopeType} onChange={(value) => update("bottomSpoutRopeType", value)} options={[...ROPE_TYPES]} />
-                </div>
-                <div>
-                  <FieldLabel>Grm</FieldLabel>
-                  <Input value={spec.bottomSpoutRopeGsm} onChange={(event) => update("bottomSpoutRopeGsm", event.target.value)} className={fieldClassName} />
-                </div>
-                <div>
-                  <FieldLabel>Size</FieldLabel>
-                  <FormSelect value={spec.bottomSpoutRopeSize || "5"} onChange={(value) => update("bottomSpoutRopeSize", value)} options={[...ROPE_SIZES]} />
-                </div>
-                <div>
-                  <FieldLabel>Color</FieldLabel>
-                  <FormSelect value={spec.bottomSpoutRopeColor || "Milky White"} onChange={(value) => update("bottomSpoutRopeColor", value)} options={[...COLOURS]} />
-                </div>
-                <div>
-                  <FieldLabel>No (rope)</FieldLabel>
-                  <Input value={spec.bottomSpoutRopeCount} onChange={(event) => update("bottomSpoutRopeCount", event.target.value)} className={fieldClassName} />
-                </div>
-                <div>
-                  <FieldLabel>Remarks</FieldLabel>
-                  <Input value={spec.bottomSpoutRopeRemarks} onChange={(event) => update("bottomSpoutRopeRemarks", event.target.value)} className={fieldClassName} />
-                </div>
-              </div>
-              <FieldLabel optional>Petal flap</FieldLabel>
-              <GsmLamiFields
-                gsm={spec.bottomPetalFlapGsm || "70"}
-                lami={spec.bottomPetalFlapLami || "0"}
-                onGsm={(value) => update("bottomPetalFlapGsm", value)}
-                onLami={(value) => update("bottomPetalFlapLami", value)}
-                gsmOptions={[...GSM_OPTIONS]}
-                lamiOptions={[...LAMI_OPTIONS]}
-              />
-            </div>
+              </FieldCell>
+            </FieldGrid>
           ) : null}
+        </div>
+      </FeatureCard>
 
-          <CheckRow checked={spec.bottomSpoutTie} onChange={(checked) => update("bottomSpoutTie", checked)}>
-            Bottom Spout Tie
-          </CheckRow>
-          {spec.bottomSpoutTie ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div>
+      {spec.bottomEnabled ? (
+        <>
+          <FeatureCard title="Double Fold" on={spec.doubleFoldBottom} onToggle={(v) => update("doubleFoldBottom", v)} />
+          <FeatureCard title="Edge Hemming" on={spec.bottomSpoutEdgeHemming} onToggle={(v) => update("bottomSpoutEdgeHemming", v)} />
+
+          <FeatureCard
+            title="Bottom Spout Rope"
+            on={spec.bottomSpoutRope}
+            onToggle={(v) => update("bottomSpoutRope", v)}
+            summary={spec.bottomSpoutRope ? `${spec.bottomSpoutRopeType} · ${spec.bottomSpoutRopeCount} rope · ${spec.bottomSpoutRopeColor}` : undefined}
+          >
+            <FieldGrid>
+              <FieldCell>
+                <FieldLabel>Type</FieldLabel>
+                <FormSelect value={spec.bottomSpoutRopeType} onChange={(value) => update("bottomSpoutRopeType", value)} options={[...ROPE_TYPES]} />
+              </FieldCell>
+              <FieldCell>
+                <FieldLabel>Grm</FieldLabel>
+                <Input value={spec.bottomSpoutRopeGsm} onChange={(event) => update("bottomSpoutRopeGsm", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+              <FieldCell>
+                <FieldLabel>Size</FieldLabel>
+                <FormSelect value={spec.bottomSpoutRopeSize || "5"} onChange={(value) => update("bottomSpoutRopeSize", value)} options={[...ROPE_SIZES]} />
+              </FieldCell>
+              <FieldCell>
+                <FieldLabel>No (rope)</FieldLabel>
+                <Input value={spec.bottomSpoutRopeCount} onChange={(event) => update("bottomSpoutRopeCount", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+              <FieldCell span={2}>
+                <FieldLabel>Remarks</FieldLabel>
+                <Input value={spec.bottomSpoutRopeRemarks} onChange={(event) => update("bottomSpoutRopeRemarks", event.target.value)} className={fieldClassName} />
+              </FieldCell>
+            </FieldGrid>
+            <BomColourField spec={spec} update={update} colourKey="bottomSpoutRopeColor" />
+            <FieldLabel optional>Petal flap</FieldLabel>
+            <GsmLamiFields
+              gsm={spec.bottomPetalFlapGsm || "70"}
+              lami={spec.bottomPetalFlapLami || "0"}
+              onGsm={(value) => update("bottomPetalFlapGsm", value)}
+              onLami={(value) => update("bottomPetalFlapLami", value)}
+              gsmOptions={[...GSM_OPTIONS]}
+              lamiOptions={[...LAMI_OPTIONS]}
+            />
+          </FeatureCard>
+
+          <FeatureCard
+            title="Bottom Spout Tie"
+            on={spec.bottomSpoutTie}
+            onToggle={(v) => update("bottomSpoutTie", v)}
+            summary={spec.bottomSpoutTie ? `${spec.bottomSpoutTieGsm || "0"} grm · ${spec.bottomSpoutTieCount} tie` : undefined}
+          >
+            <FieldGrid>
+              <FieldCell>
                 <FieldLabel>Grm</FieldLabel>
                 <FormSelect value={spec.bottomSpoutTieGsm || "0"} onChange={(value) => update("bottomSpoutTieGsm", value)} options={[...TIE_GSM_OPTIONS]} />
-              </div>
-              <div>
+              </FieldCell>
+              <FieldCell>
                 <FieldLabel>Size</FieldLabel>
                 <FormSelect value={spec.bottomSpoutTieSize} onChange={(value) => update("bottomSpoutTieSize", value)} options={[...ROPE_SIZE_10_25]} />
-              </div>
-              <div>
+              </FieldCell>
+              <FieldCell>
                 <FieldLabel>No (Tie)</FieldLabel>
                 <Input value={spec.bottomSpoutTieCount} onChange={(event) => update("bottomSpoutTieCount", event.target.value)} className={fieldClassName} />
-              </div>
-              <div>
+              </FieldCell>
+              <FieldCell>
                 <FieldLabel>Remarks</FieldLabel>
                 <Input value={spec.bottomSpoutTieRemarks} onChange={(event) => update("bottomSpoutTieRemarks", event.target.value)} className={fieldClassName} />
-              </div>
-            </div>
-          ) : null}
+              </FieldCell>
+            </FieldGrid>
+          </FeatureCard>
 
-          <CheckRow checked={spec.topBottomBand} onChange={(checked) => update("topBottomBand", checked)}>
-            Bottom Band
-          </CheckRow>
-          {spec.topBottomBand ? (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
+          <FeatureCard
+            title="Bottom Band"
+            on={spec.topBottomBand}
+            onToggle={(v) => update("topBottomBand", v)}
+            summary={spec.topBottomBand ? `${spec.topBottomBandGsm} GPM · size ${spec.topBottomBandSize}` : undefined}
+          >
+            <FieldGrid>
+              <FieldCell>
                 <FieldLabel>GPM</FieldLabel>
                 <Input value={spec.topBottomBandGsm} onChange={(event) => update("topBottomBandGsm", event.target.value)} className={fieldClassName} />
-              </div>
-              <div>
+              </FieldCell>
+              <FieldCell>
                 <FieldLabel>Size</FieldLabel>
                 <Input value={spec.topBottomBandSize} onChange={(event) => update("topBottomBandSize", event.target.value)} className={fieldClassName} />
-              </div>
-            </div>
-          ) : null}
+              </FieldCell>
+            </FieldGrid>
+          </FeatureCard>
 
           {discharge ? <ErpExtras specification={spec} update={update} tab="bottomSpout2" /> : null}
         </>
       ) : null}
-    </>
+    </PanelStack>
   )
 }
 
@@ -743,129 +706,123 @@ function LinerPanel({
   }
 
   return (
-    <>
+    <PanelStack>
       <p className="text-sm text-[var(--text-secondary)]">Liner Options is visible depends on Top and Bottom construction</p>
-      <CheckRow checked={spec.linerEnabled} onChange={setLiner}>
-        Liner
-      </CheckRow>
-      {spec.linerEnabled ? (
-        <div className="space-y-3 rounded-2xl border border-[var(--border)] p-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="w-[140px] shrink-0">
-              <FieldLabel>Type</FieldLabel>
-              <FormSelect value={spec.linerMaterial} onChange={(value) => update("linerMaterial", value)} options={[...LINER_MATERIALS]} />
-            </div>
-            <div className="min-w-[220px] flex-[2] basis-[220px]">
-              <FieldLabel>Liner type</FieldLabel>
-              <FormSelect value={spec.linerType || "None"} onChange={(value) => update("linerType", value)} options={[...LINER_TYPES]} />
-            </div>
-            {showBaffle ? (
-              <label className="mb-1 flex h-12 shrink-0 items-center gap-2 whitespace-nowrap text-sm">
-                <input
-                  type="checkbox"
-                  checked={spec.linerBaffle}
-                  onChange={(event) =>
-                    patch({
-                      linerBaffle: event.target.checked,
-                      linerBaffleMicron: event.target.checked ? spec.linerBaffleMicron : "",
-                    })
-                  }
-                  className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
-                />
-                Baffle Liner
-              </label>
-            ) : null}
-            {showBaffle && spec.linerBaffle ? (
-              <div className="w-[88px] shrink-0">
-                <FieldLabel>Baffle Liner Micron</FieldLabel>
-                <Input value={spec.linerBaffleMicron} onChange={(event) => update("linerBaffleMicron", event.target.value)} className={fieldClassName} />
-              </div>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="w-[88px] shrink-0">
-              <FieldLabel>Micron</FieldLabel>
-              <Input value={spec.linerMicron} onChange={(event) => update("linerMicron", event.target.value)} className={fieldClassName} />
-            </div>
-            <div className="w-[88px] shrink-0">
-              <FieldLabel>Height</FieldLabel>
-              <Input value={spec.linerHeight} onChange={(event) => update("linerHeight", event.target.value)} className={fieldClassName} />
-            </div>
-            <div className="w-[88px] shrink-0">
-              <FieldLabel>Width</FieldLabel>
-              <Input value={spec.linerWidth} onChange={(event) => update("linerWidth", event.target.value)} className={fieldClassName} />
-            </div>
-            <div className="min-w-[140px] flex-1 basis-[140px]">
-              <FieldLabel>Sub type</FieldLabel>
-              <FormSelect value={spec.linerSubtype || "Normal"} onChange={(value) => update("linerSubtype", value)} options={[...LINER_SUBTYPES]} />
-            </div>
-            <div className="w-[88px] shrink-0">
-              <FieldLabel>At-Point</FieldLabel>
-              <FormSelect value={spec.linerAtPoint || "0"} onChange={(value) => update("linerAtPoint", value)} options={[...LINER_AT_POINTS]} />
-            </div>
-            <div className="min-w-[160px] flex-1 basis-[160px]">
-              <FieldLabel>Color</FieldLabel>
-              <FormSelect value={spec.linerColour || "Natural"} onChange={(value) => update("linerColour", value)} options={[...COLOURS]} />
-            </div>
-            <div className="min-w-[180px] flex-[2] basis-[180px]">
-              <FieldLabel>Remarks</FieldLabel>
-              <Input value={spec.linerRemarks} onChange={(event) => update("linerRemarks", event.target.value)} className={fieldClassName} />
-            </div>
-          </div>
-        </div>
-      ) : null}
 
-      <CheckRow checked={spec.label} onChange={(checked) => update("label", checked)}>
-        Label
-      </CheckRow>
-      {spec.label ? (
-        <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-[var(--border)] p-4">
-          <div className="w-[72px] shrink-0">
+      <FeatureCard
+        title="Liner"
+        on={spec.linerEnabled}
+        onToggle={setLiner}
+        summary={spec.linerEnabled ? `${spec.linerMaterial} · ${spec.linerMicron}µ · ${spec.linerColour}` : undefined}
+      >
+        <FieldGrid>
+          <FieldCell>
+            <FieldLabel>Type</FieldLabel>
+            <FormSelect value={spec.linerMaterial} onChange={(value) => update("linerMaterial", value)} options={[...LINER_MATERIALS]} />
+          </FieldCell>
+          <FieldCell span={2}>
+            <FieldLabel>Liner type</FieldLabel>
+            <FormSelect value={spec.linerType || "None"} onChange={(value) => update("linerType", value)} options={[...LINER_TYPES]} />
+          </FieldCell>
+          {showBaffle ? (
+            <FieldCell>
+              <CompactCheck
+                checked={spec.linerBaffle}
+                onChange={(checked) =>
+                  patch({
+                    linerBaffle: checked,
+                    linerBaffleMicron: checked ? spec.linerBaffleMicron : "",
+                  })
+                }
+              >
+                Baffle Liner
+              </CompactCheck>
+            </FieldCell>
+          ) : null}
+          {showBaffle && spec.linerBaffle ? (
+            <FieldCell>
+              <FieldLabel>Baffle Liner Micron</FieldLabel>
+              <Input value={spec.linerBaffleMicron} onChange={(event) => update("linerBaffleMicron", event.target.value)} className={fieldClassName} />
+            </FieldCell>
+          ) : null}
+          <FieldCell>
+            <FieldLabel>Micron</FieldLabel>
+            <Input value={spec.linerMicron} onChange={(event) => update("linerMicron", event.target.value)} className={fieldClassName} />
+          </FieldCell>
+          <FieldCell>
+            <FieldLabel>Height</FieldLabel>
+            <Input value={spec.linerHeight} onChange={(event) => update("linerHeight", event.target.value)} className={fieldClassName} />
+          </FieldCell>
+          <FieldCell>
+            <FieldLabel>Width</FieldLabel>
+            <Input value={spec.linerWidth} onChange={(event) => update("linerWidth", event.target.value)} className={fieldClassName} />
+          </FieldCell>
+          <FieldCell>
+            <FieldLabel>Sub type</FieldLabel>
+            <FormSelect value={spec.linerSubtype || "Normal"} onChange={(value) => update("linerSubtype", value)} options={[...LINER_SUBTYPES]} />
+          </FieldCell>
+          <FieldCell>
+            <FieldLabel>At-Point</FieldLabel>
+            <FormSelect value={spec.linerAtPoint || "0"} onChange={(value) => update("linerAtPoint", value)} options={[...LINER_AT_POINTS]} />
+          </FieldCell>
+          <FieldCell span={2}>
+            <FieldLabel>Remarks</FieldLabel>
+            <Input value={spec.linerRemarks} onChange={(event) => update("linerRemarks", event.target.value)} className={fieldClassName} />
+          </FieldCell>
+        </FieldGrid>
+        <BomColourField spec={spec} update={update} colourKey="linerColour" />
+      </FeatureCard>
+
+      <FeatureCard
+        title="Label"
+        on={spec.label}
+        onToggle={(v) => update("label", v)}
+        summary={spec.label ? `${spec.labelCount} no · ${spec.labelLength}×${spec.labelWidth} · ${spec.labelColour}` : undefined}
+      >
+        <FieldGrid>
+          <FieldCell>
             <FieldLabel>Nos</FieldLabel>
             <Input value={spec.labelCount} onChange={(event) => update("labelCount", event.target.value)} className={fieldClassName} />
-          </div>
-          <label className="mb-1 flex h-12 shrink-0 items-center gap-2 whitespace-nowrap text-sm">
-            <input
-              type="checkbox"
-              checked={spec.labelTyvac}
-              onChange={(event) => update("labelTyvac", event.target.checked)}
-              className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
-            />
-            Tyvac
-          </label>
-          <div className="w-[72px] shrink-0">
+          </FieldCell>
+          <FieldCell>
+            <CompactCheck checked={spec.labelTyvac} onChange={(checked) => update("labelTyvac", checked)}>
+              Tyvac
+            </CompactCheck>
+          </FieldCell>
+          <FieldCell>
             <FieldLabel>L</FieldLabel>
             <Input value={spec.labelLength} onChange={(event) => update("labelLength", event.target.value)} className={fieldClassName} />
-          </div>
-          <div className="w-[72px] shrink-0">
+          </FieldCell>
+          <FieldCell>
             <FieldLabel>W</FieldLabel>
             <Input value={spec.labelWidth} onChange={(event) => update("labelWidth", event.target.value)} className={fieldClassName} />
-          </div>
-          <div className="w-[88px] shrink-0">
+          </FieldCell>
+          <FieldCell>
             <FieldLabel>Micron</FieldLabel>
             <Input value={spec.labelMicron} onChange={(event) => update("labelMicron", event.target.value)} className={fieldClassName} />
-          </div>
-          <div className="min-w-[160px] flex-1 basis-[160px]">
-            <FieldLabel>Color</FieldLabel>
-            <FormSelect value={spec.labelColour || "Milky White"} onChange={(value) => update("labelColour", value)} options={[...COLOURS]} />
-          </div>
-          <div className="min-w-[180px] flex-[2] basis-[180px]">
+          </FieldCell>
+          <FieldCell span={2}>
             <FieldLabel>Remarks</FieldLabel>
             <Input value={spec.labelRemarks} onChange={(event) => update("labelRemarks", event.target.value)} className={fieldClassName} />
-          </div>
-        </div>
-      ) : null}
+          </FieldCell>
+        </FieldGrid>
+        <BomColourField spec={spec} update={update} colourKey="labelColour" />
+      </FeatureCard>
 
-      <CheckRow checked={spec.bLock} onChange={(checked) => update("bLock", checked)}>
-        B-Lock
-      </CheckRow>
-      {spec.bLock ? (
-        <div className="w-[88px]">
-          <FieldLabel>Nos</FieldLabel>
-          <Input value={spec.bLockCount} onChange={(event) => update("bLockCount", event.target.value)} className={fieldClassName} />
-        </div>
-      ) : null}
-    </>
+      <FeatureCard
+        title="B-Lock"
+        on={spec.bLock}
+        onToggle={(v) => update("bLock", v)}
+        summary={spec.bLock ? `${spec.bLockCount} nos` : undefined}
+      >
+        <FieldGrid>
+          <FieldCell>
+            <FieldLabel>Nos</FieldLabel>
+            <Input value={spec.bLockCount} onChange={(event) => update("bLockCount", event.target.value)} className={fieldClassName} />
+          </FieldCell>
+        </FieldGrid>
+      </FeatureCard>
+    </PanelStack>
   )
 }
 

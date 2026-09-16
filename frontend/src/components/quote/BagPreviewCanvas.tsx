@@ -11,6 +11,7 @@ import {
   FillingKit,
   InkEdges,
   LoopKit,
+  PrintedLogoKit,
   StitchKit,
   UPanelWrap,
   VentilatedFaces,
@@ -166,7 +167,6 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
       docH: Math.max(0.08, num(spec.docLength || spec.docWidth, 35) * scale * 0.4),
       printed: isPrinted(spec.printing),
       twoSided: /^2S/i.test(spec.printing || ""),
-      twoColor: /2C/i.test(spec.printing || ""),
       belly,
       gatherTop: false,
     }
@@ -202,7 +202,6 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
     docH,
     printed,
     twoSided,
-    twoColor,
     belly,
     gatherTop,
   } = model
@@ -217,7 +216,7 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
   const lift =
     (/spout/i.test(spec.bottomType) ? spoutBotH : /conical|skirt/i.test(spec.bottomType) ? conicalH : 0) +
     (upanel ? 0.12 : 0)
-  const faceZ = sz / 2 + 0.02
+  const faceZ = (sz / 2) * (1 + belly) + 0.04
   const inset = 0.02
   const corners = circular
     ? ([Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4] as const).map(
@@ -344,30 +343,7 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
         />
       )}
 
-      {printed ? (
-        <>
-          <mesh position={[0, sy * 0.52, faceZ]}>
-            <planeGeometry args={[sx * 0.32, sy * 0.16]} />
-            <meshStandardMaterial color="#f7f3ea" roughness={0.55} />
-          </mesh>
-          <mesh position={[0, sy * 0.55, faceZ + 0.002]}>
-            <circleGeometry args={[sx * 0.06, 24]} />
-            <meshStandardMaterial color={strap} roughness={0.5} />
-          </mesh>
-          {twoColor ? (
-            <mesh position={[0, sy * 0.46, faceZ + 0.002]}>
-              <planeGeometry args={[sx * 0.22, sy * 0.035]} />
-              <meshStandardMaterial color="#1a1a18" roughness={0.5} />
-            </mesh>
-          ) : null}
-          {twoSided ? (
-            <mesh position={[0, sy * 0.52, -faceZ]} rotation={[0, Math.PI, 0]}>
-              <planeGeometry args={[sx * 0.32, sy * 0.16]} />
-              <meshStandardMaterial color="#f7f3ea" roughness={0.55} />
-            </mesh>
-          ) : null}
-        </>
-      ) : null}
+      {printed ? <PrintedLogoKit sx={sx} sy={sy} faceZ={faceZ} twoSided={twoSided} /> : null}
 
       {/* Safety / Palmetto-style label */}
       <group position={[-sx * 0.2, sy * 0.74, faceZ + 0.01]}>
