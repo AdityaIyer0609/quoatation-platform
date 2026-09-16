@@ -30,7 +30,34 @@ function isPrinted(printing: string) {
   return Boolean(printing) && printing !== "UnPrinted"
 }
 
-function makeSackGeometry(sx: number, sy: number, sz: number, belly: number, tubular: boolean, gatherTop = false) {
+function removeTopCap(geo: THREE.BufferGeometry, topY: number) {
+  const index = geo.index
+  const position = geo.attributes.position
+  if (!index || !position) return
+  const kept: number[] = []
+  const tolerance = Math.max(0.0001, Math.abs(topY) * 0.001)
+  for (let i = 0; i < index.count; i += 3) {
+    const a = index.getX(i)
+    const b = index.getX(i + 1)
+    const c = index.getX(i + 2)
+    const isTop =
+      position.getY(a) >= topY - tolerance &&
+      position.getY(b) >= topY - tolerance &&
+      position.getY(c) >= topY - tolerance
+    if (!isTop) kept.push(a, b, c)
+  }
+  geo.setIndex(kept)
+}
+
+function makeSackGeometry(
+  sx: number,
+  sy: number,
+  sz: number,
+  belly: number,
+  tubular: boolean,
+  gatherTop = false,
+  openTop = false,
+) {
   const hy = sy / 2
   if (tubular) {
     const geo = new THREE.CylinderGeometry(1, 1, sy, 48, 16)
@@ -59,6 +86,7 @@ function makeSackGeometry(sx: number, sy: number, sz: number, belly: number, tub
       pos.setXYZ(i, x, y, z)
     }
     pos.needsUpdate = true
+    if (openTop) removeTopCap(geo, hy)
     geo.computeVertexNormals()
     return geo
   }
@@ -99,6 +127,7 @@ function makeSackGeometry(sx: number, sy: number, sz: number, belly: number, tub
     pos.setXYZ(i, x, y, z)
   }
   pos.needsUpdate = true
+  if (openTop) removeTopCap(geo, hy)
   geo.computeVertexNormals()
   return geo
 }
@@ -135,7 +164,7 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
     const weaveU = Math.max(6, Math.round(length / 7))
     const weaveV = Math.max(8, Math.round(height / 7))
     // Filled look: soft belly; baffle stays near-square (drawing accuracy).
-    const belly = circular ? 0.07 : baffle ? 0.015 : liftBag ? 0.055 : 0.05
+    const belly = circular ? 0.07 : baffle ? 0.015 : liftBag ? 0.055 : upanel ? 0 : 0.05
     return {
       sx,
       sy,
@@ -152,6 +181,8 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
       color: bodyColor,
       baffleColor: shade(bodyColor, 28),
       strap: (spec.loopColour || "").trim() ? loopColor : webbingColor(spec.fabricColour),
+      stevedoreStrap: fabricColor(spec.stevedoreColor || spec.loopColour || spec.fabricColour),
+      tunnelFabric: fabricColor(spec.tunnelColor || spec.fabricColour),
       spoutTopH: Math.max(0.08, num(spec.topSpoutHeight, 50) * scale),
       spoutTopR: Math.min(Math.min(sx, sz) * 0.48, Math.max(0.05, (topSpoutDia * scale) / 2)),
       spoutBotH: Math.max(0.08, num(spec.bottomSpoutHeight, 40) * scale),
@@ -161,6 +192,7 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
       loopAbove: Math.max(0.1, loopLenCm * scale),
       sewDown: Math.max(0.08, Math.min(height * 0.55, loopLenCm * 1.15) * scale),
       strapWidth: Math.max(0.02, (loopWCm * scale) / 2),
+      crossEndGap: 28 * scale,
       loopCount: Math.min(12, Math.max(0, Number.parseInt(spec.loopCount || "4", 10) || 4)),
       doc: spec.docPouch,
       docW: Math.max(0.1, num(spec.docWidth || spec.docLength, 30) * scale * 0.45),
@@ -169,6 +201,7 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
       twoSided: /^2S/i.test(spec.printing || ""),
       belly,
       gatherTop: false,
+      openTop: /^open$/i.test(spec.topType.trim()) || /spout/i.test(spec.topType),
     }
   }, [spec])
 
@@ -187,6 +220,8 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
     color,
     baffleColor,
     strap,
+    stevedoreStrap,
+    tunnelFabric,
     spoutTopH,
     spoutTopR,
     spoutBotH,
@@ -196,6 +231,7 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
     loopAbove,
     sewDown,
     strapWidth,
+    crossEndGap,
     loopCount,
     doc,
     docW,
@@ -204,19 +240,18 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
     twoSided,
     belly,
     gatherTop,
+    openTop,
   } = model
 
   const sack = useMemo(
-    () => makeSackGeometry(sx, sy, sz, belly, circular, gatherTop),
-    [sx, sy, sz, belly, circular, gatherTop],
+    () => makeSackGeometry(sx, sy, sz, belly, circular, gatherTop, openTop),
+    [sx, sy, sz, belly, circular, gatherTop, openTop],
   )
   useEffect(() => () => sack.dispose(), [sack])
 
   const stitch = shade(color, -28)
-  const lift =
-    (/spout/i.test(spec.bottomType) ? spoutBotH : /conical|skirt/i.test(spec.bottomType) ? conicalH : 0) +
-    (upanel ? 0.12 : 0)
-  const faceZ = (sz / 2) * (1 + belly) + 0.04
+  const lift = /spout/i.test(spec.bottomType) ? spoutBotH : /conical|skirt/i.test(spec.bottomType) ? conicalH : 0
+  const faceZ = upanel ? sz / 2 + 0.01 : (sz / 2) * (1 + belly) + 0.04
   const inset = 0.02
   const corners = circular
     ? ([Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4] as const).map(
@@ -231,16 +266,34 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
 
   return (
     <group position={[0, lift + 0.02, 0]}>
-      <mesh geometry={sack} position={[0, sy / 2, 0]} castShadow>
-        <Fabric color={color} repeat={weaveRepeat} laminated={laminated} />
-      </mesh>
-      <group position={[0, sy / 2, 0]}>
-        <InkEdges geometry={sack} color={shade(color, -85)} />
-      </group>
-
-      <CornerSeamKit sx={sx} sy={sy} sz={sz} color={color} circular={circular} />
-
-      {upanel ? <UPanelWrap sx={sx} sy={sy} sz={sz} color={color} stitch={stitch} /> : null}
+      {upanel ? (
+        <UPanelWrap
+          sx={sx}
+          sy={sy}
+          sz={sz}
+          color={color}
+          stitch={stitch}
+          laminated={laminated}
+          repeat={weaveRepeat}
+          openTop={openTop}
+        />
+      ) : (
+        <>
+          <mesh geometry={sack} position={[0, sy / 2, 0]} castShadow>
+            <Fabric
+              color={color}
+              repeat={weaveRepeat}
+              laminated={laminated}
+              doubleSide={openTop || baffle}
+              opacity={baffle ? 0.58 : 1}
+            />
+          </mesh>
+          <group position={[0, sy / 2, 0]}>
+            <InkEdges geometry={sack} color={shade(color, -85)} />
+          </group>
+          <CornerSeamKit sx={sx} sy={sy} sz={sz} color={color} circular={circular} />
+        </>
+      )}
 
       {fourPanel
         ? corners.map(([x, z]) => {
@@ -286,6 +339,7 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
         conicalH={conicalH}
         clearHandle={liftBag}
         flapColor={fabricColor(spec.topFlapColor || spec.fabricColour)}
+        circular={circular}
       />
       <DischargeKit
         sx={sx}
@@ -316,10 +370,14 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
         dropLoop={spec.dropLoop}
         stevedore={spec.stevedore || spec.steveCover}
         stevedorePortion={spec.stevedorePortion || "Diagonal"}
+        stevedoreColor={stevedoreStrap}
+        tunnelEnabled={spec.tunnel}
+        tunnelColor={tunnelFabric}
         protector={spec.loopProtector}
         loopAbove={loopAbove}
         sewDown={sewDown}
         strapWidth={strapWidth}
+        crossEndGap={crossEndGap}
       />
       {liftBag ? null : (
         <StitchKit
@@ -396,9 +454,10 @@ export default function BagPreviewCanvas({
       shadows
     >
       <color attach="background" args={["#edf2f8"]} />
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[6, 10, 4]} intensity={1.2} castShadow />
-      <directionalLight position={[-4, 3, -5]} intensity={0.32} />
+      <ambientLight intensity={0.55} />
+      <directionalLight position={[6, 10, 4]} intensity={1.35} castShadow />
+      <directionalLight position={[-5, 5, 6]} intensity={0.55} />
+      <directionalLight position={[-4, 3, -5]} intensity={0.28} />
       <Bounds fit observe margin={1.45}>
         <FibcBag spec={specification} />
       </Bounds>

@@ -117,11 +117,13 @@ export function Fabric({
   doubleSide,
   repeat = [14, 18],
   laminated = false,
+  opacity = 1,
 }: {
   color: string
   doubleSide?: boolean
   repeat?: [number, number]
   laminated?: boolean
+  opacity?: number
 }) {
   const weave = useScaledMap(getWeave(), repeat[0], repeat[1])
   return (
@@ -131,8 +133,11 @@ export function Fabric({
       roughness={laminated ? 0.68 : 0.9}
       metalness={laminated ? 0.04 : 0}
       bumpMap={weave}
-      bumpScale={laminated ? 0.012 : 0.028}
+      bumpScale={laminated ? 0.016 : 0.04}
       side={doubleSide ? THREE.DoubleSide : THREE.FrontSide}
+      transparent={opacity < 1}
+      opacity={opacity}
+      depthWrite={opacity >= 1}
     />
   )
 }
@@ -313,68 +318,227 @@ function strapGeo(curve: THREE.Curve<THREE.Vector3>, width = 0.07, thick = 0.01)
   return new THREE.ExtrudeGeometry(shape, { steps: 48, bevelEnabled: false, extrudePath: curve })
 }
 
+function makeUCenterline(sy: number, sz: number, thick: number, belly: number) {
+  const hz = sz / 2
+  const r = Math.min(sz, sy) * 0.13
+  const pts: THREE.Vector3[] = []
+  const zFace = (y: number, outer: number) => {
+    const ny = Math.min(1, Math.max(0, y / Math.max(sy, 0.001)))
+    return outer * (1 + belly * Math.sin(Math.PI * ny))
+  }
+  const nVert = 14
+  const nArc = 12
+  const nBot = 16
+  for (let i = 0; i <= nVert; i += 1) {
+    const y = sy - (i / nVert) * (sy - r)
+    pts.push(new THREE.Vector3(0, y, zFace(y, hz)))
+  }
+  for (let i = 1; i <= nArc; i += 1) {
+    const a = (Math.PI / 2) * (i / nArc)
+    pts.push(new THREE.Vector3(0, r * (1 - Math.sin(a)), hz - r + r * Math.cos(a)))
+  }
+  for (let i = 1; i <= nBot; i += 1) {
+    const t = i / nBot
+    pts.push(new THREE.Vector3(0, thick * 0.5, THREE.MathUtils.lerp(hz - r, -(hz - r), t)))
+  }
+  for (let i = 1; i <= nArc; i += 1) {
+    const a = (Math.PI / 2) * (i / nArc)
+    pts.push(new THREE.Vector3(0, r * (1 - Math.cos(a)), -(hz - r) - r * Math.sin(a)))
+  }
+  for (let i = 1; i <= nVert; i += 1) {
+    const y = r + (i / nVert) * (sy - r)
+    pts.push(new THREE.Vector3(0, y, zFace(y, -hz)))
+  }
+  return pts
+}
+
+/** One continuous front–bottom–back fabric sheet with rounded U folds. */
+function makeUSheetGeo(sx: number, sy: number, sz: number, thick: number, belly = 0.05) {
+  const pts = makeUCenterline(sy, sz, thick, belly)
+  const hw = sx / 2
+  const ht = thick / 2
+  const positions: number[] = []
+  const uvs: number[] = []
+  const indices: number[] = []
+  let dist = 0
+  const ring = 4
+  for (let i = 0; i < pts.length; i += 1) {
+    const p = pts[i]
+    const prev = pts[Math.max(0, i - 1)]
+    const next = pts[Math.min(pts.length - 1, i + 1)]
+    const tan = next.clone().sub(prev).normalize()
+    if (i > 0) dist += p.distanceTo(pts[i - 1])
+    const bin = new THREE.Vector3(1, 0, 0)
+    const nrm = new THREE.Vector3().crossVectors(tan, bin)
+    if (nrm.lengthSq() < 1e-8) nrm.set(0, 0, Math.sign(p.z) || 1)
+    nrm.normalize()
+    const corners = [
+      p.clone().addScaledVector(bin, -hw).addScaledVector(nrm, -ht),
+      p.clone().addScaledVector(bin, hw).addScaledVector(nrm, -ht),
+      p.clone().addScaledVector(bin, hw).addScaledVector(nrm, ht),
+      p.clone().addScaledVector(bin, -hw).addScaledVector(nrm, ht),
+    ]
+    const vLen = sy * 2 + sz
+    for (const v of corners) {
+      positions.push(v.x, v.y, v.z)
+      uvs.push((v.x + hw) / Math.max(sx, 0.001), dist / Math.max(vLen, 0.001))
+    }
+  }
+  for (let i = 0; i < pts.length - 1; i += 1) {
+    const a = i * ring
+    const b = (i + 1) * ring
+    for (let k = 0; k < 4; k += 1) {
+      const k2 = (k + 1) % 4
+      indices.push(a + k, b + k, b + k2, a + k, b + k2, a + k2)
+    }
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3))
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2))
+  geo.setIndex(indices)
+  geo.computeVertexNormals()
+  return geo
+}
+
+function makeSidePanelGeo(sy: number, sz: number, belly: number) {
+  const geo = new THREE.PlaneGeometry(sz * 0.9, sy, 12, 16)
+  const pos = geo.attributes.position
+  for (let i = 0; i < pos.count; i += 1) {
+    const py = pos.getY(i)
+    const pz = pos.getX(i)
+    const ny = (py + sy / 2) / Math.max(sy, 0.001)
+    const nz = 1 - Math.abs(pz) / Math.max((sz * 0.45), 0.001)
+    pos.setZ(i, belly * Math.sin(Math.PI * ny) * Math.max(0, nz))
+  }
+  pos.needsUpdate = true
+  geo.computeVertexNormals()
+  return geo
+}
+
+/**
+ * True U-panel body: one continuous front–bottom–back sheet plus two
+ * separately sewn side panels. Seams exist only where sides join the U.
+ */
 export function UPanelWrap({
   sx,
   sy,
   sz,
   color,
   stitch,
+  laminated = false,
+  repeat = [14, 18],
 }: {
   sx: number
   sy: number
   sz: number
   color: string
   stitch: string
+  laminated?: boolean
+  repeat?: [number, number]
+  openTop?: boolean
 }) {
-  const zOut = sz / 2 + 0.02
-  const geometry = useMemo(() => {
-    const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0, sy * 0.97, zOut),
-      new THREE.Vector3(0, sy * 0.5, zOut),
-      new THREE.Vector3(0, sy * 0.1, zOut * 0.94),
-      new THREE.Vector3(0, -0.06, zOut * 0.5),
-      new THREE.Vector3(0, -0.14, 0),
-      new THREE.Vector3(0, -0.06, -zOut * 0.5),
-      new THREE.Vector3(0, sy * 0.1, -zOut * 0.94),
-      new THREE.Vector3(0, sy * 0.5, -zOut),
-      new THREE.Vector3(0, sy * 0.97, -zOut),
-    ])
-    return strapGeo(curve, sx * 0.465, 0.015)
-  }, [sx, sy, zOut])
-  const seam = useMemo(() => {
-    const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0, sy * 0.97, zOut + 0.004),
-      new THREE.Vector3(0, sy * 0.5, zOut + 0.004),
-      new THREE.Vector3(0, sy * 0.1, zOut * 0.94),
-      new THREE.Vector3(0, -0.07, zOut * 0.5),
-      new THREE.Vector3(0, -0.155, 0),
-      new THREE.Vector3(0, -0.07, -zOut * 0.5),
-      new THREE.Vector3(0, sy * 0.1, -zOut * 0.94),
-      new THREE.Vector3(0, sy * 0.5, -zOut - 0.004),
-      new THREE.Vector3(0, sy * 0.97, -zOut - 0.004),
-    ])
-    return strapGeo(curve, 0.01, 0.01)
-  }, [sy, zOut])
+  const wall = 0.028
+  const seam = 0.038
+  const hx = sx / 2
+  const hz = sz / 2
+  const belly = 0.055
+  const sideColor = shade(color, -18)
+  const uGeo = useMemo(() => makeUSheetGeo(sx, sy, sz, wall, belly), [sx, sy, sz, wall, belly])
+  const sideGeo = useMemo(() => makeSidePanelGeo(sy, sz, Math.min(sx, sz) * 0.05), [sy, sz, sx])
   useEffect(
     () => () => {
-      geometry.dispose()
-      seam.dispose()
+      uGeo.dispose()
+      sideGeo.dispose()
     },
-    [geometry, seam],
+    [uGeo, sideGeo],
   )
   return (
     <group>
-      <mesh geometry={geometry} castShadow>
-        <Fabric color={shade(color, -10)} />
+      <mesh geometry={uGeo} castShadow receiveShadow>
+        <Fabric color={color} doubleSide laminated={laminated} repeat={repeat} />
       </mesh>
-      <mesh geometry={seam} position={[sx * 0.46, 0, 0]}>
-        <meshStandardMaterial color={stitch} roughness={0.75} />
+      <mesh geometry={sideGeo} position={[hx - wall * 0.2, sy / 2, 0]} rotation={[0, Math.PI / 2, 0]} castShadow>
+        <Fabric color={sideColor} doubleSide laminated={laminated} repeat={[repeat[1], repeat[0]]} />
       </mesh>
-      <mesh geometry={seam} position={[-sx * 0.46, 0, 0]}>
-        <meshStandardMaterial color={stitch} roughness={0.75} />
+      <mesh geometry={sideGeo} position={[-hx + wall * 0.2, sy / 2, 0]} rotation={[0, -Math.PI / 2, 0]} castShadow>
+        <Fabric color={sideColor} doubleSide laminated={laminated} repeat={[repeat[1], repeat[0]]} />
+      </mesh>
+      {(
+        [
+          [hx - seam * 0.4, hz - seam * 0.4],
+          [-hx + seam * 0.4, hz - seam * 0.4],
+          [hx - seam * 0.4, -hz + seam * 0.4],
+          [-hx + seam * 0.4, -hz + seam * 0.4],
+        ] as const
+      ).map(([x, z], i) => (
+        <mesh key={i} position={[x, sy / 2, z]} castShadow>
+          <boxGeometry args={[seam, sy * 0.96, seam]} />
+          <meshStandardMaterial color={stitch} roughness={0.72} />
+        </mesh>
+      ))}
+      <mesh position={[hx - seam * 0.4, seam, 0]}>
+        <boxGeometry args={[seam, seam, sz * 0.88]} />
+        <meshStandardMaterial color={stitch} roughness={0.72} />
+      </mesh>
+      <mesh position={[-hx + seam * 0.4, seam, 0]}>
+        <boxGeometry args={[seam, seam, sz * 0.88]} />
+        <meshStandardMaterial color={stitch} roughness={0.72} />
       </mesh>
     </group>
   )
+}
+
+function boxCornerLoopCurve({
+  x,
+  z,
+  y0,
+  y1,
+  width,
+  above,
+  endGap,
+  sx,
+  sz,
+}: {
+  x: number
+  z: number
+  y0: number
+  y1: number
+  width: number
+  above: number
+  endGap: number
+  sx: number
+  sz: number
+}) {
+  const dx = Math.sign(x) || 1
+  const dz = Math.sign(z) || 1
+  const peak = Math.max(0.12, above)
+  const xAbs = sx > 0 ? sx / 2 : Math.abs(x)
+  const zAbs = sz > 0 ? sz / 2 : Math.abs(z)
+  const offset = Math.min(
+    Math.max(width * 5.2, endGap / Math.SQRT2),
+    xAbs * 0.72,
+    zAbs * 0.72,
+  )
+  const skin = Math.max(0.012, width * 0.32)
+  const xFace = dx * (xAbs + skin)
+  const zFace = dz * (zAbs + skin)
+  const xOnZ = dx * (xAbs - offset)
+  const zOnX = dz * (zAbs - offset)
+  const midX = (xOnZ + xFace) / 2
+  const midZ = (zFace + zOnX) / 2
+  const bow = Math.max(0.07, peak * 0.22)
+  const peakX = midX + dx * bow
+  const peakZ = midZ + dz * bow
+  const curve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(xOnZ, y0, zFace),
+    new THREE.Vector3(xOnZ, y1, zFace),
+    new THREE.Vector3((xOnZ + peakX) / 2, y1 + peak * 0.4, (zFace + peakZ) / 2),
+    new THREE.Vector3(peakX, y1 + peak, peakZ),
+    new THREE.Vector3((xFace + peakX) / 2, y1 + peak * 0.4, (zOnX + peakZ) / 2),
+    new THREE.Vector3(xFace, y1, zOnX),
+    new THREE.Vector3(xFace, y0, zOnX),
+  ])
+  return strapGeo(curve, width, Math.max(0.008, width * 0.22))
 }
 
 export function FaceSlackLoop({
@@ -385,41 +549,52 @@ export function FaceSlackLoop({
   color,
   above = 0.32,
   width = 0.055,
+  endGap = 0.22,
+  circular = false,
+  sx = 0,
+  sy = 0,
+  sz = 0,
 }: {
   x: number
   z: number
   y0: number
   y1: number
   color: string
-  /** Loop height above bag top (scene units). */
   above?: number
-  /** Half-strap width (scene units). */
   width?: number
+  endGap?: number
+  circular?: boolean
+  sx?: number
+  sy?: number
+  sz?: number
 }) {
-  const yaw = Math.atan2(x, z)
-  const peak = Math.max(0.12, above)
-  const geometry = useMemo(() => {
-    const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-width * 2, y0, 0.02),
-      new THREE.Vector3(-width * 2.2, y1 + peak * 0.35, peak * 0.28),
-      new THREE.Vector3(0, y1 + peak, peak * 0.38),
-      new THREE.Vector3(width * 2.2, y1 + peak * 0.35, peak * 0.28),
-      new THREE.Vector3(width * 2, y0, 0.02),
-    ])
-    return strapGeo(curve, width, Math.max(0.008, width * 0.22))
-  }, [y0, y1, peak, width])
+  if (circular) {
+    return (
+      <SlackLoop
+        x={x}
+        z={z}
+        y0={y0}
+        y1={y1}
+        color={color}
+        above={above}
+        width={width}
+        endGap={endGap}
+        circular
+        sx={sx}
+        sy={sy}
+        sz={sz}
+      />
+    )
+  }
+  const geometry = useMemo(
+    () => boxCornerLoopCurve({ x, z, y0, y1, width, above, endGap, sx, sz }),
+    [x, z, y0, y1, width, above, endGap, sx, sz],
+  )
   useEffect(() => () => geometry.dispose(), [geometry])
   return (
-    <group position={[x, 0, z]} rotation={[0, yaw, 0]}>
-      <mesh geometry={geometry} castShadow>
-        <Webbing color={color} />
-      </mesh>
-      {/* Reinforcement sew patch */}
-      <mesh position={[0, y0 + (y1 - y0) * 0.15, 0.01]}>
-        <boxGeometry args={[width * 3.2, Math.max(0.06, (y1 - y0) * 0.35), 0.012]} />
-        <meshStandardMaterial color={shade(color, -25)} roughness={0.7} />
-      </mesh>
-    </group>
+    <mesh geometry={geometry} castShadow>
+      <Webbing color={color} />
+    </mesh>
   )
 }
 
@@ -431,6 +606,11 @@ export function SlackLoop({
   color,
   above = 0.3,
   width = 0.055,
+  endGap = 0.28,
+  circular = false,
+  sx = 0,
+  sy = 0,
+  sz = 0,
 }: {
   x: number
   z: number
@@ -439,22 +619,60 @@ export function SlackLoop({
   color: string
   above?: number
   width?: number
+  endGap?: number
+  circular?: boolean
+  sx?: number
+  sy?: number
+  sz?: number
 }) {
   const dx = Math.sign(x) || 1
   const dz = Math.sign(z) || 1
   const peak = Math.max(0.12, above)
+  const offset = Math.max(width * 2.4, endGap / Math.SQRT2)
   const geometry = useMemo(() => {
-    const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(x - dx * width * 1.8, y0, z + dz * 0.02),
-      new THREE.Vector3(x - dx * width * 2.2, (y0 + y1) * 0.5, z + dz * width * 1.4),
-      new THREE.Vector3(x - dx * width * 0.7, y1 + peak * 0.35, z - dz * width * 0.4),
-      new THREE.Vector3(x + dx * width * 0.4, y1 + peak, z - dz * width * 1.4),
-      new THREE.Vector3(x + dx * width * 1.1, y1 + peak * 0.3, z - dz * width * 2.1),
-      new THREE.Vector3(x + dx * width * 0.4, (y0 + y1) * 0.5, z - dz * width * 2.1),
-      new THREE.Vector3(x + dx * width * 0.4, y0, z - dz * width * 1.8),
-    ])
-    return strapGeo(curve, width, Math.max(0.008, width * 0.22))
-  }, [x, z, y0, y1, dx, dz, peak, width])
+    if (circular && sx > 0 && sz > 0) {
+      const rx = sx / 2
+      const rz = sz / 2
+      const rAvg = Math.max(0.2, (rx + rz) / 2)
+      const skin = Math.max(0.008, width * 0.28)
+      const belly = 0.07
+      const height = sy > 0 ? sy : y1
+      const arc = Math.max(endGap, width * 8)
+      const dTheta = arc / rAvg
+      const mid = Math.atan2(z, x)
+      const a1 = mid - dTheta / 2
+      const a2 = mid + dTheta / 2
+      const onWall = (angle: number, y: number, extra = 0) => {
+        const ny = Math.min(1, Math.max(0, y / Math.max(height, 0.001)))
+        const bulge = 1 + belly * Math.sin(Math.PI * ny)
+        let sag = 1
+        if (ny < 0.18) sag += (1 - ny / 0.18) * 0.04
+        return new THREE.Vector3(
+          Math.cos(angle) * (rx * bulge * sag + skin + extra),
+          y,
+          Math.sin(angle) * (rz * bulge * sag + skin + extra),
+        )
+      }
+      const bow = Math.max(0.06, peak * 0.22)
+      const yA = y0 + (y1 - y0) * 0.4
+      const yB = y0 + (y1 - y0) * 0.75
+      const curve = new THREE.CatmullRomCurve3([
+        onWall(a1, y0),
+        onWall(a1, yA),
+        onWall(a1, yB),
+        onWall(a1, y1),
+        onWall(a1, y1 + peak * 0.32, bow * 0.35),
+        onWall(mid, y1 + peak, bow),
+        onWall(a2, y1 + peak * 0.32, bow * 0.35),
+        onWall(a2, y1),
+        onWall(a2, yB),
+        onWall(a2, yA),
+        onWall(a2, y0),
+      ])
+      return strapGeo(curve, width, Math.max(0.008, width * 0.22))
+    }
+    return boxCornerLoopCurve({ x, z, y0, y1, width, above, endGap, sx, sz })
+  }, [circular, sx, sy, sz, x, z, y0, y1, peak, width, offset, endGap, above, dx, dz])
   useEffect(() => () => geometry.dispose(), [geometry])
   return (
     <mesh geometry={geometry} castShadow>
@@ -630,11 +848,6 @@ function OpenCollar({
         <boxGeometry args={[t, h, sz - t * 2]} />
         <Fabric color={color} />
       </mesh>
-      {/* Soft hem at collar rim */}
-      <mesh position={[0, sy + h - 0.01, 0]}>
-        <boxGeometry args={[sx * 0.98, 0.02, sz * 0.98]} />
-        <meshStandardMaterial color={shade(color, -18)} roughness={0.9} wireframe={false} transparent opacity={0.85} />
-      </mesh>
     </group>
   )
 }
@@ -648,14 +861,15 @@ function baffleAlphaMap() {
   ctx.fillStyle = "#ffffff"
   ctx.fillRect(0, 0, size, size)
   ctx.fillStyle = "#000000"
-  const cols = 2
-  const rows = 5
+  // Mill drawings show one vertical row of large flow apertures.
+  const cols = 1
+  const rows = 7
   for (let r = 0; r < rows; r += 1) {
     for (let c = 0; c < cols; c += 1) {
       const x = ((c + 0.5) / cols) * size
       const y = ((r + 0.5) / rows) * size
       ctx.beginPath()
-      ctx.ellipse(x, y, size * 0.12, size * 0.07, 0, 0, Math.PI * 2)
+      ctx.ellipse(x, y, size * 0.23, size * 0.055, 0, 0, Math.PI * 2)
       ctx.fill()
     }
   }
@@ -692,19 +906,28 @@ export function BaffleKit({
   return (
     <group>
       {panels.map((p, i) => (
-        <mesh key={i} position={[p.x, sy / 2, p.z]} rotation={[0, p.rot, 0]}>
-          <planeGeometry args={[depth, sy * 0.88]} />
-          <meshStandardMaterial
-            color={safeTint}
-            roughness={0.86}
-            transparent
-            opacity={0.78}
-            alphaMap={alpha ?? undefined}
-            alphaTest={0.35}
-            side={THREE.DoubleSide}
-            depthWrite={false}
-          />
-        </mesh>
+        <group key={i} position={[p.x, sy / 2, p.z]} rotation={[0, p.rot, 0]}>
+          <mesh>
+            <planeGeometry args={[depth, sy * 0.9]} />
+            <meshStandardMaterial
+              color={safeTint}
+              roughness={0.86}
+              transparent
+              opacity={0.82}
+              alphaMap={alpha ?? undefined}
+              alphaTest={0.35}
+              side={THREE.DoubleSide}
+              depthWrite={false}
+            />
+          </mesh>
+          {/* Sewn vertical edges where the baffle joins adjacent body walls. */}
+          {[-1, 1].map((side) => (
+            <mesh key={side} position={[side * depth * 0.49, 0, 0]}>
+              <boxGeometry args={[0.018, sy * 0.91, 0.018]} />
+              <meshStandardMaterial color={shade(safeTint, -36)} roughness={0.8} />
+            </mesh>
+          ))}
+        </group>
       ))}
     </group>
   )
@@ -814,6 +1037,55 @@ function Skirt({
   )
 }
 
+function makeSpoutDeckGeo(sx: number, sz: number, holeR: number, circular: boolean) {
+  const shape = new THREE.Shape()
+  if (circular) {
+    shape.absellipse(0, 0, sx * 0.5, sz * 0.5, 0, Math.PI * 2, false, 0)
+  } else {
+    const hx = sx * 0.5
+    const hz = sz * 0.5
+    shape.moveTo(-hx, -hz)
+    shape.lineTo(hx, -hz)
+    shape.lineTo(hx, hz)
+    shape.lineTo(-hx, hz)
+    shape.closePath()
+  }
+  const hole = new THREE.Path()
+  hole.absellipse(0, 0, holeR, holeR, 0, Math.PI * 2, true, 0)
+  shape.holes.push(hole)
+  const geo = new THREE.ShapeGeometry(shape, 36)
+  geo.rotateX(-Math.PI / 2)
+  geo.computeVertexNormals()
+  return geo
+}
+
+function SpoutDeck({
+  sx,
+  sy,
+  sz,
+  holeR,
+  color,
+  circular,
+}: {
+  sx: number
+  sy: number
+  sz: number
+  holeR: number
+  color: string
+  circular: boolean
+}) {
+  const geometry = useMemo(
+    () => makeSpoutDeckGeo(sx, sz, holeR, circular),
+    [sx, sz, holeR, circular],
+  )
+  useEffect(() => () => geometry.dispose(), [geometry])
+  return (
+    <mesh geometry={geometry} position={[0, sy + 0.003, 0]} receiveShadow>
+      <Fabric color={color} doubleSide />
+    </mesh>
+  )
+}
+
 export function FillingKit({
   sx,
   sy,
@@ -829,6 +1101,7 @@ export function FillingKit({
   conicalH,
   clearHandle = false,
   flapColor,
+  circular = false,
 }: {
   sx: number
   sy: number
@@ -844,8 +1117,8 @@ export function FillingKit({
   conicalH: number
   clearHandle?: boolean
   flapColor?: string
+  circular?: boolean
 }) {
-  const open = /^open$/i.test(topType.trim()) || /^open\s/i.test(topType.trim())
   const spout = /spout/i.test(topType)
   const skirt = /duffle|skrit|skirt|leno|jute|drawstring|top \+ skrit|oversize/i.test(topType)
   const conical = /conical/i.test(topType)
@@ -860,34 +1133,8 @@ export function FillingKit({
 
   return (
     <group>
-      {open && !clearHandle ? (
-        <group>
-          <mesh position={[0, sy - 0.12, 0]}>
-            <boxGeometry args={[sx * 0.76, 0.26, sz * 0.76]} />
-            <meshStandardMaterial color={shade(color, -62)} roughness={0.96} side={THREE.BackSide} />
-          </mesh>
-          <mesh position={[0, sy + 0.008, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[sx * 0.72, sz * 0.72]} />
-            <Fabric color={shade(color, -68)} />
-          </mesh>
-          <mesh position={[0, sy + 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[sx * 0.48, sz * 0.48]} />
-            <Fabric color={shade(color, -92)} />
-          </mesh>
-          {(
-            [
-              [0, sy + 0.02, sz * 0.4, sx * 0.84, 0.022, 0.055],
-              [0, sy + 0.02, -sz * 0.4, sx * 0.84, 0.022, 0.055],
-              [sx * 0.4, sy + 0.02, 0, 0.055, 0.022, sz * 0.84],
-              [-sx * 0.4, sy + 0.02, 0, 0.055, 0.022, sz * 0.84],
-            ] as const
-          ).map(([x, y, z, w, h, d], i) => (
-            <mesh key={i} position={[x, y, z]}>
-              <boxGeometry args={[w, h, d]} />
-              <Fabric color={color} />
-            </mesh>
-          ))}
-        </group>
+      {spout && !clearHandle ? (
+        <SpoutDeck sx={sx} sy={sy} sz={sz} holeR={shownSpoutR * 0.92} color={color} circular={circular} />
       ) : null}
       {skirt && !clearHandle ? (
         <Skirt
@@ -911,35 +1158,21 @@ export function FillingKit({
           <mesh position={[0, shownSpoutH / 2, 0]} castShadow>
             <cylinderGeometry
               args={[
-                shownSpoutR * (petal ? 0.78 : 0.9),
+                shownSpoutR * (petal ? 0.78 : 0.92),
                 shownSpoutR,
                 shownSpoutH,
                 28,
                 1,
-                Boolean(petal && !clearHandle),
+                !clearHandle,
               ]}
             />
-            <Fabric color={color} doubleSide={Boolean(petal && !clearHandle)} />
+            <Fabric color={color} doubleSide={!clearHandle} />
           </mesh>
           {petal && !clearHandle ? (
-            <>
-              <mesh position={[0, shownSpoutH * 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <circleGeometry args={[shownSpoutR * 0.76, 20]} />
-                <meshStandardMaterial color="#161410" roughness={1} />
-              </mesh>
-              <Petals radius={shownSpoutR * 1.05} height={shownSpoutH} color={color} bagSpan={span} />
-            </>
+            <Petals radius={shownSpoutR * 1.05} height={shownSpoutH} color={color} bagSpan={span} />
           ) : null}
           {iris && !clearHandle ? <Iris radius={shownSpoutR * 1.05} height={shownSpoutH} strap={strap} /> : null}
-          {!petal && !iris && !clearHandle ? (
-            <>
-              <mesh position={[0, shownSpoutH + 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <circleGeometry args={[shownSpoutR * 0.9, 20]} />
-                <Fabric color={shade(color, -8)} />
-              </mesh>
-              <SpoutTies radius={shownSpoutR} height={shownSpoutH} strap={strap} />
-            </>
-          ) : null}
+          {!petal && !iris && !clearHandle ? <SpoutTies radius={shownSpoutR} height={shownSpoutH} strap={strap} /> : null}
         </group>
       ) : null}
       {flap && !clearHandle ? (
@@ -1044,15 +1277,32 @@ export function DischargeKit({
   )
 }
 
-function StevedoreStrap({ x, z, sy, color }: { x: number; z: number; sy: number; color: string }) {
+function StevedoreStrap({
+  start,
+  end,
+  y,
+  color,
+  width,
+}: {
+  start: [number, number]
+  end: [number, number]
+  y: number
+  color: string
+  width: number
+}) {
   const geometry = useMemo(() => {
+    const [x1, z1] = start
+    const [x2, z2] = end
+    const mx = (x1 + x2) / 2
+    const mz = (z1 + z2) / 2
+    const span = Math.hypot(x2 - x1, z2 - z1)
     const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(x, sy * 0.9, z),
-      new THREE.Vector3(x * 0.42, sy + 0.16, z * 0.42),
-      new THREE.Vector3(0, sy + 0.4, 0),
+      new THREE.Vector3(x1, y, z1),
+      new THREE.Vector3(mx, y + Math.min(0.12, span * 0.08), mz),
+      new THREE.Vector3(x2, y, z2),
     ])
-    return strapGeo(curve, 0.04, 0.009)
-  }, [x, z, sy])
+    return strapGeo(curve, width, Math.max(0.008, width * 0.2))
+  }, [start, end, y, width])
   useEffect(() => () => geometry.dispose(), [geometry])
   return (
     <mesh geometry={geometry} castShadow>
@@ -1077,10 +1327,14 @@ export function LoopKit({
   dropLoop,
   stevedore,
   stevedorePortion,
+  stevedoreColor,
+  tunnelEnabled = false,
+  tunnelColor,
   protector,
   loopAbove = 0.3,
   sewDown = 0.35,
   strapWidth = 0.05,
+  crossEndGap = 0.2,
 }: {
   sx: number
   sy: number
@@ -1097,15 +1351,19 @@ export function LoopKit({
   dropLoop: boolean
   stevedore: boolean
   stevedorePortion: string
+  stevedoreColor?: string
+  tunnelEnabled?: boolean
+  tunnelColor?: string
   protector: boolean
   loopAbove?: number
   sewDown?: number
   strapWidth?: number
+  crossEndGap?: number
 }) {
   const c = construction.replace(/[-\s+/]/g, "").toLowerCase()
   const style = bodyStyle.toLowerCase()
   const hood = c.includes("hood") || style.includes("hood")
-  const tunnel = style.includes("tunnel") || c.includes("tunnel")
+  const tunnel = tunnelEnabled || style.includes("tunnel") || c.includes("tunnel")
   const sleeve = style.includes("sleeve") || c.includes("sleeve")
   const single = c === "singleloop"
   const double = c === "doubleloop"
@@ -1118,10 +1376,12 @@ export function LoopKit({
   const cornerKind = /corner/i.test(loopKind) && !cross
   const above = Math.max(0.12, loopAbove)
   const down = tillBottom || full ? sy * 0.92 : Math.min(sy * 0.55, Math.max(above * 0.9, sewDown))
-  const y0Corner = sy - down
-  const y0Cross = tillBottom || full ? 0.06 : sy - down
   const y1 = sy + 0.01
+  const y0Corner = tillBottom ? 0.06 : Math.max(sy * 0.93, y1 - 0.045)
+  const y0Cross = tillBottom || full ? 0.06 : sy - down
   const width = Math.max(0.028, strapWidth)
+  const loopGap = Math.max(crossEndGap, Math.min(sx, sz) * 0.16)
+  const cornerGap = Math.max(0.22, Math.min(sx, sz) * 0.14)
   const inset = 0.02
   const boxCorners: [number, number][] = [
     [sx / 2 - inset, sz / 2 - inset],
@@ -1130,7 +1390,7 @@ export function LoopKit({
     [-sx / 2 + inset, -sz / 2 + inset],
   ]
   const roundCorners: [number, number][] = [Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4].map(
-    (angle) => [(sx / 2) * 0.92 * Math.cos(angle), (sz / 2) * 0.92 * Math.sin(angle)],
+    (angle) => [(sx / 2) * Math.cos(angle), (sz / 2) * Math.sin(angle)],
   )
   const corners = circular ? roundCorners : boxCorners
   const mids: [number, number][] = [
@@ -1157,18 +1417,26 @@ export function LoopKit({
   const showCross = !none && !liftBag && !hood && (cross || full)
   const cornerSet = (showCorner || showCross ? corners : []).slice(0, single4 || double4 ? 4 : nCorner)
   const portion = stevedorePortion.toLowerCase()
-  const stevePoints: [number, number][] =
-    portion === "width"
-      ? [
-          [0, sz / 2 - inset],
-          [0, -sz / 2 + inset],
-        ]
-      : portion === "length"
-        ? [
-            [sx / 2 - inset, 0],
-            [-sx / 2 + inset, 0],
-          ]
-        : corners
+  const steveY = sy + above * 0.55
+  const steveColor = stevedoreColor || strap
+  const steveWidth = Math.max(width * 0.75, 0.025)
+  const lengthBridges: [[number, number], [number, number]][] = [
+    [[-sx / 2 + inset, sz / 2 - inset], [sx / 2 - inset, sz / 2 - inset]],
+    [[-sx / 2 + inset, -sz / 2 + inset], [sx / 2 - inset, -sz / 2 + inset]],
+  ]
+  const widthBridges: [[number, number], [number, number]][] = [
+    [[sx / 2 - inset, -sz / 2 + inset], [sx / 2 - inset, sz / 2 - inset]],
+    [[-sx / 2 + inset, -sz / 2 + inset], [-sx / 2 + inset, sz / 2 - inset]],
+  ]
+  const diagonalBridges: [[number, number], [number, number]][] = [
+    [[-sx / 2 + inset, -sz / 2 + inset], [sx / 2 - inset, sz / 2 - inset]],
+    [[-sx / 2 + inset, sz / 2 - inset], [sx / 2 - inset, -sz / 2 + inset]],
+  ]
+  const steveBridges = portion.includes("width")
+    ? widthBridges
+    : portion.includes("length") || portion.includes("lenght")
+      ? lengthBridges
+      : diagonalBridges
   const span = Math.min(sx, sz)
   const extraLoops =
     multi && loopCount > 4
@@ -1189,7 +1457,20 @@ export function LoopKit({
       {showCorner
         ? cornerSet.map(([x, z]) => (
             <group key={`corner-${x}-${z}`}>
-              <FaceSlackLoop x={x} z={z} y0={y0Corner} y1={y1} color={strap} above={above} width={width} />
+              <FaceSlackLoop
+                x={x}
+                z={z}
+                y0={y0Corner}
+                y1={y1}
+                color={strap}
+                above={above}
+                width={width}
+                endGap={cornerGap}
+                circular={circular}
+                sx={sx}
+                sy={sy}
+                sz={sz}
+              />
               {protector ? (
                 <mesh position={[x, y0Corner + down * 0.15, z]}>
                   <boxGeometry args={[width * 3.5, Math.max(0.06, down * 0.25), 0.04]} />
@@ -1201,21 +1482,49 @@ export function LoopKit({
         : null}
       {showCross
         ? cornerSet.map(([x, z]) => (
-            <SlackLoop key={`cross-${x}-${z}`} x={x} z={z} y0={y0Cross} y1={y1} color={strap} above={above} width={width} />
+            <SlackLoop
+              key={`cross-${x}-${z}`}
+              x={x}
+              z={z}
+              y0={y0Cross}
+              y1={y1}
+              color={strap}
+              above={above}
+              width={width}
+              endGap={loopGap}
+              circular={circular}
+              sx={sx}
+              sy={sy}
+              sz={sz}
+            />
           ))
         : null}
       {extraLoops.map(([x, z]) => (
-        <FaceSlackLoop key={`extra-${x}-${z}`} x={x} z={z} y0={y0Corner} y1={y1} color={strap} above={above} width={width} />
+        <FaceSlackLoop
+          key={`extra-${x}-${z}`}
+          x={x}
+          z={z}
+          y0={y0Corner}
+          y1={y1}
+          color={strap}
+          above={above}
+          width={width}
+          endGap={cornerGap}
+          circular={circular}
+          sx={sx}
+          sy={sy}
+          sz={sz}
+        />
       ))}
       {tunnel || sleeve ? (
         <group>
           <mesh position={[0, sy * 0.88, sz / 2 + 0.08]} rotation={[0, 0, Math.PI / 2]}>
             <cylinderGeometry args={[0.07, 0.07, sx * 0.72, 16, 1, true]} />
-            <Fabric color={shade(color, -8)} doubleSide />
+            <Fabric color={tunnelColor || shade(color, -8)} doubleSide />
           </mesh>
           <mesh position={[0, sy * 0.88, -sz / 2 - 0.08]} rotation={[0, 0, Math.PI / 2]}>
             <cylinderGeometry args={[0.07, 0.07, sx * 0.72, 16, 1, true]} />
-            <Fabric color={shade(color, -8)} doubleSide />
+            <Fabric color={tunnelColor || shade(color, -8)} doubleSide />
           </mesh>
         </group>
       ) : null}
@@ -1230,13 +1539,16 @@ export function LoopKit({
       ) : null}
       {stevedore ? (
         <group>
-          {stevePoints.map(([x, z]) => (
-            <StevedoreStrap key={`st-${x}-${z}`} x={x} z={z} sy={sy} color={strap} />
+          {steveBridges.map(([start, end], index) => (
+            <StevedoreStrap
+              key={`st-${index}`}
+              start={start}
+              end={end}
+              y={steveY}
+              color={steveColor}
+              width={steveWidth}
+            />
           ))}
-          <mesh position={[0, sy + 0.41, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[0.055, 0.016, 8, 16]} />
-            <Webbing color={strap} />
-          </mesh>
         </group>
       ) : null}
       {dropLoop && !liftBag ? (
