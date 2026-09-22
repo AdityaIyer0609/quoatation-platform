@@ -568,33 +568,69 @@ export function FaceSlackLoop({
   sy?: number
   sz?: number
 }) {
+  const yaw = Math.atan2(x, z)
+  const peak = Math.max(0.22, above * 1.15)
+  const xAbs = sx > 0 ? sx / 2 : Math.abs(x)
+  const zAbs = sz > 0 ? sz / 2 : Math.abs(z)
+  const dx = Math.sign(x) || 1
+  const dz = Math.sign(z) || 1
+  const geometry = useMemo(() => {
+    const hole = Math.max(0.07, Math.min(peak * 0.48, width * 3.4))
+    const join = Math.max(0.006, width * 0.22)
+    const hug = 0.008
+    if (circular && sx > 0 && sz > 0) {
+      const rx = sx / 2
+      const rz = sz / 2
+      const rAvg = Math.max(0.2, (rx + rz) / 2)
+      const height = sy > 0 ? sy : y1
+      const mid = Math.atan2(z, x)
+      const joinA = join / rAvg
+      const holeA = hole / rAvg
+      const onWall = (angle: number, y: number, extra = 0) => {
+        const ny = Math.min(1, Math.max(0, y / Math.max(height, 0.001)))
+        const bulge = 1 + 0.07 * Math.sin(Math.PI * ny)
+        return new THREE.Vector3(
+          Math.cos(angle) * (rx * bulge + hug + extra),
+          y,
+          Math.sin(angle) * (rz * bulge + hug + extra),
+        )
+      }
+      const curve = new THREE.CatmullRomCurve3([
+        onWall(mid - joinA, y0),
+        onWall(mid - joinA, y1),
+        onWall(mid - holeA, y1 + peak * 0.52, 0.012),
+        onWall(mid, y1 + peak, 0.01),
+        onWall(mid + holeA, y1 + peak * 0.52, 0.012),
+        onWall(mid + joinA, y1),
+        onWall(mid + joinA, y0),
+      ])
+      return strapGeo(curve, width, Math.max(0.008, width * 0.22))
+    }
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-join, y0, hug),
+      new THREE.Vector3(-join, y1, hug),
+      new THREE.Vector3(-hole, y1 + peak * 0.52, hug),
+      new THREE.Vector3(0, y1 + peak, hug),
+      new THREE.Vector3(hole, y1 + peak * 0.52, hug),
+      new THREE.Vector3(join, y1, hug),
+      new THREE.Vector3(join, y0, hug),
+    ])
+    return strapGeo(curve, width, Math.max(0.008, width * 0.22))
+  }, [circular, sx, sy, sz, x, z, y0, y1, peak, width])
+  useEffect(() => () => geometry.dispose(), [geometry])
   if (circular) {
     return (
-      <SlackLoop
-        x={x}
-        z={z}
-        y0={y0}
-        y1={y1}
-        color={color}
-        above={above}
-        width={width}
-        endGap={endGap}
-        circular
-        sx={sx}
-        sy={sy}
-        sz={sz}
-      />
+      <mesh geometry={geometry} castShadow>
+        <Webbing color={color} />
+      </mesh>
     )
   }
-  const geometry = useMemo(
-    () => boxCornerLoopCurve({ x, z, y0, y1, width, above, endGap, sx, sz }),
-    [x, z, y0, y1, width, above, endGap, sx, sz],
-  )
-  useEffect(() => () => geometry.dispose(), [geometry])
   return (
-    <mesh geometry={geometry} castShadow>
-      <Webbing color={color} />
-    </mesh>
+    <group position={[dx * xAbs, 0, dz * zAbs]} rotation={[0, yaw, 0]}>
+      <mesh geometry={geometry} castShadow>
+        <Webbing color={color} />
+      </mesh>
+    </group>
   )
 }
 
