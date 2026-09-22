@@ -79,15 +79,15 @@ export default function QuoteReady() {
       </div>
 
       <div className="mb-5 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
-        <div className="border-b border-[var(--border)] bg-[var(--navy)] px-6 py-5">
+        <div className="border-b border-[var(--border)] bg-[var(--navy)] px-6 py-5 text-[var(--primary-foreground)]">
           <div className="flex items-start justify-between">
             <div>
-              <div className="font-heading mb-1 text-xs text-white/60">QUOTATION</div>
-              <div className="font-heading text-xl font-bold text-white">{quote.number}</div>
+              <div className="font-heading mb-1 text-xs text-[color-mix(in_srgb,var(--primary-foreground)_60%,transparent)]">QUOTATION</div>
+              <div className="font-heading text-xl font-bold">{quote.number}</div>
             </div>
             <div className="text-right">
-              <div className="mb-1 text-xs text-white/60">Valid until</div>
-              <div className="text-sm font-medium text-white">{quote.validUntil}</div>
+              <div className="mb-1 text-xs text-[color-mix(in_srgb,var(--primary-foreground)_60%,transparent)]">Valid until</div>
+              <div className="text-sm font-medium">{quote.validUntil}</div>
             </div>
           </div>
         </div>

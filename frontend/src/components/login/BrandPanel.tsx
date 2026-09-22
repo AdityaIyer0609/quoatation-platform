@@ -9,32 +9,34 @@ export function BrandPanel() {
       </div>
       <div className="relative z-10">
         <div className="mb-16 flex items-center gap-3">
-          <QuoteCraftMark inverted className="size-9 rounded-2xl text-sm shadow-[0_10px_24px_rgba(0,0,0,0.2)]" />
-          <span className="font-heading text-base font-semibold text-white">QuoteCraft</span>
+          <QuoteCraftMark className="size-10" />
+          <span className="font-heading text-base font-semibold text-[var(--on-brand)]">
+            HCP Plastene Bulkpack Limited
+          </span>
         </div>
-        <h1 className="font-heading mb-4 text-4xl font-bold leading-[1.15] text-white">
+        <h1 className="font-heading mb-4 text-4xl font-bold leading-[1.15] text-[var(--on-brand)]">
           Configure.
           <br />
           Quote.
           <br />
           Deliver.
         </h1>
-        <p className="text-sm leading-relaxed text-white/60">
+        <p className="text-sm leading-relaxed text-[var(--on-brand-muted)]">
           Request accurate quotations for industrial packaging in minutes, not days.
         </p>
       </div>
 
-      <div className="relative z-10 border-t border-white/10 pt-8">
-        <p className="mb-4 text-sm leading-relaxed text-white/70 italic">
+      <div className="relative z-10 border-t border-[color-mix(in_srgb,var(--on-brand)_16%,transparent)] pt-8">
+        <p className="mb-4 text-sm leading-relaxed text-[var(--on-brand-muted)] italic">
           &ldquo;What used to take three back-and-forth emails now takes under five minutes. Our procurement team saves hours every week.&rdquo;
         </p>
         <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-full bg-white/20 text-xs font-semibold text-white">
+          <div className="flex size-9 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--on-brand)_14%,transparent)] text-xs font-semibold text-[var(--on-brand)]">
             RV
           </div>
           <div>
-            <div className="text-xs font-medium text-white">Rahul Verma</div>
-            <div className="text-[11px] text-white/50">Procurement Manager, Agro Industries Ltd.</div>
+            <div className="text-xs font-medium text-[var(--on-brand)]">Rahul Verma</div>
+            <div className="text-[11px] text-[var(--on-brand-muted)]">Procurement Manager, Agro Industries Ltd.</div>
           </div>
         </div>
       </div>

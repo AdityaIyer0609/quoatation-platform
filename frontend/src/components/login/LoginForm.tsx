@@ -84,7 +84,7 @@ export function LoginForm({
         <Button
           type="submit"
           disabled={loading}
-          className="mt-2 h-auto w-full gap-2 rounded-2xl bg-[var(--navy)] py-3 font-heading text-sm font-semibold text-white shadow-[var(--shadow-navy)] hover:bg-[var(--navy-hover)] disabled:bg-[var(--navy-muted)]"
+          className="mt-2 h-auto w-full gap-2 rounded-2xl bg-[var(--navy)] py-3 font-heading text-sm font-semibold text-[var(--primary-foreground)] shadow-[var(--shadow-navy)] hover:bg-[var(--navy-hover)] disabled:bg-[var(--navy-muted)]"
         >
           {loading ? (
             <>

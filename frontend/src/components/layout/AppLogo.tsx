@@ -6,13 +6,13 @@ import { cn } from "@/lib/utils"
 export function AppLogo({ compact = false }: { compact?: boolean }) {
   return (
     <Link to="/dashboard" className="flex items-center gap-2.5">
-      <QuoteCraftMark className={cn(compact ? "size-6 text-xs" : "size-7 text-xs")} />
-      <div className={compact ? undefined : "leading-tight"}>
-        <div className="font-heading text-sm font-semibold text-[var(--text)]">
-          QuoteCraft
-        </div>
+      <QuoteCraftMark className={cn(compact ? "size-8" : "size-9")} />
+      <div className={compact ? "min-w-0" : "min-w-0 leading-tight"}>
+        <div className="font-heading text-sm font-semibold text-[var(--text)]">HPBL</div>
         {!compact && (
-          <div className="text-[10px] font-semibold text-[var(--navy-muted)]">Manufacturing</div>
+          <div className="text-[10px] font-semibold leading-snug text-[var(--navy-muted)]">
+            HCP Plastene Bulkpack Limited
+          </div>
         )}
       </div>
     </Link>

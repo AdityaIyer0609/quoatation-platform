@@ -325,37 +325,37 @@ export default function QuoteDetails() {
 
         <div className="space-y-5">
           <div className="overflow-hidden rounded-3xl bg-[var(--navy)] shadow-[var(--shadow-navy)]">
-            <div className="px-5 py-5">
-              <div className="font-heading mb-3 text-xs text-white/60">TOTAL QUOTATION</div>
+            <div className="px-5 py-5 text-[var(--primary-foreground)]">
+              <div className="font-heading mb-3 text-xs text-[color-mix(in_srgb,var(--primary-foreground)_60%,transparent)]">TOTAL QUOTATION</div>
               {quote.pricing.requiresManualPricing || quote.pricing.unitPrice == null ? (
                 <>
-                  <div className="font-heading mb-1 text-2xl font-bold text-white">Manual pricing</div>
-                  <div className="text-xs text-white/50">Book4 could not complete an automatic USD price.</div>
+                  <div className="font-heading mb-1 text-2xl font-bold">Manual pricing</div>
+                  <div className="text-xs text-[color-mix(in_srgb,var(--primary-foreground)_50%,transparent)]">Book4 could not complete an automatic USD price.</div>
                 </>
               ) : (
                 <>
-                  <div className="font-heading mb-1 text-3xl font-bold text-white">
+                  <div className="font-heading mb-1 text-3xl font-bold">
                     {formatUsd(quote.pricing.totalAmount as number)}
                   </div>
-                  <div className="text-xs text-white/50">
+                  <div className="text-xs text-[color-mix(in_srgb,var(--primary-foreground)_50%,transparent)]">
                     {formatQty(quote.pricing.quantity)} units · {formatUsd(quote.pricing.unitPrice as number)}/unit
                   </div>
                 </>
               )}
-              <div className="mt-5 space-y-2 border-t border-white/10 pt-4">
+              <div className="mt-5 space-y-2 border-t border-[color-mix(in_srgb,var(--primary-foreground)_12%,transparent)] pt-4">
                 <div className="flex justify-between text-xs">
-                  <span className="text-white/60">Est. weight</span>
-                  <span className="font-quote-mono font-medium text-white">
+                  <span className="text-[color-mix(in_srgb,var(--primary-foreground)_60%,transparent)]">Est. weight</span>
+                  <span className="font-quote-mono font-medium">
                     {formatQty(quote.pricing.totalKg)} kg
                   </span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-white/60">Delivery</span>
-                  <span className="font-medium text-white">{spec.deliveryLocation}</span>
+                  <span className="text-[color-mix(in_srgb,var(--primary-foreground)_60%,transparent)]">Delivery</span>
+                  <span className="font-medium">{spec.deliveryLocation}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-white/60">Valid until</span>
-                  <span className="font-medium text-white">{quote.validUntil}</span>
+                  <span className="text-[color-mix(in_srgb,var(--primary-foreground)_60%,transparent)]">Valid until</span>
+                  <span className="font-medium">{quote.validUntil}</span>
                 </div>
               </div>
               {canAct && (

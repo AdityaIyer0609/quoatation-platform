@@ -7,20 +7,20 @@ body,
 }
 
 :root {
-  --navy: #1a3c5e;
-  --navy-hover: #15304d;
-  --navy-muted: #3b6491;
-  --navy-bg: #edf2f8;
-  --navy-border: #c5d5e8;
-  --bg: #f3eee6;
-  --surface: #faf7f2;
-  --elevated: #fdfbf8;
+  --navy: #1e7a32;
+  --navy-hover: #186628;
+  --navy-muted: #3d9a4a;
+  --navy-bg: #e6f3e8;
+  --navy-border: #b7d9bc;
+  --bg: #f3f8f3;
+  --surface: #fafcfa;
+  --elevated: #ffffff;
   --knob: #ffffff;
-  --border: #e4ddd4;
-  --border-strong: #d4cbc0;
-  --text: #111110;
-  --text-secondary: #6b6b68;
-  --text-muted: #9b9b97;
+  --border: #d7e6d9;
+  --border-strong: #b9cfbc;
+  --text: #1a3d1c;
+  --text-secondary: #4a6b4e;
+  --text-muted: #6e8b72;
   --success: #16a34a;
   --success-bg: #f0fdf4;
   --success-border: #bbf7d0;
@@ -30,21 +30,24 @@ body,
   --error: #dc2626;
   --error-bg: #fef2f2;
   --error-border: #fecaca;
-  --shadow: 0 8px 24px rgba(90, 72, 52, 0.07);
-  --shadow-md: 0 14px 40px rgba(90, 72, 52, 0.1);
-  --shadow-lg: 0 22px 60px rgba(90, 72, 52, 0.14);
-  --shadow-navy: 0 12px 28px rgba(26, 60, 94, 0.24);
-  --header-grad: linear-gradient(180deg, #faf7f2 0%, #f6f1ea 100%);
-  --brand-panel: #1a3c5e;
-  --hero: linear-gradient(135deg, #163552 0%, #1a3c5e 48%, #3b6491 100%);
-  --glow-1: rgba(26, 60, 94, 0.12);
-  --glow-2: rgba(196, 165, 116, 0.1);
-  --atmosphere-a: rgba(148, 130, 108, 0.1);
-  --atmosphere-b: rgba(160, 144, 122, 0.07);
-  --atmosphere-c: rgba(132, 116, 96, 0.08);
-  --stat-wash: linear-gradient(155deg, #c9d9ec 0%, #edf2f8 48%, #e6dfcf 100%);
+  --shadow: 0 8px 24px rgba(30, 122, 50, 0.08);
+  --shadow-md: 0 14px 40px rgba(30, 122, 50, 0.1);
+  --shadow-lg: 0 22px 60px rgba(30, 122, 50, 0.12);
+  --shadow-navy: 0 12px 28px rgba(30, 122, 50, 0.28);
+  --header-grad: linear-gradient(180deg, #fafcfa 0%, #f3f8f3 100%);
+  --brand-panel: #1e7a32;
+  --hero: linear-gradient(135deg, #2a9440 0%, #1e7a32 52%, #d8edd9 100%);
+  --hero-fg: #f4fbf4;
+  --on-brand: #f4fbf4;
+  --on-brand-muted: rgba(244, 251, 244, 0.7);
+  --glow-1: rgba(30, 122, 50, 0.22);
+  --glow-2: rgba(61, 154, 74, 0.14);
+  --atmosphere-a: rgba(30, 122, 50, 0.1);
+  --atmosphere-b: rgba(61, 154, 74, 0.08);
+  --atmosphere-c: rgba(24, 102, 40, 0.08);
+  --stat-wash: linear-gradient(155deg, #d8edd9 0%, #f3f8f3 48%, #fafcfa 100%);
   --stat-shine: rgba(255, 255, 255, 0.78);
-  --stat-shine-edge: rgba(26, 60, 94, 0.12);
+  --stat-shine-edge: rgba(30, 122, 50, 0.16);
   --background: var(--bg);
   --foreground: var(--text);
   --card: var(--surface);
@@ -52,7 +55,7 @@ body,
   --popover: var(--surface);
   --popover-foreground: var(--text);
   --primary: var(--navy);
-  --primary-foreground: #ffffff;
+  --primary-foreground: #f4fbf4;
   --muted: var(--navy-bg);
   --muted-foreground: var(--text-secondary);
   --accent: var(--navy-bg);
@@ -92,6 +95,9 @@ html.dark {
   --header-grad: linear-gradient(180deg, #1a2433 0%, #131b26 100%);
   --brand-panel: #0e1622;
   --hero: linear-gradient(135deg, #101826 0%, #1a2e44 48%, #2d4f73 100%);
+  --hero-fg: #ffffff;
+  --on-brand: #ffffff;
+  --on-brand-muted: rgba(255, 255, 255, 0.62);
   --glow-1: rgba(110, 163, 212, 0.16);
   --glow-2: rgba(232, 213, 168, 0.07);
   --atmosphere-a: rgba(79, 134, 188, 0.24);
@@ -155,8 +161,8 @@ html.dark {
 }
 
 html:not(.dark) .brand-app {
-  background-color: #f3eee6;
-  background-image: radial-gradient(ellipse 58% 50% at 50% 36%, rgba(255, 252, 248, 0.28) 0%, transparent 68%);
+  background-color: #f3f8f3;
+  background-image: radial-gradient(ellipse 58% 50% at 50% 36%, rgba(255, 255, 255, 0.45) 0%, transparent 68%);
 }
 
 html:not(.dark) .brand-app::before {
@@ -165,8 +171,8 @@ html:not(.dark) .brand-app::before {
   mix-blend-mode: multiply;
   background-image: none;
   background:
-    linear-gradient(62deg, transparent 4%, rgba(204, 168, 118, 0.42) 24%, transparent 44%),
-    linear-gradient(118deg, transparent 40%, rgba(204, 168, 118, 0.44) 64%, transparent 86%);
+    linear-gradient(62deg, transparent 4%, rgba(30, 122, 50, 0.16) 24%, transparent 44%),
+    linear-gradient(118deg, transparent 40%, rgba(30, 122, 50, 0.14) 64%, transparent 86%);
   -webkit-mask-image: none;
   mask-image: none;
 }
@@ -180,9 +186,9 @@ html:not(.dark) .brand-app::after {
   background-size: auto;
   background-repeat: no-repeat;
   background:
-    radial-gradient(ellipse 88% 58% at 110% 6%, rgba(196, 164, 118, 0.46) 0%, transparent 60%),
-    radial-gradient(ellipse 88% 58% at -10% 8%, rgba(196, 164, 118, 0.42) 0%, transparent 60%),
-    radial-gradient(ellipse 70% 45% at 50% 108%, rgba(196, 164, 118, 0.22) 0%, transparent 58%);
+    radial-gradient(ellipse 88% 58% at 110% 6%, rgba(30, 122, 50, 0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 88% 58% at -10% 8%, rgba(61, 154, 74, 0.16) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 45% at 50% 108%, rgba(30, 122, 50, 0.1) 0%, transparent 58%);
   -webkit-mask-image: none;
   mask-image: none;
   animation: qc-aurora 52s ease-in-out infinite alternate;
@@ -310,7 +316,7 @@ option {
 }
 
 .qc-crumb-now {
-  color: #fff;
+  color: var(--primary-foreground);
   background: var(--navy);
   border: 1px solid var(--navy);
   box-shadow: var(--shadow-navy);
@@ -322,7 +328,7 @@ option {
   border-radius: 1.75rem;
   background: var(--hero);
   padding: 1.6rem 1.7rem;
-  color: #fff;
+  color: var(--hero-fg);
   box-shadow: var(--shadow-lg);
 }
 
@@ -501,7 +507,7 @@ html.dark .qc-stat {
   gap: 0.5rem;
   border-radius: 1rem;
   background: var(--navy);
-  color: #fff;
+  color: var(--primary-foreground);
   font-weight: 600;
   box-shadow: var(--shadow-navy);
   transition: transform 0.18s ease, background 0.18s ease;
@@ -514,8 +520,8 @@ html.dark .qc-stat {
 
 .qc-btn-on-hero {
   background: #fff;
-  color: #163552;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  color: #1e7a32;
+  box-shadow: 0 10px 24px rgba(30, 122, 50, 0.18);
   animation: qc-btn-glow 3.2s ease-in-out infinite;
 }
 
@@ -544,7 +550,7 @@ html.dark .qc-btn-on-hero {
 .qc-chip-on {
   background: var(--navy);
   border-color: var(--navy);
-  color: #fff;
+  color: var(--primary-foreground);
   box-shadow: var(--shadow-navy);
 }
 
@@ -574,13 +580,17 @@ html.dark .qc-btn-on-hero {
 
 .qc-nav-cta {
   background: var(--navy);
-  color: #fff;
+  color: var(--primary-foreground);
   box-shadow: var(--shadow-navy);
 }
 
 .qc-nav-cta:hover {
   background: var(--navy-hover);
-  color: #fff;
+  color: var(--primary-foreground);
+}
+
+html:not(.dark) .bg-\[var\(--navy\)\] {
+  color: #f4fbf4;
 }
 
 .qc-stagger > * {

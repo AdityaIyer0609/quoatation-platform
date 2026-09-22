@@ -56,8 +56,10 @@ export default function Login() {
       <div className="flex flex-1 items-center justify-center p-8">
         <div className="qc-card qc-rise w-full max-w-[400px] p-8 sm:p-9">
           <div className="mb-10 flex items-center gap-2.5 lg:hidden">
-            <QuoteCraftMark className="size-7 text-xs" />
-            <span className="font-heading text-sm font-semibold">QuoteCraft</span>
+            <QuoteCraftMark className="size-8" />
+            <span className="font-heading text-sm font-semibold leading-tight">
+              HCP Plastene Bulkpack Limited
+            </span>
           </div>
 
           {view === "sign-in" ? (
@@ -95,7 +97,7 @@ export default function Login() {
 
           <div className="mt-12 flex items-center gap-4 border-t border-[var(--border)] pt-6">
             <span className="text-[11px] text-[var(--text-muted)]">
-              © 2025 QuoteCraft Manufacturing
+              © 2025 HCP Plastene Bulkpack Limited
             </span>
             <a href="#" className="text-[11px] text-[var(--text-muted)]">
               Privacy

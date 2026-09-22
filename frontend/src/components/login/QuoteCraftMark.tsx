@@ -5,16 +5,12 @@ type QuoteCraftMarkProps = {
   inverted?: boolean
 }
 
-export function QuoteCraftMark({ className, inverted = false }: QuoteCraftMarkProps) {
+export function QuoteCraftMark({ className }: QuoteCraftMarkProps) {
   return (
-    <div
-      className={cn(
-        "flex items-center justify-center rounded-2xl font-heading font-bold text-white",
-        inverted ? "bg-white/20" : "bg-[var(--navy)]",
-        className
-      )}
-    >
-      Q
-    </div>
+    <img
+      src="/logo.png"
+      alt="HCP Plastene Bulkpack Limited"
+      className={cn("size-8 object-contain", className)}
+    />
   )
 }
