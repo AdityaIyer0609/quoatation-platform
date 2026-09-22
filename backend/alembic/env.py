@@ -8,6 +8,7 @@ from app.db.base import Base
 from app.models import (  # noqa: F401
     AuditEvent,
     Customer,
+    PricingBook,
     PricingSnapshot,
     Quote,
     QuoteStatusHistory,

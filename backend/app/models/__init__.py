@@ -195,6 +195,20 @@ class PricingSnapshot(Base):
     version: Mapped[QuoteVersion | None] = relationship(back_populates="pricing_snapshots")
 
 
+class PricingBook(Base):
+    __tablename__ = "pricing_books"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(80), default="Book4")
+    rule_version: Mapped[str] = mapped_column(String(80), default="book4-16-04-26")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    payload: Mapped[dict] = mapped_column(JsonType)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    updated_by_id: Mapped[int | None] = mapped_column(ForeignKey("staff_users.id"), nullable=True)
+    updated_by_name: Mapped[str] = mapped_column(String(160), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class AuditEvent(Base):
     __tablename__ = "audit_events"
 

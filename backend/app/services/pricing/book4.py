@@ -129,3 +129,43 @@ ADDONS = {
     "Baffle Liner Bag PE": {"rate": 4000.0, "unit": "per_ton", "plus_rm": "PE", "bom_heading": "Liner"},
     "Net Baffle (PP-$1600)": {"rate": 4700.0, "unit": "per_ton", "plus_rm": "PP", "bom_heading": None},
 }
+
+
+def default_book_payload() -> dict:
+    """Serializable Book4 sheet used as the starting pricing formula."""
+    return {
+        "ruleVersion": RULE_VERSION,
+        "ppPlatts": PP_PLATTS,
+        "ppFob": PP_FOB,
+        "ppUv": PP_UV,
+        "peRmPerT": PE_RM_PER_T,
+        "uPanelXCornerExtra": 75,
+        "surcharges": {
+            "usa": SURCHARGE_USA,
+            "foodGrade": SURCHARGE_FOOD_GRADE,
+            "shuttle8": SURCHARGE_SHUTTLE_8,
+            "attachment1": SURCHARGE_ATTACHMENT_1,
+            "attachment2": SURCHARGE_ATTACHMENT_2,
+            "twoLoop": SURCHARGE_TWO_LOOP,
+        },
+        "typeCExtra": dict(TYPE_C_EXTRA),
+        "minKg": dict(MIN_KG),
+        "conversionRows": [
+            {"design": design, "loops": loops, "complication": complication, "rate": rate}
+            for design, loops, complication, rate in CONVERSION_ROWS
+        ],
+        "printMatrix": {
+            band: dict(values) for band, values in PRINT_MATRIX.items()
+        },
+        "printTypeMap": dict(PRINT_TYPE_MAP),
+        "addons": [
+            {
+                "name": name,
+                "rate": meta["rate"],
+                "unit": meta["unit"],
+                "plusRm": meta["plus_rm"],
+                "bomHeading": meta["bom_heading"],
+            }
+            for name, meta in ADDONS.items()
+        ],
+    }

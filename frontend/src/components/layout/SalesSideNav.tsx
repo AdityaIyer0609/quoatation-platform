@@ -1,4 +1,5 @@
 import {
+  Calculator,
   CheckSquare,
   FileText,
   LayoutGrid,
@@ -27,6 +28,7 @@ const allItems: NavItem[] = [
   { to: "/sales/quotes", label: "Quotations", icon: FileText },
   { to: "/sales/customers", label: "Customers", icon: Users, roles: ["sales_executive", "sales_manager", "admin"] },
   { to: "/sales/approvals", label: "Manual pricing", icon: CheckSquare, roles: ["pricing_manager", "sales_manager", "admin"] },
+  { to: "/sales/pricing", label: "Pricing formulas", icon: Calculator },
   { to: "/sales/admin/users", label: "Users & roles", icon: Shield, roles: ["admin"] },
   { to: "/sales/profile", label: "Profile", icon: UserRound },
 ]

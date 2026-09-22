@@ -456,4 +456,26 @@ export const api = {
     if (!response.ok) throw new Error(await readError(response, "Could not update the user."))
     return response.json()
   },
+  async salesPricingBook() {
+    const response = await request("/api/sales/pricing-book", { headers: authHeaders() })
+    if (!response.ok) throw new Error(await readError(response, "Could not load pricing formulas."))
+    return response.json()
+  },
+  async saveSalesPricingBook(payload: Record<string, unknown>, notes: string, ruleVersion: string) {
+    const response = await request("/api/sales/pricing-book", {
+      method: "PUT",
+      headers: authHeaders(true),
+      body: JSON.stringify({ payload, notes, ruleVersion }),
+    })
+    if (!response.ok) throw new Error(await readError(response, "Could not save pricing formulas."))
+    return response.json()
+  },
+  async resetSalesPricingBook() {
+    const response = await request("/api/sales/pricing-book/reset", {
+      method: "POST",
+      headers: authHeaders(true),
+    })
+    if (!response.ok) throw new Error(await readError(response, "Could not restore Book4 defaults."))
+    return response.json()
+  },
 }

@@ -27,6 +27,7 @@ import SalesCustomerNew from "@/pages/sales/SalesCustomerNew"
 import SalesQuotes from "@/pages/sales/SalesQuotes"
 import SalesQuoteDetail from "@/pages/sales/SalesQuoteDetail"
 import SalesApprovals from "@/pages/sales/SalesApprovals"
+import SalesPricingFormulas from "@/pages/sales/SalesPricingFormulas"
 import AdminUsers from "@/pages/sales/AdminUsers"
 import SalesNewQuote from "@/pages/sales/SalesNewQuote"
 import SalesProfile from "@/pages/sales/SalesProfile"
@@ -75,6 +76,7 @@ export default function App() {
                 <Route path="/sales/quotes/review" element={<ReviewQuote />} />
                 <Route path="/sales/quotes/bom" element={<BomReport />} />
                 <Route path="/sales/quotes/:id" element={<SalesQuoteDetail />} />
+                <Route path="/sales/pricing" element={<SalesPricingFormulas />} />
                 <Route element={<StaffRoleRoute roles={["sales_executive", "sales_manager", "admin"]} />}>
                   <Route path="/sales/customers" element={<SalesCustomers />} />
                   <Route path="/sales/customers/new" element={<SalesCustomerNew />} />

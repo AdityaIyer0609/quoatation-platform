@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from app.services.pricing.book4 import CONVERSION_ROWS, PRINT_TYPE_MAP
+from app.services.pricing.book4 import PRINT_TYPE_MAP
+from app.services.pricing.rates import conversion_tuples
 
 
 def norm(value: str | None) -> str:
@@ -25,10 +26,11 @@ def map_bag_design(
     body_style: str,
     loop_count: int | None,
     override: str | None,
+    conversion_rows: list | None = None,
 ) -> tuple[str | None, str | None]:
     if override:
         name = override.strip()
-        known = {row[0] for row in CONVERSION_ROWS}
+        known = {row[0] for row in conversion_tuples(conversion_rows)}
         if name not in known:
             return None, f"Bag design {name!r} has no conversion table in Book4."
         return name, None
@@ -59,10 +61,16 @@ def _manual() -> str:
     return MANUAL
 
 
-def map_loops(design: str, loop_construction: str, loop_pattern: str | None) -> tuple[str | None, str | None]:
+def map_loops(
+    design: str,
+    loop_construction: str,
+    loop_pattern: str | None,
+    conversion_rows: list | None = None,
+) -> tuple[str | None, str | None]:
+    rows = conversion_tuples(conversion_rows)
     if design == "1 Loop":
         if loop_pattern:
-            allowed = {row[1] for row in CONVERSION_ROWS if row[0] == "1 Loop"}
+            allowed = {row[1] for row in rows if row[0] == "1 Loop"}
             if loop_pattern not in allowed:
                 return None, f"Loop pattern {loop_pattern!r} is not a Book4 1 Loop row."
             return loop_pattern, None
@@ -106,8 +114,13 @@ def mapped_complications(
     return out
 
 
-def conversion_candidates(design: str, loops: str) -> list[tuple[str, int]]:
-    return [(row[2], row[3]) for row in CONVERSION_ROWS if row[0] == design and row[1] == loops]
+def conversion_candidates(
+    design: str,
+    loops: str,
+    conversion_rows: list | None = None,
+) -> list[tuple[str, int]]:
+    rows = conversion_tuples(conversion_rows)
+    return [(row[2], row[3]) for row in rows if row[0] == design and row[1] == loops]
 
 
 def conversion_table_key(design: str, loops: str) -> tuple[str, str]:
@@ -117,7 +130,7 @@ def conversion_table_key(design: str, loops: str) -> tuple[str, str]:
     return design, loops
 
 
-def complication_picker(spec) -> dict:
+def complication_picker(spec, conversion_rows: list | None = None) -> dict:
     """Book4 conversion rows the customer may choose. Labels are sheet text only."""
     from app.schemas.bom import BomCustomerSpec
 
@@ -142,15 +155,17 @@ def complication_picker(spec) -> dict:
     if raw.isdigit():
         loop_count = int(raw)
 
-    design, _err = map_bag_design(spec.construction_type, spec.body_style, loop_count, None)
+    design, _err = map_bag_design(
+        spec.construction_type, spec.body_style, loop_count, None, conversion_rows
+    )
     if not design:
         return empty
-    loops, loop_err = map_loops(design, spec.loop_construction, None)
+    loops, loop_err = map_loops(design, spec.loop_construction, None, conversion_rows)
     if not loops or loop_err:
         return empty
 
     lookup_design, lookup_loops = conversion_table_key(design, loops)
-    rows = conversion_candidates(lookup_design, lookup_loops)
+    rows = conversion_candidates(lookup_design, lookup_loops, conversion_rows)
     auto = mapped_complications(
         design=lookup_design,
         body_style=spec.body_style,
@@ -169,12 +184,15 @@ def complication_picker(spec) -> dict:
     }
 
 
-def map_print_column(printing: str) -> tuple[str | None, str | None]:
+def map_print_column(
+    printing: str,
+    print_type_map: dict[str, str] | None = None,
+) -> tuple[str | None, str | None]:
     raw = (printing or "").strip()
     if not raw or norm(raw) in {"unprinted", "un-printed", "none"}:
         return None, None
     compact = raw.lower().replace(" ", "").replace("-", "")
-    column = PRINT_TYPE_MAP.get(compact)
+    column = (print_type_map or PRINT_TYPE_MAP).get(compact)
     if column:
         return column, None
     return None, f"Printing {printing!r} has no Book4 matrix column. {_manual()}"

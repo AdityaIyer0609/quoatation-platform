@@ -11,25 +11,13 @@ from app.schemas.pricing import (
 )
 from app.services.bom.service import preview_bom
 from app.services.pricing.book4 import (
-    ADDONS,
     FOOD_LOOP_BLOCK,
     MANUAL,
     MATERIAL_CLASSIFICATION,
-    MIN_KG,
-    PE_RM_PER_T,
-    PP_RM_PER_T,
-    RULE_VERSION,
-    PRINT_MATRIX,
     PRINT_QTY_BOUNDARY,
-    SURCHARGE_ATTACHMENT_1,
-    SURCHARGE_ATTACHMENT_2,
-    SURCHARGE_FOOD_GRADE,
-    SURCHARGE_SHUTTLE_8,
-    SURCHARGE_TWO_LOOP,
-    SURCHARGE_USA,
-    TYPE_C_EXTRA,
     TYPE_D_MANUAL,
 )
+from app.services.pricing.rates import BookRates
 from app.services.pricing.kg import classify_bom_kg, d, heading_kg, kg4, money
 from app.services.pricing.mapping import (
     bag_type,
@@ -46,20 +34,31 @@ def preview_pricing(
     spec: BomCustomerSpec,
     bom: BomPreviewResponse | None = None,
     options: PricingOptions | None = None,
+    book: dict | None = None,
+    db=None,
 ) -> PricingPreviewResponse:
     options = options or PricingOptions()
     if bom is None:
         bom = preview_bom(spec)
-    return Book4PricingService().price(spec, bom, options)
+    payload = book
+    if payload is None and db is not None:
+        from app.services.pricing.book_store import get_active_payload
+
+        payload = get_active_payload(db)
+    return Book4PricingService(payload).price(spec, bom, options)
 
 
 class Book4PricingService:
+    def __init__(self, book: dict | None = None) -> None:
+        self.r = BookRates(book)
+
     def price(
         self,
         spec: BomCustomerSpec,
         bom: BomPreviewResponse,
         options: PricingOptions,
     ) -> PricingPreviewResponse:
+        r = self.r
         errors: list[PricingIssue] = []
         warnings: list[str] = list(bom.warnings or [])
         qty = _quantity(spec, bom)
@@ -68,21 +67,24 @@ class Book4PricingService:
         if unclassified_kg > 0:
             errors.append(PricingIssue(code="MATERIAL_CLASSIFICATION", message=MATERIAL_CLASSIFICATION))
 
-        pp_mat = pp_kg * d(PP_RM_PER_T) / Decimal("1000")
-        pe_mat = pe_kg * d(PE_RM_PER_T) / Decimal("1000")
+        pp_mat = pp_kg * d(r.pp_rm_per_t) / Decimal("1000")
+        pe_mat = pe_kg * d(r.pe_rm_per_t) / Decimal("1000")
 
         design, design_err = map_bag_design(
             spec.construction_type,
             spec.body_style,
             loop_count,
             options.bag_design,
+            r.conversion_rows,
         )
         if design_err:
             errors.append(PricingIssue(code="BAG_DESIGN", message=design_err))
 
         loops = None
         if design:
-            loops, loop_err = map_loops(design, spec.loop_construction, options.loop_pattern)
+            loops, loop_err = map_loops(
+                design, spec.loop_construction, options.loop_pattern, r.conversion_rows
+            )
             if loop_err:
                 errors.append(PricingIssue(code="LOOPS", message=loop_err))
 
@@ -98,7 +100,7 @@ class Book4PricingService:
         complication_used: str | None = None
         if design and loops and bag_cat != "Type D":
             conversion_rate, complication_used, conv_err = _resolve_conversion(
-                design, loops, spec, options
+                design, loops, spec, options, r
             )
             if conv_err:
                 errors.append(PricingIssue(code="CONVERSION", message=conv_err))
@@ -107,7 +109,7 @@ class Book4PricingService:
         if conversion_rate is not None:
             conversion_cost = total_kg * d(conversion_rate) / Decimal("1000")
 
-        min_kg = MIN_KG.get(design or "")
+        min_kg = r.min_kg.get(design or "")
         if min_kg is not None and total_kg < d(min_kg):
             warnings.append(
                 f"Bag weight {kg4(total_kg)} kg is below the Book4 note of {min_kg} kg "
@@ -116,22 +118,22 @@ class Book4PricingService:
 
         surcharges: list[PricingLineOut] = []
         if options.usa_market:
-            surcharges.append(_per_ton_line("USA", "USA market", SURCHARGE_USA, total_kg, qty))
+            surcharges.append(_per_ton_line("USA", "USA market", r.surcharge_usa, total_kg, qty))
         if food:
             surcharges.append(
-                _per_ton_line("FOOD_GRADE", "Food grade", SURCHARGE_FOOD_GRADE, total_kg, qty)
+                _per_ton_line("FOOD_GRADE", "Food grade", r.surcharge_food_grade, total_kg, qty)
             )
         if options.shuttle_8:
             surcharges.append(
-                _per_ton_line("SHUTTLE_8", "8-shuttle loom", SURCHARGE_SHUTTLE_8, total_kg, qty)
+                _per_ton_line("SHUTTLE_8", "8-shuttle loom", r.surcharge_shuttle_8, total_kg, qty)
             )
         if options.attachment_count == 1:
             surcharges.append(
-                _per_ton_line("ATTACHMENT", "1 attachment", SURCHARGE_ATTACHMENT_1, total_kg, qty)
+                _per_ton_line("ATTACHMENT", "1 attachment", r.surcharge_attachment_1, total_kg, qty)
             )
         elif options.attachment_count == 2:
             surcharges.append(
-                _per_ton_line("ATTACHMENT", "2 attachments", SURCHARGE_ATTACHMENT_2, total_kg, qty)
+                _per_ton_line("ATTACHMENT", "2 attachments", r.surcharge_attachment_2, total_kg, qty)
             )
         elif options.attachment_count > 2:
             errors.append(
@@ -141,10 +143,12 @@ class Book4PricingService:
                 )
             )
         if loop_count == 2:
-            surcharges.append(_per_ton_line("TWO_LOOP", "2-loop bag", SURCHARGE_TWO_LOOP, total_kg, qty))
+            surcharges.append(
+                _per_ton_line("TWO_LOOP", "2-loop bag", r.surcharge_two_loop, total_kg, qty)
+            )
 
         if bag_cat == "Type C" and design:
-            extra = TYPE_C_EXTRA.get(design)
+            extra = r.type_c_extra.get(design)
             if extra is None:
                 errors.append(
                     PricingIssue(
@@ -155,11 +159,13 @@ class Book4PricingService:
             else:
                 surcharges.append(_per_ton_line("TYPE_C", f"Type C ({design})", extra, total_kg, qty))
 
-        addon_lines, addon_errors, addon_warnings = _addons(spec, bom, options, total_kg, pe_kg, pp_kg, qty)
+        addon_lines, addon_errors, addon_warnings = _addons(
+            spec, bom, options, total_kg, pe_kg, pp_kg, qty, r
+        )
         errors.extend(addon_errors)
         warnings.extend(addon_warnings)
 
-        printing, print_errors = _printing(spec.printing, qty)
+        printing, print_errors = _printing(spec.printing, qty, r)
         errors.extend(print_errors)
 
         blocking = {e.code for e in errors}
@@ -198,9 +204,9 @@ class Book4PricingService:
         return PricingPreviewResponse(
             currency="USD",
             source="book4",
-            ruleVersion=RULE_VERSION,
-            ppRmRate=float(PP_RM_PER_T),
-            peRmRate=float(PE_RM_PER_T),
+            ruleVersion=r.rule_version,
+            ppRmRate=float(r.pp_rm_per_t),
+            peRmRate=float(r.pe_rm_per_t),
             quantity=qty,
             totalKgPerBag=kg4(total_kg),
             ppKg=kg4(pp_kg),
@@ -248,14 +254,16 @@ def _resolve_conversion(
     loops: str,
     spec: BomCustomerSpec,
     options: PricingOptions,
+    rates: BookRates,
 ) -> tuple[int | None, str | None, str | None]:
+    extra = rates.u_panel_x_corner_extra
     if design == "U+2 Panel" and loops == "X-Corner":
-        rate, complication, err = _resolve_conversion("Circular", "X-Corner", spec, options)
+        rate, complication, err = _resolve_conversion("Circular", "X-Corner", spec, options, rates)
         if err or rate is None:
             return None, None, err or f"U+2 Panel X-Corner needs a Circular X-Corner rate. {MANUAL}"
-        return rate + 75, f"Circular {complication} + $75/t", None
+        return rate + extra, f"Circular {complication} + ${extra}/t", None
 
-    rows = conversion_candidates(design, loops)
+    rows = conversion_candidates(design, loops, rates.conversion_rows)
     if not rows:
         return None, None, f"No Book4 conversion row for {design} / {loops}. {MANUAL}"
 
@@ -307,6 +315,7 @@ def _addons(
     pe_kg: Decimal,
     pp_kg: Decimal,
     qty: int,
+    rates: BookRates,
 ) -> tuple[list[PricingLineOut], list[PricingIssue], list[str]]:
     names: list[str] = []
     for item in options.addons:
@@ -327,7 +336,9 @@ def _addons(
     errors: list[PricingIssue] = []
     warnings: list[str] = []
     for name in names:
-        meta = ADDONS.get(name)
+        meta = rates.addons.get(name)
+        if meta is None and name == "MFWeb":
+            meta = rates.addons.get("MF Webbing")
         if meta is None:
             errors.append(PricingIssue(code="ADDON", message=f"Unknown addon {name!r}. {MANUAL}"))
             continue
@@ -374,15 +385,15 @@ def _addons(
         per_bag = kg * rate / Decimal("1000")
         note = f"{meta['rate']} USD/t"
         if plus == "PP":
-            per_bag += kg * d(PP_RM_PER_T) / Decimal("1000")
-            note += f" + PP RM {PP_RM_PER_T} USD/t"
+            per_bag += kg * d(rates.pp_rm_per_t) / Decimal("1000")
+            note += f" + PP RM {rates.pp_rm_per_t} USD/t"
             if kg > 0 and kg <= pp_kg + pe_kg:
                 warnings.append(
                     f"{name} Plus RM uses kg that may already be in PP material cost. Book4 does not say to deduct."
                 )
         elif plus == "PE":
-            per_bag += kg * d(PE_RM_PER_T) / Decimal("1000")
-            note += f" + PE RM {PE_RM_PER_T} USD/t"
+            per_bag += kg * d(rates.pe_rm_per_t) / Decimal("1000")
+            note += f" + PE RM {rates.pe_rm_per_t} USD/t"
             if heading == "Liner" and pe_kg > 0:
                 warnings.append(
                     f"{name} Plus RM uses liner kg already included in PE/Liner material cost. Book4 does not say to deduct."
@@ -402,8 +413,10 @@ def _addons(
     return lines, errors, warnings
 
 
-def _printing(printing: str, qty: int) -> tuple[PricingLineOut | None, list[PricingIssue]]:
-    column, err = map_print_column(printing)
+def _printing(
+    printing: str, qty: int, rates: BookRates
+) -> tuple[PricingLineOut | None, list[PricingIssue]]:
+    column, err = map_print_column(printing, rates.print_type_map)
     if err:
         return None, [PricingIssue(code="PRINT", message=err)]
     if column is None:
@@ -422,10 +435,10 @@ def _printing(printing: str, qty: int) -> tuple[PricingLineOut | None, list[Pric
     if qty == 500:
         return None, [PricingIssue(code="PRINT_QTY", message=PRINT_QTY_BOUNDARY)]
     if qty < 500:
-        band = PRINT_MATRIX["lt500"]
+        band = rates.print_matrix["lt500"]
         band_name = "<500"
     elif qty > 500:
-        band = PRINT_MATRIX["gt500"]
+        band = rates.print_matrix["gt500"]
         band_name = ">500"
     else:
         return None, [PricingIssue(code="PRINT_QTY", message=PRINT_QTY_BOUNDARY)]

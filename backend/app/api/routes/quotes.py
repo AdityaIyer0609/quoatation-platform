@@ -42,10 +42,11 @@ def get_dashboard(
 @router.post("/quotes/preview", response_model=PreviewResponse)
 def preview(
     payload: PreviewRequest,
+    db: Session = Depends(get_db),
     customer: Customer = Depends(get_current_customer),
 ) -> PreviewResponse:
     _ = customer
-    summary, snapshot = quote_service.preview_quote(payload.specification)
+    summary, snapshot = quote_service.preview_quote(payload.specification, db)
     return PreviewResponse(pricing=summary, source="book4", pricingSnapshot=snapshot)
 
 
@@ -55,13 +56,25 @@ def bom_preview(payload: BomPreviewRequest) -> BomPreviewResponse:
 
 
 @router.post("/quotes/pricing/preview", response_model=PricingPreviewResponse)
-def pricing_preview(payload: PricingPreviewRequest) -> PricingPreviewResponse:
-    return preview_pricing(payload.specification, payload.bom, payload.options)
+def pricing_preview(
+    payload: PricingPreviewRequest,
+    db: Session = Depends(get_db),
+) -> PricingPreviewResponse:
+    return preview_pricing(payload.specification, payload.bom, payload.options, db=db)
 
 
 @router.post("/quotes/pricing/complications", response_model=ComplicationPickerResponse)
-def pricing_complications(payload: BomPreviewRequest) -> ComplicationPickerResponse:
-    return ComplicationPickerResponse.model_validate(complication_picker(payload.specification))
+def pricing_complications(
+    payload: BomPreviewRequest,
+    db: Session = Depends(get_db),
+) -> ComplicationPickerResponse:
+    from app.services.pricing.book_store import get_active_payload
+    from app.services.pricing.rates import BookRates
+
+    rates = BookRates(get_active_payload(db))
+    return ComplicationPickerResponse.model_validate(
+        complication_picker(payload.specification, rates.conversion_rows)
+    )
 
 
 @router.get("/quotes", response_model=list[QuoteListItem])

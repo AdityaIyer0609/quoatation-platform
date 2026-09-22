@@ -11,6 +11,7 @@ from app.schemas.pricing import PricingOptions
 from app.services.email import SmtpNotConfiguredError, send_quote_email
 from app.services.pdf import render_quote_pdf
 from app.services import quotes as quote_service
+from app.services.audit import record_audit
 from app.services.sales import (
     AccessDenied,
     assign_customer,
@@ -470,3 +471,75 @@ def sales_compare_versions(
         return quote_service.compare_versions(quote, from_version, to_version)
     except (AccessDenied, LookupError) as exc:
         raise _http_from_access(exc) from exc
+
+
+class PricingBookSave(BaseModel):
+    payload: dict
+    notes: str = ""
+    rule_version: str | None = Field(default=None, alias="ruleVersion")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+@router.get("/pricing-book")
+def get_pricing_book(
+    db: Session = Depends(get_db),
+    staff: StaffUser = Depends(require_staff()),
+) -> dict:
+    from app.services.pricing.book_store import get_active_payload, get_active_row, serialize_book
+
+    payload = get_active_payload(db)
+    data = serialize_book(get_active_row(db), payload)
+    data["canEdit"] = True
+    return data
+
+
+@router.put("/pricing-book")
+def put_pricing_book(
+    body: PricingBookSave,
+    db: Session = Depends(get_db),
+    staff: StaffUser = Depends(require_staff()),
+) -> dict:
+    from app.services.pricing.book_store import save_payload, serialize_book
+
+    payload = dict(body.payload)
+    if body.rule_version:
+        payload["ruleVersion"] = body.rule_version.strip()
+    try:
+        row = save_payload(db, payload, staff, notes=body.notes)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    record_audit(
+        db,
+        staff=staff,
+        action="pricing_book.updated",
+        entity_type="pricing_book",
+        entity_id=row.id,
+        detail=row.notes or f"Saved formula {row.rule_version}",
+        commit=True,
+    )
+    data = serialize_book(row, row.payload)
+    data["canEdit"] = True
+    return data
+
+
+@router.post("/pricing-book/reset")
+def reset_pricing_book(
+    db: Session = Depends(get_db),
+    staff: StaffUser = Depends(require_staff()),
+) -> dict:
+    from app.services.pricing.book_store import reset_to_book4, serialize_book
+
+    row = reset_to_book4(db, staff)
+    record_audit(
+        db,
+        staff=staff,
+        action="pricing_book.reset",
+        entity_type="pricing_book",
+        entity_id=row.id,
+        detail="Reset pricing formulas to Book4 defaults",
+        commit=True,
+    )
+    data = serialize_book(row, row.payload)
+    data["canEdit"] = True
+    return data

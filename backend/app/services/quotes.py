@@ -37,19 +37,23 @@ def _book4_price(
     specification: dict,
     bom_snapshot: dict | None = None,
     options: PricingOptions | None = None,
+    db: Session | None = None,
 ) -> tuple[BomPreviewResponse, PricingPreviewResponse]:
     spec = BomCustomerSpec.model_validate(specification)
     if bom_snapshot:
         bom = BomPreviewResponse.model_validate(bom_snapshot)
     else:
         bom = preview_bom(spec)
-    priced = preview_pricing(spec, bom, options or PricingOptions())
+    priced = preview_pricing(spec, bom, options or PricingOptions(), db=db)
     return bom, priced
 
 
-def preview_quote(specification: QuoteSpecification) -> tuple[PricingSummary, dict]:
+def preview_quote(
+    specification: QuoteSpecification,
+    db: Session | None = None,
+) -> tuple[PricingSummary, dict]:
     payload = specification.model_dump(by_alias=True)
-    _bom, priced = _book4_price(payload)
+    _bom, priced = _book4_price(payload, db=db)
     snapshot = priced.model_dump(mode="json", by_alias=True)
     return _summary_from_priced(priced), snapshot
 
@@ -86,7 +90,7 @@ def create_quote(
     options: PricingOptions | None = None,
 ) -> Quote:
     spec_data = dict(specification)
-    bom, priced = _book4_price(spec_data, bom_snapshot, options)
+    bom, priced = _book4_price(spec_data, bom_snapshot, options, db)
     bom_payload = bom.model_dump(mode="json", by_alias=True)
     pricing_payload = priced.model_dump(mode="json", by_alias=True)
     legacy = QuoteSpecification.model_validate(spec_data)
