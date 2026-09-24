@@ -1,6 +1,6 @@
 import { Bounds, ContactShadows, OrbitControls } from "@react-three/drei"
 import { Canvas } from "@react-three/fiber"
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import * as THREE from "three"
 
 import {
@@ -11,6 +11,7 @@ import {
   FillingKit,
   InkEdges,
   LoopKit,
+  PreviewOrbitLock,
   PrintedLogoKit,
   StitchKit,
   UPanelWrap,
@@ -221,8 +222,9 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
       crossEndGap: 28 * scale,
       loopCount: Math.min(12, Math.max(0, Number.parseInt(spec.loopCount || "4", 10) || 4)),
       doc: spec.docPouch,
-      docW: Math.max(0.1, num(spec.docWidth || spec.docLength, 30) * scale * 0.45),
-      docH: Math.max(0.08, num(spec.docLength || spec.docWidth, 35) * scale * 0.4),
+      docOpening: spec.docOpening || "",
+      docW: Math.max(0.16, num(spec.docWidth || spec.docLength, 30) * scale * 0.62),
+      docH: Math.max(0.14, num(spec.docLength || spec.docWidth, 35) * scale * 0.55),
       printed: isPrinted(spec.printing),
       twoSided: /^2S/i.test(spec.printing || ""),
       belly,
@@ -265,6 +267,7 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
     crossEndGap,
     loopCount,
     doc,
+    docOpening,
     docW,
     docH,
     printed,
@@ -282,7 +285,9 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
   useEffect(() => () => sack.dispose(), [sack])
 
   const stitch = shade(color, -28)
-  const lift = /plate/i.test(spec.bottomType)
+  const coverBot = spec.bottomFlap && spec.bottomHook
+  const flapHang = spec.bottomFlap && !spec.bottomHook ? Math.min(sx, sz) * 0.92 : 0
+  const dischargeLift = /plate/i.test(spec.bottomType)
     ? Math.max(conicalH, Math.min(sx, sz) * 0.28) + spoutBotH * 0.92
     : /conical/i.test(spec.bottomType)
       ? Math.max(conicalH, Math.min(sx, sz) * 0.28)
@@ -291,7 +296,62 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
         : /spout|star/i.test(spec.bottomType) || /star/i.test(spec.bottomSpoutType)
           ? spoutBotH
           : 0
-  const faceZ = upanel ? sz / 2 + 0.01 : (sz / 2) * (1 + belly) + 0.04
+  const lift = coverBot ? 0.02 : Math.max(dischargeLift, flapHang)
+  const faceZ = upanel ? sz / 2 + 0.008 : (sz / 2) * (1 + belly) + 0.012
+  const labelNy = 0.905
+  const labelY = sy * labelNy
+  const wallBulge = 1 + belly * Math.sin(Math.PI * labelNy)
+  const labelZ = upanel ? sz / 2 + 0.006 : (sz / 2) * wallBulge + 0.005
+  const labelX = -sx * 0.32
+  const labelTh = -0.36
+  const circRx = (sx / 2) * wallBulge + 0.006
+  const circRz = (sz / 2) * wallBulge + 0.006
+  const opening = docOpening.toLowerCase()
+  const rhsOpen = opening.includes("rhs")
+  const backOpen = opening.includes("back")
+  const horizOpen = opening.includes("horizontal")
+  const vertOpen = opening.includes("vertical open")
+  const pouchW = horizOpen ? Math.max(docW, docH * 1.15) : docW
+  const pouchH = horizOpen ? Math.min(docW, docH) * 0.85 : docH
+  const pouchY = backOpen ? sy * 0.72 : labelY - pouchH * 0.08
+  const pouchTh = rhsOpen ? 0.72 : backOpen ? Math.PI : 0.28
+  const pouchX = rhsOpen
+    ? sx * 0.32
+    : backOpen
+      ? sx * 0.08
+      : horizOpen
+        ? sx * 0.12
+        : labelX + sx * 0.07 + pouchW / 2 + 0.035
+  const pouchZ = backOpen ? -(upanel ? sz / 2 + 0.01 : labelZ) : labelZ + 0.009
+  const labelPose = circular
+    ? {
+        position: [circRx * Math.sin(labelTh), labelY, circRz * Math.cos(labelTh)] as [number, number, number],
+        rotation: [0, labelTh, 0] as [number, number, number],
+      }
+    : {
+        position: [labelX, labelY, labelZ] as [number, number, number],
+        rotation: [0, 0, 0] as [number, number, number],
+      }
+  const pouchPose = circular
+    ? {
+        position: [(circRx + 0.008) * Math.sin(pouchTh), pouchY, (circRz + 0.008) * Math.cos(pouchTh)] as [
+          number,
+          number,
+          number,
+        ],
+        rotation: [0, pouchTh, 0] as [number, number, number],
+      }
+    : {
+        position: [pouchX, pouchY, pouchZ] as [number, number, number],
+        rotation: [0, backOpen ? Math.PI : 0, 0] as [number, number, number],
+      }
+  const slit = rhsOpen
+    ? { position: [pouchW * 0.42, 0, 0.009] as [number, number, number], args: [0.01, pouchH * 0.78, 0.004] as [number, number, number] }
+    : vertOpen
+      ? { position: [-pouchW * 0.42, 0, 0.009] as [number, number, number], args: [0.01, pouchH * 0.78, 0.004] as [number, number, number] }
+      : backOpen
+        ? { position: [0, pouchH * 0.38, 0.009] as [number, number, number], args: [pouchW * 0.82, 0.01, 0.004] as [number, number, number] }
+        : { position: [0, pouchH * 0.38, 0.009] as [number, number, number], args: [pouchW * 0.82, 0.01, 0.004] as [number, number, number] }
   const inset = 0.02
   const corners = circular
     ? ([Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4] as const).map(
@@ -373,6 +433,8 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
         topType={spec.topType}
         spoutType={spec.topSpoutType}
         flap={spec.topFlap}
+        hook={spec.topHook}
+        hookColor={fabricColor(spec.topHookColor || spec.loopColour || spec.fabricColour)}
         spoutH={spoutTopH}
         spoutR={spoutTopR}
         duffleH={duffleH}
@@ -398,6 +460,9 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
         bottomType={spec.bottomType}
         spoutType={spec.bottomSpoutType}
         flap={spec.bottomFlap}
+        hook={spec.bottomHook}
+        flapColor={fabricColor(spec.bottomFlapColor || spec.fabricColour)}
+        hookColor={fabricColor(spec.bottomHookColor || spec.loopColour || spec.fabricColour)}
         spoutH={spoutBotH}
         spoutR={spoutBotR}
         conicalH={conicalH}
@@ -409,6 +474,7 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
         tieCount={Math.max(1, Number.parseInt(spec.bottomSpoutTieCount || spec.bottomTieCount || "1", 10) || 1)}
         ropeSize={spec.bottomSpoutRopeSize || spec.bottomRopeSize || "8"}
         tieSize={spec.bottomSpoutTieSize || spec.bottomTieSize || "6"}
+        circular={circular}
       />
       <LoopKit
         sx={sx}
@@ -429,6 +495,7 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
         stevedoreColor={stevedoreStrap}
         stevedoreCount={Math.max(1, Number.parseInt(spec.stevedoreCount || "1", 10) || 1)}
         ancerie={spec.ancerie}
+        ancerieColor={fabricColor(spec.ancerieColor || spec.loopColour || spec.fabricColour)}
         tunnelEnabled={spec.tunnel}
         tunnelColor={tunnelFabric}
         protector={spec.loopProtector}
@@ -461,32 +528,48 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
 
       {printed ? <PrintedLogoKit sx={sx} sy={sy} faceZ={faceZ} twoSided={twoSided} /> : null}
 
-      {/* Safety / Palmetto-style label — upper face, just below the top hem */}
-      <group position={[-sx * 0.28, sy * 0.92, faceZ + 0.01]}>
+      {/* Safety / Palmetto-style label — flush on the upper front face (wrapped on circular) */}
+      <group position={labelPose.position} rotation={labelPose.rotation}>
         <mesh>
           <planeGeometry args={[sx * 0.14, sy * 0.09]} />
           <meshStandardMaterial color="#f0d24a" roughness={0.5} />
         </mesh>
-        <mesh position={[0, 0, 0.002]}>
+        <mesh position={[0, 0, 0.001]}>
           <planeGeometry args={[sx * 0.1, sy * 0.012]} />
           <meshStandardMaterial color="#1a1a18" roughness={0.6} />
         </mesh>
-        <mesh position={[0, -sy * 0.02, 0.002]}>
+        <mesh position={[0, -sy * 0.02, 0.001]}>
           <planeGeometry args={[sx * 0.08, sy * 0.008]} />
           <meshStandardMaterial color="#333" roughness={0.6} />
         </mesh>
       </group>
 
       {doc ? (
-        <group position={[sx * 0.28, sy * 0.68, faceZ + 0.014]}>
-          {/* PE open pouch — clear-ish plastic */}
-          <mesh castShadow>
-            <boxGeometry args={[docW, docH, 0.018]} />
-            <meshStandardMaterial color="#dceaf2" transparent opacity={0.55} roughness={0.25} metalness={0.08} />
+        <group position={pouchPose.position} rotation={pouchPose.rotation}>
+          <mesh position={[0, 0, -0.004]}>
+            <boxGeometry args={[pouchW * 0.88, pouchH * 0.84, 0.008]} />
+            <meshStandardMaterial color="#efe6c9" roughness={0.8} />
           </mesh>
-          <mesh position={[0, docH * 0.35, 0.01]}>
-            <boxGeometry args={[docW * 0.92, 0.008, 0.004]} />
-            <meshStandardMaterial color="#9bb0c0" roughness={0.4} />
+          <mesh castShadow>
+            <boxGeometry args={[pouchW, pouchH, 0.02]} />
+            <meshStandardMaterial color="#7eb3d4" transparent opacity={0.78} roughness={0.28} metalness={0.1} />
+          </mesh>
+          {(
+            [
+              [0, pouchH / 2, 0.012, pouchW, 0.012, 0.006],
+              [0, -pouchH / 2, 0.012, pouchW, 0.012, 0.006],
+              [-pouchW / 2, 0, 0.012, 0.012, pouchH, 0.006],
+              [pouchW / 2, 0, 0.012, 0.012, pouchH, 0.006],
+            ] as const
+          ).map(([x, y, z, w, h, d], i) => (
+            <mesh key={i} position={[x, y, z]}>
+              <boxGeometry args={[w, h, d]} />
+              <meshStandardMaterial color="#2a4a62" roughness={0.55} />
+            </mesh>
+          ))}
+          <mesh position={slit.position}>
+            <boxGeometry args={slit.args} />
+            <meshStandardMaterial color="#142430" roughness={0.4} />
           </mesh>
         </group>
       ) : null}
@@ -513,6 +596,23 @@ export default function BagPreviewCanvas({
       camera={{ position: [5.6, 2.8, 6.2], fov: 40, near: 0.08, far: 80 }}
       shadows
     >
+      <PreviewScene specification={specification} interactive={interactive} showLabels={showLabels} />
+    </Canvas>
+  )
+}
+
+function PreviewScene({
+  specification,
+  interactive,
+  showLabels,
+}: {
+  specification: QuoteSpecification
+  interactive: boolean
+  showLabels: boolean
+}) {
+  const [orbitLock, setOrbitLock] = useState(false)
+  return (
+    <PreviewOrbitLock.Provider value={setOrbitLock}>
       <color attach="background" args={["#edf2f8"]} />
       <ambientLight intensity={0.55} />
       <directionalLight position={[6, 10, 4]} intensity={1.35} castShadow />
@@ -528,15 +628,16 @@ export default function BagPreviewCanvas({
         autoRotate={!interactive}
         autoRotateSpeed={0.9}
         enableDamping
-        enablePan={interactive}
+        enabled={interactive && !orbitLock}
+        enablePan={interactive && !orbitLock}
         enableZoom={interactive}
-        enableRotate={interactive}
+        enableRotate={interactive && !orbitLock}
         minDistance={1.4}
         maxDistance={28}
         minPolarAngle={0}
         maxPolarAngle={Math.PI}
       />
-    </Canvas>
+    </PreviewOrbitLock.Provider>
   )
 }
 

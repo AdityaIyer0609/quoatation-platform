@@ -254,7 +254,7 @@ export function dimensionFrame(spec: {
   const spoutBotH = Math.max(0.08, (botHCm || 40) * scale)
   const spoutBotR = Math.min(Math.min(sx, sz) * 0.48, Math.max(0.05, ((botDiaCm || 35) * scale) / 2))
   const conicalH = Math.max(0.08, toNum(spec.conicalTop || spec.bottomConicalHeight, 30) * scale)
-  const lift = /plate/i.test(spec.bottomType)
+  const dischargeLift = /plate/i.test(spec.bottomType)
     ? Math.max(conicalH, Math.min(sx, sz) * 0.28) + spoutBotH * 0.92
     : /conical/i.test(spec.bottomType)
       ? Math.max(conicalH, Math.min(sx, sz) * 0.28)
@@ -263,6 +263,9 @@ export function dimensionFrame(spec: {
         : /spout|star/i.test(spec.bottomType) || /star/i.test(spec.bottomSpoutType)
           ? spoutBotH
           : 0
+  const coverBot = spec.bottomFlap && spec.bottomHook
+  const flapHang = spec.bottomFlap && !spec.bottomHook ? Math.min(sx, sz) * 0.92 : 0
+  const lift = coverBot ? 0.02 : Math.max(dischargeLift, flapHang)
   const faceZ = upanel ? sz / 2 + 0.01 : (sz / 2) * (1 + belly) + 0.04
   const topSpout =
     /spout/i.test(spec.topType) && topDiaCm > 0

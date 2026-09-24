@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from "react"
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react"
+import { useThree, type ThreeEvent } from "@react-three/fiber"
 import * as THREE from "three"
 
 import { resolveFabricHex } from "@/lib/colourPreview"
 
 export const CATALOG_INK = "#1c1c1c"
+
+export const PreviewOrbitLock = createContext<(lock: boolean) => void>(() => {})
 
 export function shade(hex: string, amount: number) {
   const normalized = hex.startsWith("#") ? hex : `#${hex}`
@@ -637,6 +640,50 @@ export function FaceSlackLoop({
   )
 }
 
+/** Second lift-loop teardrop joined at the crown of the main loop. */
+function AncillaryLoopOnPeak({
+  x,
+  z,
+  y1,
+  above,
+  width,
+  color,
+  circular,
+  sx,
+  sy,
+  sz,
+}: {
+  x: number
+  z: number
+  y1: number
+  above: number
+  width: number
+  color: string
+  circular: boolean
+  sx: number
+  sy: number
+  sz: number
+}) {
+  const peak = Math.max(0.22, above * 1.15)
+  const joinY = y1 + peak * 0.78
+  return (
+    <FaceSlackLoop
+      x={x}
+      z={z}
+      y0={joinY}
+      y0Short={joinY}
+      y1={joinY + 0.008}
+      color={color}
+      above={Math.max(0.14, peak * 0.55)}
+      width={width * 0.88}
+      circular={circular}
+      sx={sx}
+      sy={sy}
+      sz={sz}
+    />
+  )
+}
+
 export function SlackLoop({
   x,
   z,
@@ -904,26 +951,40 @@ function WebTies({
   color,
   hang,
   pairs = 1,
+  gather = 0,
 }: {
   radius: number
   y: number
   color: string
   hang: number
   pairs?: number
+  gather?: number
 }) {
-  const h = Math.max(0.1, hang)
-  const w = 0.008
+  const g = THREE.MathUtils.clamp(gather, 0, 1)
+  const h = Math.max(0.045, hang * (1 - g * 0.82))
+  const w = THREE.MathUtils.lerp(0.008, 0.011, g)
   const t = 0.0036
   const n = Math.min(2, Math.max(1, pairs))
+  const tube = THREE.MathUtils.lerp(0.006, 0.01, g)
   return (
     <group position={[0, y, 0]}>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[radius + tube * 0.9, tube, 10, 28]} />
+        <Webbing color={color} />
+      </mesh>
+      {g > 0.2 ? (
+        <mesh position={[radius + tube * 1.4, 0, 0]}>
+          <sphereGeometry args={[tube * 2.1, 10, 8]} />
+          <Webbing color={shade(color, -22)} />
+        </mesh>
+      ) : null}
       {Array.from({ length: n }, (_, p) => (
         <group key={p} rotation={[0, n === 1 ? 0.12 : (p * Math.PI) / n, 0]}>
           {[-1, 1].map((side) => (
             <mesh
               key={side}
               position={[side * w * 1.25, -h * 0.48, radius + t]}
-              rotation={[0.22, 0, side * 0.06]}
+              rotation={[0.22 + g * 0.4, 0, side * 0.06]}
             >
               <boxGeometry args={[w, h, t]} />
               <Webbing color={color} />
@@ -1013,6 +1074,7 @@ function SpoutCinch({
   tieSize,
   hang = 0.12,
   flip,
+  gather = 0,
 }: {
   radius: number
   y: number
@@ -1026,8 +1088,10 @@ function SpoutCinch({
   tieSize: string
   hang?: number
   flip?: boolean
+  gather?: number
 }) {
   if (!rope && !tie) return null
+  const g = THREE.MathUtils.clamp(gather, 0, 1)
   return (
     <group>
       {rope ? (
@@ -1039,8 +1103,58 @@ function SpoutCinch({
           color={tieColor}
           hang={hang}
           pairs={Math.max(1, Math.round(tieCount / 2))}
+          gather={g}
         />
       )}
+    </group>
+  )
+}
+
+function spoutUnderFlap(height: number, gather: number, lidOpen: number, reach: number) {
+  const g = THREE.MathUtils.clamp(gather, 0, 1)
+  const open = THREE.MathUtils.clamp(lidOpen, 0, 1)
+  const ceiling = Math.max(0, reach * Math.sin(open * (Math.PI / 2)) - 0.02)
+  const gatheredH = THREE.MathUtils.lerp(height, Math.max(0.035, height * 0.18), g)
+  if (open < 0.02) return 0
+  return Math.min(gatheredH, ceiling)
+}
+
+function GatheredSpout({
+  radius,
+  height,
+  gather,
+  color,
+  flip,
+  lidOpen = 1,
+  hingeReach,
+}: {
+  radius: number
+  height: number
+  gather: number
+  color: string
+  flip?: boolean
+  lidOpen?: number
+  hingeReach: number
+}) {
+  const dir = flip ? -1 : 1
+  const g = THREE.MathUtils.clamp(gather, 0, 1)
+  const h = spoutUnderFlap(height, g, lidOpen, hingeReach)
+  if (h < 0.014) return null
+  const neck = THREE.MathUtils.lerp(radius * 0.92, radius * 0.12, g)
+  const root = THREE.MathUtils.lerp(radius, radius * 0.34, g)
+  const bunch = THREE.MathUtils.lerp(radius * 0.22, radius * 0.16, g)
+  return (
+    <group>
+      <mesh position={[0, dir * h * 0.5, 0]} castShadow>
+        <cylinderGeometry args={[neck, root, h, 28]} />
+        <Fabric color={color} />
+      </mesh>
+      {g > 0.12 ? (
+        <mesh position={[0, dir * h * 0.52, 0]} castShadow>
+          <sphereGeometry args={[Math.min(bunch * (0.7 + g * 0.35), h * 0.45), 14, 12]} />
+          <Fabric color={shade(color, -10)} />
+        </mesh>
+      ) : null}
     </group>
   )
 }
@@ -1387,6 +1501,161 @@ function SpoutDeck({
   )
 }
 
+function FlapHookKnot({ color }: { color: string }) {
+  const yarn = shade(color, -62)
+  const core = shade(color, -28)
+  return (
+    <group scale={2.35}>
+      <mesh rotation={[Math.PI / 2, 0, 0.42]}>
+        <torusGeometry args={[0.028, 0.01, 10, 22]} />
+        <meshStandardMaterial color={yarn} roughness={0.55} />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, -0.5]} position={[0.012, 0, 0]}>
+        <torusGeometry args={[0.024, 0.01, 10, 20]} />
+        <meshStandardMaterial color={yarn} roughness={0.55} />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[0.016, 12, 12]} />
+        <meshStandardMaterial color={core} roughness={0.5} />
+      </mesh>
+      <mesh position={[0.05, 0, 0]} rotation={[0, 0, 0.45]}>
+        <boxGeometry args={[0.055, 0.012, 0.016]} />
+        <meshStandardMaterial color={yarn} roughness={0.55} />
+      </mesh>
+      <mesh position={[-0.05, 0, 0]} rotation={[0, 0, -0.45]}>
+        <boxGeometry args={[0.055, 0.012, 0.016]} />
+        <meshStandardMaterial color={yarn} roughness={0.55} />
+      </mesh>
+      <mesh position={[0.012, -0.028, 0]}>
+        <cylinderGeometry args={[0.007, 0.007, 0.045, 8]} />
+        <meshStandardMaterial color={yarn} roughness={0.55} />
+      </mesh>
+    </group>
+  )
+}
+
+/** Mill protection flap: hinged on one edge. Drag the lid to open/close. Hooks sit on the free edge. */
+export function ProtectionFlap({
+  sx,
+  sz,
+  y,
+  color,
+  hookColor,
+  startClosed,
+  showHooks,
+  flip,
+  circular = false,
+  onOpenChange,
+}: {
+  sx: number
+  sz: number
+  y: number
+  color: string
+  hookColor: string
+  startClosed: boolean
+  showHooks: boolean
+  flip?: boolean
+  circular?: boolean
+  onOpenChange?: (open: number) => void
+}) {
+  const setOrbitLock = useContext(PreviewOrbitLock)
+  const gl = useThree((state) => state.gl)
+  const [open, setOpen] = useState(startClosed ? 0 : 1)
+  const openRef = useRef(open)
+  openRef.current = open
+  const drag = useRef<{ y: number; open: number } | null>(null)
+  const fw = Math.min(sx, sz) * 0.94
+  const fd = Math.min(sx, sz) * 0.94
+  const rx = sx * 0.48
+  const rz = sz * 0.48
+  const hingeZ = circular ? rz : (sz / 2) * 0.98
+  const reach = circular ? rz : fd / 2
+  const openSign = flip ? -1 : 1
+  const rot = openSign * (Math.PI / 2) * open
+
+  useEffect(() => {
+    const next = startClosed ? 0 : 1
+    setOpen(next)
+    onOpenChange?.(next)
+    // Spec hook/flap is the default pose; drag is preview-only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startClosed])
+
+  const commitOpen = (value: number) => {
+    setOpen(value)
+    onOpenChange?.(value)
+  }
+
+  const onPointerDown = (event: ThreeEvent<PointerEvent>) => {
+    event.stopPropagation()
+    drag.current = { y: event.clientY, open: openRef.current }
+    setOrbitLock(true)
+    gl.domElement.style.cursor = "grabbing"
+    const move = (ev: PointerEvent) => {
+      if (!drag.current) return
+      const dy = (drag.current.y - ev.clientY) / 130
+      commitOpen(THREE.MathUtils.clamp(drag.current.open + openSign * dy, 0, 1))
+    }
+    const up = () => {
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", up)
+      if (!drag.current) return
+      drag.current = null
+      setOrbitLock(false)
+      gl.domElement.style.cursor = ""
+      commitOpen(openRef.current > 0.5 ? 1 : 0)
+    }
+    window.addEventListener("pointermove", move)
+    window.addEventListener("pointerup", up)
+  }
+
+  const hookX = circular ? rx * 0.34 : fw * 0.22
+  const hookZ = -reach * 0.38
+
+  return (
+    <group position={[0, y + (flip ? -0.008 : 0.008), hingeZ]}>
+      <group rotation={[rot, 0, 0]}>
+        <group
+          onPointerDown={onPointerDown}
+          onPointerOver={() => {
+            if (!drag.current) gl.domElement.style.cursor = "grab"
+          }}
+          onPointerOut={() => {
+            if (!drag.current) gl.domElement.style.cursor = ""
+          }}
+        >
+          {circular ? (
+            <mesh position={[0, 0, -rz]} scale={[rx, 1, rz]} castShadow receiveShadow>
+              <cylinderGeometry args={[1, 1, 0.016, 48]} />
+              <Fabric color={color} />
+            </mesh>
+          ) : (
+            <mesh position={[0, 0, -fd / 2]} castShadow receiveShadow>
+              <boxGeometry args={[fw, 0.016, fd]} />
+              <Fabric color={color} />
+            </mesh>
+          )}
+          <mesh position={[0, flip ? -0.02 : 0.02, -reach]}>
+            <boxGeometry args={[circular ? rx * 1.4 : fw * 0.85, 0.08, reach * 1.15]} />
+            <meshBasicMaterial transparent opacity={0} />
+          </mesh>
+          {showHooks
+            ? ([-1, 1] as const).map((side) => (
+                <group
+                  key={side}
+                  position={[side * hookX, flip ? -0.045 : 0.045, hookZ]}
+                  rotation={[flip ? Math.PI : 0, 0, 0]}
+                >
+                  <FlapHookKnot color={hookColor} />
+                </group>
+              ))
+            : null}
+        </group>
+      </group>
+    </group>
+  )
+}
+
 export function FillingKit({
   sx,
   sy,
@@ -1411,6 +1680,8 @@ export function FillingKit({
   tieCount = 1,
   ropeSize = "8",
   tieSize = "6",
+  hook = false,
+  hookColor,
 }: {
   sx: number
   sy: number
@@ -1435,8 +1706,13 @@ export function FillingKit({
   tieCount?: number
   ropeSize?: string
   tieSize?: string
+  hook?: boolean
+  hookColor?: string
 }) {
   const fillingSpout = /^top spout$/i.test(topType.trim())
+  const [lidOpen, setLidOpen] = useState(hook ? 0 : 1)
+  const gather = flap && !clearHandle ? 1 - lidOpen : 0
+  const hideFill = clearHandle
   const skirt = /duffle|skrit|skirt|leno|jute|drawstring|top \+ skrit|oversize/i.test(topType)
   const conicalPlate = /plate/i.test(topType)
   const conicalTop = /conical/i.test(topType) && !conicalPlate
@@ -1451,13 +1727,16 @@ export function FillingKit({
   const hopperH = Math.max(span * 0.32, conicalH)
   const shownSpoutH = clearHandle ? Math.min(0.1, spoutH * 0.35) : spoutH
   const shownSpoutR = clearHandle ? Math.min(spoutR, span * 0.22) : Math.max(spoutR, span * 0.16)
+  const hingeReach = (circular ? sz : Math.min(sx, sz)) * 0.48
+  const underH = spoutUnderFlap(shownSpoutH, gather, flap ? lidOpen : 1, hingeReach)
+  const neckR = (skirt ? span * (oversize ? 0.88 : 0.76) : shownSpoutR) * THREE.MathUtils.lerp(1, 0.14, gather)
 
   return (
     <group>
-      {fillingSpout && !clearHandle ? (
+      {fillingSpout && !hideFill ? (
         <SpoutDeck sx={sx} sy={sy} sz={sz} holeR={shownSpoutR * 0.92} color={color} circular={circular} />
       ) : null}
-      {skirt && !clearHandle ? (
+      {skirt && !hideFill ? (
         <Skirt
           y={sy}
           span={span}
@@ -1471,73 +1750,76 @@ export function FillingKit({
           sz={sz}
         />
       ) : null}
-      {(conicalPlate || conicalTop) && !clearHandle ? (
+      {(conicalPlate || conicalTop) && !hideFill ? (
         <ConicalHopper y={sy} span={span} height={hopperH} holeR={shownSpoutR} color={color} />
       ) : null}
-      {conicalPlate && !clearHandle ? (
+      {conicalPlate && !hideFill ? (
         <SpoutDeck sx={sx} sy={sy} sz={sz} holeR={span * 0.46} color={color} circular={circular} />
       ) : null}
-      {(fillingSpout || conicalPlate) && !skirt ? (
+      {(fillingSpout || conicalPlate) && !skirt && !clearHandle ? (
         <group
           position={[
             0,
-            sy +
-              (clearHandle
-                ? -shownSpoutH * 0.15
-                : conicalPlate || conicalTop
-                  ? hopperH * 0.92
-                  : 0),
+            sy + (conicalPlate || conicalTop ? hopperH * 0.92 : 0),
             0,
           ]}
         >
-          <mesh position={[0, shownSpoutH / 2, 0]} castShadow>
-            <cylinderGeometry
-              args={[
-                shownSpoutR * (petal ? 0.78 : 0.92),
-                shownSpoutR,
-                shownSpoutH,
-                28,
-                1,
-                !clearHandle,
-              ]}
-            />
-            <Fabric color={color} doubleSide={!clearHandle} />
-          </mesh>
-          {petal && !clearHandle && !starBased ? (
+          <GatheredSpout
+            radius={shownSpoutR}
+            height={shownSpoutH}
+            gather={gather}
+            color={color}
+            lidOpen={flap ? lidOpen : 1}
+            hingeReach={hingeReach}
+          />
+          {petal && !starBased && gather < 0.3 && underH > 0.08 ? (
             <Petals radius={shownSpoutR * 1.05} height={shownSpoutH} color={color} bagSpan={span} />
           ) : null}
-          {iris && !clearHandle && !starBased ? <Iris radius={shownSpoutR * 1.05} height={shownSpoutH} strap={strap} /> : null}
-          {starBased && !clearHandle ? (
+          {iris && !starBased && gather < 0.3 && underH > 0.08 ? (
+            <Iris radius={shownSpoutR * 1.05} height={shownSpoutH} strap={strap} />
+          ) : null}
+          {starBased && gather < 0.45 && underH > 0.08 ? (
             <StarBasedCollar radius={shownSpoutR} y={shownSpoutH * 0.08} color={color} strap={strap} />
           ) : null}
         </group>
       ) : null}
-      {!clearHandle && (rope || tie || drawstring || fillingSpout) && (skirt || fillingSpout || conicalPlate || conicalTop) ? (
+      {!hideFill &&
+      underH > 0.02 &&
+      (rope || tie || drawstring || fillingSpout || flap) &&
+      (skirt || fillingSpout || conicalPlate || conicalTop) ? (
         <SpoutCinch
-          radius={skirt ? span * (oversize ? 0.88 : 0.76) : shownSpoutR}
+          radius={neckR}
           y={
             skirt
-              ? sy + skirtH
+              ? sy + skirtH * THREE.MathUtils.lerp(1, 0.25, gather)
               : sy +
                 (conicalPlate || conicalTop ? hopperH * 0.92 : 0) +
-                shownSpoutH * 0.5
+                underH * 0.52
           }
           rope={rope}
-          tie={(tie || drawstring || fillingSpout) && !rope}
+          tie={(tie || drawstring || fillingSpout || flap) && !rope}
           ropeColor={ropeColor || strap}
           tieColor={tieColor || strap}
           ropeCount={ropeCount}
           tieCount={tieCount}
           ropeSize={ropeSize}
           tieSize={tieSize}
-          hang={Math.max(0.1, shownSpoutH * 0.55)}
+          hang={Math.max(0.05, shownSpoutH * 0.55 * THREE.MathUtils.lerp(1, 0.18, gather))}
+          gather={gather}
         />
       ) : null}
       {flap && !clearHandle ? (
-        <mesh position={[span * 0.05, sy + (fillingSpout ? spoutH * 0.15 : 0.05), 0]} rotation={[0.22, 0.08, 0]}>
-          <boxGeometry args={[span * 0.78, 0.018, span * 0.78]} />
-          <Fabric color={flapColor || color} />
-        </mesh>
+        <ProtectionFlap
+          sx={sx}
+          sz={sz}
+          y={sy}
+          color={flapColor || color}
+          hookColor={hookColor || strap}
+          startClosed={Boolean(hook)}
+          showHooks={Boolean(hook)}
+          circular={circular}
+          onOpenChange={setLidOpen}
+        />
       ) : null}
     </group>
   )
@@ -1562,6 +1844,10 @@ export function DischargeKit({
   tieCount = 1,
   ropeSize = "8",
   tieSize = "6",
+  hook = false,
+  flapColor,
+  hookColor,
+  circular = false,
 }: {
   sx: number
   sy: number
@@ -1582,7 +1868,12 @@ export function DischargeKit({
   tieCount?: number
   ropeSize?: string
   tieSize?: string
+  hook?: boolean
+  flapColor?: string
+  hookColor?: string
+  circular?: boolean
 }) {
+  const [lidOpen, setLidOpen] = useState(hook ? 0 : 1)
   const fillingSpout = /^bottom spout$/i.test(bottomType.trim())
   const skirt = /skirt/i.test(bottomType) && !/conical/i.test(bottomType) && !/star/i.test(bottomType)
   const conicalPlate = /plate/i.test(bottomType)
@@ -1598,17 +1889,21 @@ export function DischargeKit({
   const shownSpoutH = Math.max(spoutH, span * 0.22)
   const showDischarge = fillingSpout || conicalPlate || star
   const spoutRoot = conicalPlate || conicalBase ? -hopperH * 0.92 : 0
+  const gather = flap ? 1 - lidOpen : 0
+  const hingeReach = (circular ? sz : Math.min(sx, sz)) * 0.48
+  const underH = spoutUnderFlap(shownSpoutH, gather, flap ? lidOpen : 1, hingeReach)
+  const neckR = (skirt ? span * 0.76 : holeR) * THREE.MathUtils.lerp(1, 0.14, gather)
 
   return (
     <group>
-      {(conicalPlate || conicalBase) && !star ? (
+      {(conicalPlate || conicalBase) && !star && gather < 0.8 ? (
         <ConicalHopper y={0} span={span} height={hopperH} holeR={holeR} color={color} flip />
       ) : null}
-      {skirt ? (
+      {skirt && gather < 0.8 ? (
         <Skirt
           y={0}
           span={span}
-          height={skirtH}
+          height={skirtH * THREE.MathUtils.lerp(1, 0.28, gather)}
           color={color}
           strap={strap}
           flip
@@ -1616,46 +1911,56 @@ export function DischargeKit({
       ) : null}
       {showDischarge ? (
         <group position={[0, spoutRoot, 0]}>
-          <mesh position={[0, -shownSpoutH / 2, 0]} castShadow>
-            <cylinderGeometry args={[holeR, holeR * 0.92, shownSpoutH, 28]} />
-            <Fabric color={color} />
-          </mesh>
-          {petal && !star ? (
+          <GatheredSpout
+            radius={holeR}
+            height={shownSpoutH}
+            gather={gather}
+            color={color}
+            flip
+            lidOpen={flap ? lidOpen : 1}
+            hingeReach={hingeReach}
+          />
+          {petal && !star && gather < 0.3 && underH > 0.08 ? (
             <Petals radius={holeR * 1.05} height={shownSpoutH} color={color} bagSpan={span} flip />
           ) : null}
-          {iris && !starBased ? <Iris radius={holeR} height={shownSpoutH} strap={strap} flip /> : null}
-          {starBased ? (
-            <StarBasedCollar radius={holeR} y={-0.02} color={color} strap={strap} flip />
+          {iris && !starBased && gather < 0.3 && underH > 0.08 ? (
+            <Iris radius={holeR} height={shownSpoutH} strap={strap} flip />
           ) : null}
-          {flap ? (
-            <mesh position={[span * 0.12, -0.03, 0]} rotation={[0.55, 0.1, 0]}>
-              <boxGeometry args={[span * 0.55, 0.016, span * 0.55]} />
-              <Fabric color={color} />
-            </mesh>
+          {starBased && gather < 0.45 && underH > 0.08 ? (
+            <StarBasedCollar radius={holeR} y={-0.02} color={color} strap={strap} flip />
           ) : null}
         </group>
       ) : null}
-      {(rope || tie || fillingSpout) && (skirt || showDischarge || conicalBase) ? (
+      {(rope || tie || fillingSpout || flap) && (skirt || showDischarge || conicalBase) && underH > 0.02 ? (
         <SpoutCinch
-          radius={skirt ? span * 0.76 : holeR}
-          y={skirt ? -skirtH : spoutRoot - shownSpoutH * 0.5}
+          radius={neckR}
+          y={skirt ? -skirtH * THREE.MathUtils.lerp(1, 0.25, gather) : spoutRoot - underH * 0.52}
           rope={rope}
-          tie={(Boolean(tie) || fillingSpout) && !rope}
+          tie={(Boolean(tie) || fillingSpout || flap) && !rope}
           ropeColor={ropeColor || strap}
           tieColor={tieColor || strap}
           ropeCount={ropeCount}
           tieCount={tieCount}
           ropeSize={ropeSize}
           tieSize={tieSize}
-          hang={Math.max(0.1, shownSpoutH * 0.55)}
+          hang={Math.max(0.05, shownSpoutH * 0.55 * THREE.MathUtils.lerp(1, 0.18, gather))}
           flip
+          gather={gather}
         />
       ) : null}
-      {flap && !showDischarge ? (
-        <mesh position={[0, -0.03, 0]}>
-          <boxGeometry args={[span * 0.55, 0.016, span * 0.55]} />
-          <Fabric color={color} />
-        </mesh>
+      {flap ? (
+        <ProtectionFlap
+          sx={sx}
+          sz={sz}
+          y={0}
+          color={flapColor || color}
+          hookColor={hookColor || strap}
+          startClosed={Boolean(hook)}
+          showHooks={Boolean(hook)}
+          flip
+          circular={circular}
+          onOpenChange={setLidOpen}
+        />
       ) : null}
     </group>
   )
@@ -1715,6 +2020,7 @@ export function LoopKit({
   stevedoreColor,
   stevedoreCount = 1,
   ancerie = false,
+  ancerieColor,
   tunnelEnabled = false,
   tunnelColor,
   protector,
@@ -1741,6 +2047,7 @@ export function LoopKit({
   stevedoreColor?: string
   stevedoreCount?: number
   ancerie?: boolean
+  ancerieColor?: string
   tunnelEnabled?: boolean
   tunnelColor?: string
   protector: boolean
@@ -1955,27 +2262,23 @@ export function LoopKit({
           ))}
         </group>
       ) : null}
-      {ancerie ? (
-        <group>
-          {corners.map(([x, z]) => (
-            <FaceSlackLoop
+      {ancerie && !none
+        ? (showCorner || showCross ? cornerSet : corners).map(([x, z]) => (
+            <AncillaryLoopOnPeak
               key={`anc-${x}-${z}`}
               x={x}
               z={z}
-              y0={sy * 0.9}
-              y0Short={sy * 0.96}
-              y1={sy + 0.01}
-              color={strap}
-              above={Math.max(0.1, above * 0.42)}
-              width={width * 0.72}
+              y1={y1}
+              above={above}
+              width={width}
+              color={ancerieColor || strap}
               circular={circular}
               sx={sx}
               sy={sy}
               sz={sz}
             />
-          ))}
-        </group>
-      ) : null}
+          ))
+        : null}
       {dropLoop && !liftBag ? (
         <FaceSlackLoop x={0} z={sz / 2} y0={sy * 0.72} y1={y1} color={strap} above={above} width={width} />
       ) : null}
