@@ -98,6 +98,7 @@ export const TOP_SPOUT_TYPES = [
   "Iris/Pyjama Closure",
   "Goose Neck",
   "Duffle Closure",
+  "Star Based",
   "Reinforced Square",
   "Tube",
 ] as const

@@ -282,15 +282,13 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
   useEffect(() => () => sack.dispose(), [sack])
 
   const stitch = shade(color, -28)
-  const lift = /star/i.test(spec.bottomType) || /star/i.test(spec.bottomSpoutType)
-    ? Math.max(Math.min(sx, sz) * 0.2, conicalH * 0.45) + spoutBotH
-    : /plate/i.test(spec.bottomType)
+  const lift = /plate/i.test(spec.bottomType)
     ? Math.max(conicalH, Math.min(sx, sz) * 0.28) + spoutBotH * 0.92
     : /conical/i.test(spec.bottomType)
       ? Math.max(conicalH, Math.min(sx, sz) * 0.28)
       : /skirt/i.test(spec.bottomType)
         ? Math.max(conicalH, Math.min(sx, sz) * 0.38)
-        : /spout/i.test(spec.bottomType)
+        : /spout|star/i.test(spec.bottomType) || /star/i.test(spec.bottomSpoutType)
           ? spoutBotH
           : 0
   const faceZ = upanel ? sz / 2 + 0.01 : (sz / 2) * (1 + belly) + 0.04
@@ -429,6 +427,8 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
         stevedore={spec.stevedore || spec.steveCover}
         stevedorePortion={spec.stevedorePortion || "Diagonal"}
         stevedoreColor={stevedoreStrap}
+        stevedoreCount={Math.max(1, Number.parseInt(spec.stevedoreCount || "1", 10) || 1)}
+        ancerie={spec.ancerie}
         tunnelEnabled={spec.tunnel}
         tunnelColor={tunnelFabric}
         protector={spec.loopProtector}

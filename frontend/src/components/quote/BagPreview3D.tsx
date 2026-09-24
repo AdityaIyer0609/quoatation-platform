@@ -34,18 +34,30 @@ function writeLabelsPref(on: boolean) {
 
 class PreviewErrorBoundary extends Component<
   { fallback: ReactNode; children: ReactNode; resetKey: string },
-  { failed: boolean }
+  { failed: boolean; retries: number }
 > {
-  state = { failed: false }
+  state = { failed: false, retries: 0 }
+  timer: ReturnType<typeof setTimeout> | null = null
 
   static getDerivedStateFromError() {
     return { failed: true }
   }
 
+  componentDidCatch() {
+    if (this.state.retries >= 4) return
+    this.timer = setTimeout(() => {
+      this.setState((s) => ({ failed: false, retries: s.retries + 1 }))
+    }, 250)
+  }
+
   componentDidUpdate(prevProps: { resetKey: string }) {
     if (prevProps.resetKey !== this.props.resetKey && this.state.failed) {
-      this.setState({ failed: false })
+      this.setState({ failed: false, retries: 0 })
     }
+  }
+
+  componentWillUnmount() {
+    if (this.timer) clearTimeout(this.timer)
   }
 
   render() {
@@ -73,11 +85,15 @@ function Stage({
 }) {
   return (
     <PreviewErrorBoundary
-      resetKey={`${interactive ? "live" : "thumb"}-${showLabels ? "labels" : "plain"}-${specification.length}-${specification.width}-${specification.height}-${specification.bodyGsm}`}
+      resetKey={`${interactive ? "live" : "thumb"}-${showLabels ? "labels" : "plain"}-${specification.length}-${specification.width}-${specification.height}-${specification.bodyGsm}-${specification.topType}-${specification.bottomType}-${specification.topSpoutType}-${specification.bottomSpoutType}`}
       fallback={
-        <div className={cn("flex items-center justify-center px-4 text-center text-xs text-[var(--text-secondary)]", fallbackClassName)}>
-          3D preview needs WebGL in this browser.
-        </div>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className={cn("flex items-center justify-center px-4 text-center text-xs text-[var(--text-secondary)]", fallbackClassName)}
+        >
+          Preview hit an error. Click to reload.
+        </button>
       }
     >
       <Suspense

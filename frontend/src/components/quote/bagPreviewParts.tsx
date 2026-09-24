@@ -554,6 +554,7 @@ export function FaceSlackLoop({
   sx = 0,
   sy = 0,
   sz = 0,
+  y0Short,
 }: {
   x: number
   z: number
@@ -567,6 +568,7 @@ export function FaceSlackLoop({
   sx?: number
   sy?: number
   sz?: number
+  y0Short?: number
 }) {
   const yaw = Math.atan2(x, z)
   const peak = Math.max(0.22, above * 1.15)
@@ -574,10 +576,11 @@ export function FaceSlackLoop({
   const zAbs = sz > 0 ? sz / 2 : Math.abs(z)
   const dx = Math.sign(x) || 1
   const dz = Math.sign(z) || 1
+  const shortY = y0Short ?? y0 + Math.max(0.08, (y1 - y0) * 0.55)
   const geometry = useMemo(() => {
-    const hole = Math.max(0.07, Math.min(peak * 0.48, width * 3.4))
-    const join = Math.max(0.006, width * 0.22)
-    const hug = 0.008
+    const hole = Math.max(0.08, Math.min(peak * 0.5, width * 3.2))
+    const join = Math.max(width * 0.95, 0.028)
+    const hug = 0.012
     if (circular && sx > 0 && sz > 0) {
       const rx = sx / 2
       const rz = sz / 2
@@ -602,7 +605,7 @@ export function FaceSlackLoop({
         onWall(mid, y1 + peak, 0.01),
         onWall(mid + holeA, y1 + peak * 0.52, 0.012),
         onWall(mid + joinA, y1),
-        onWall(mid + joinA, y0),
+        onWall(mid + joinA, shortY),
       ])
       return strapGeo(curve, width, Math.max(0.008, width * 0.22))
     }
@@ -613,10 +616,10 @@ export function FaceSlackLoop({
       new THREE.Vector3(0, y1 + peak, hug),
       new THREE.Vector3(hole, y1 + peak * 0.52, hug),
       new THREE.Vector3(join, y1, hug),
-      new THREE.Vector3(join, y0, hug),
+      new THREE.Vector3(join, shortY, hug),
     ])
     return strapGeo(curve, width, Math.max(0.008, width * 0.22))
-  }, [circular, sx, sy, sz, x, z, y0, y1, peak, width])
+  }, [circular, sx, sy, sz, x, z, y0, shortY, y1, peak, width])
   useEffect(() => () => geometry.dispose(), [geometry])
   if (circular) {
     return (
@@ -932,45 +935,66 @@ function WebTies({
   )
 }
 
-function StarFold({
-  sx,
-  sz,
-  foldH,
-  holeR,
+function StarBasedCollar({
+  radius,
+  y,
   color,
+  strap,
+  flip,
 }: {
-  sx: number
-  sz: number
-  foldH: number
-  holeR: number
+  radius: number
+  y: number
   color: string
+  strap: string
+  flip?: boolean
 }) {
-  const span = Math.min(sx, sz)
-  const h = Math.max(0.08, foldH * 0.55)
-  const arm = Math.hypot(sx, sz) * 0.94
-  const bar = Math.max(0.04, span * 0.055)
-  const star = shade(color, -16)
+  const dir = flip ? -1 : 1
+  const h = Math.max(0.07, radius * 0.62)
+  const outer = radius * 1.62
+  const rays = 8
   return (
-    <group>
-      <mesh position={[0, -bar * 0.35, 0]} rotation={[0, Math.PI / 4, 0]}>
-        <boxGeometry args={[arm, bar, bar]} />
-        <Fabric color={star} />
+    <group position={[0, y, 0]}>
+      <mesh position={[0, dir * h * 0.28, 0]} rotation={flip ? [Math.PI, 0, 0] : [0, Math.PI / 8, 0]}>
+        <cylinderGeometry args={[outer, radius * 1.02, h, rays, 1, true]} />
+        <Fabric color={shade(color, 10)} doubleSide />
       </mesh>
-      <mesh position={[0, -bar * 0.35, 0]} rotation={[0, -Math.PI / 4, 0]}>
-        <boxGeometry args={[arm, bar, bar]} />
-        <Fabric color={star} />
+      {Array.from({ length: rays }, (_, i) => {
+        const a = (i / rays) * Math.PI * 2
+        return (
+          <mesh
+            key={i}
+            position={[Math.cos(a) * (radius + outer) * 0.32, dir * h * 0.22, Math.sin(a) * (radius + outer) * 0.32]}
+            rotation={[dir * 0.72, a, 0]}
+          >
+            <planeGeometry args={[outer * 0.38, h * 0.95]} />
+            <meshStandardMaterial
+              color={shade(color, i % 2 ? -18 : 14)}
+              roughness={0.88}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        )
+      })}
+      {Array.from({ length: rays }, (_, i) => {
+        const a = (i / rays) * Math.PI * 2 + Math.PI / rays
+        return (
+          <mesh key={`seam-${i}`} rotation={[0, a, 0]} position={[0, dir * h * 0.2, 0]}>
+            <boxGeometry args={[0.01, h * 0.85, outer * 0.92]} />
+            <Fabric color={shade(color, -26)} />
+          </mesh>
+        )
+      })}
+      <mesh position={[0, dir * h * 0.08, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[radius * 1.12, 0.008, 8, 28]} />
+        <Webbing color={strap} />
       </mesh>
-      <mesh position={[0, -bar * 0.28, 0]}>
-        <boxGeometry args={[sx * 0.96, bar * 0.72, bar * 0.72]} />
-        <Fabric color={shade(color, -8)} />
+      <mesh position={[radius * 1.18, dir * h * 0.22, 0]} rotation={[dir * 0.25, 0, 0.08]}>
+        <boxGeometry args={[0.009, h * 0.85, 0.009]} />
+        <Webbing color={strap} />
       </mesh>
-      <mesh position={[0, -bar * 0.28, 0]} rotation={[0, Math.PI / 2, 0]}>
-        <boxGeometry args={[sz * 0.96, bar * 0.72, bar * 0.72]} />
-        <Fabric color={shade(color, -8)} />
-      </mesh>
-      <mesh position={[0, -h / 2 - bar * 0.2, 0]} rotation={[0, Math.PI / 8, 0]}>
-        <cylinderGeometry args={[span * 0.38, holeR, h, 8, 1, true]} />
-        <Fabric color={color} doubleSide />
+      <mesh position={[radius * 1.26, dir * h * 0.18, 0.012]} rotation={[dir * 0.2, 0, -0.1]}>
+        <boxGeometry args={[0.008, h * 0.72, 0.008]} />
+        <Webbing color={strap} />
       </mesh>
     </group>
   )
@@ -1104,39 +1128,58 @@ export function BaffleKit({
   useEffect(() => () => alpha?.dispose(), [alpha])
   // Cooler internal-panel look when no explicit baffle colour.
   const safeTint = baffleColor || shade(color, 22)
-  const depth = Math.min(sx, sz) * 0.4
-  const panels: { x: number; z: number; rot: number }[] = [
-    { x: sx / 2 - depth * 0.35, z: sz / 2 - depth * 0.35, rot: -Math.PI / 4 },
-    { x: -sx / 2 + depth * 0.35, z: sz / 2 - depth * 0.35, rot: Math.PI / 4 },
-    { x: sx / 2 - depth * 0.35, z: -sz / 2 + depth * 0.35, rot: Math.PI / 4 },
-    { x: -sx / 2 + depth * 0.35, z: -sz / 2 + depth * 0.35, rot: -Math.PI / 4 },
+  const insetX = sx * 0.3
+  const insetZ = sz * 0.3
+  const h = sy * 0.9
+  const panels: [[number, number], [number, number]][] = [
+    [
+      [sx / 2, sz / 2 - insetZ],
+      [sx / 2 - insetX, sz / 2],
+    ],
+    [
+      [-sx / 2, sz / 2 - insetZ],
+      [-sx / 2 + insetX, sz / 2],
+    ],
+    [
+      [sx / 2, -sz / 2 + insetZ],
+      [sx / 2 - insetX, -sz / 2],
+    ],
+    [
+      [-sx / 2, -sz / 2 + insetZ],
+      [-sx / 2 + insetX, -sz / 2],
+    ],
   ]
   return (
     <group>
-      {panels.map((p, i) => (
-        <group key={i} position={[p.x, sy / 2, p.z]} rotation={[0, p.rot, 0]}>
-          <mesh>
-            <planeGeometry args={[depth, sy * 0.9]} />
-            <meshStandardMaterial
-              color={safeTint}
-              roughness={0.86}
-              transparent
-              opacity={0.82}
-              alphaMap={alpha ?? undefined}
-              alphaTest={0.35}
-              side={THREE.DoubleSide}
-              depthWrite={false}
-            />
-          </mesh>
-          {/* Sewn vertical edges where the baffle joins adjacent body walls. */}
-          {[-1, 1].map((side) => (
-            <mesh key={side} position={[side * depth * 0.49, 0, 0]}>
-              <boxGeometry args={[0.018, sy * 0.91, 0.018]} />
-              <meshStandardMaterial color={shade(safeTint, -36)} roughness={0.8} />
+      {panels.map(([a, b], i) => {
+        const dx = b[0] - a[0]
+        const dz = b[1] - a[1]
+        const span = Math.hypot(dx, dz)
+        const yaw = Math.atan2(-dz, dx)
+        return (
+          <group key={i} position={[(a[0] + b[0]) / 2, sy / 2, (a[1] + b[1]) / 2]} rotation={[0, yaw, 0]}>
+            <mesh>
+              <planeGeometry args={[span, h]} />
+              <meshStandardMaterial
+                color={safeTint}
+                roughness={0.86}
+                transparent
+                opacity={0.82}
+                alphaMap={alpha ?? undefined}
+                alphaTest={0.35}
+                side={THREE.DoubleSide}
+                depthWrite={false}
+              />
             </mesh>
-          ))}
-        </group>
-      ))}
+            {[-1, 1].map((side) => (
+              <mesh key={side} position={[side * span * 0.5, 0, 0]}>
+                <boxGeometry args={[0.018, h * 1.01, 0.018]} />
+                <meshStandardMaterial color={shade(safeTint, -36)} roughness={0.8} />
+              </mesh>
+            ))}
+          </group>
+        )
+      })}
     </group>
   )
 }
@@ -1201,6 +1244,8 @@ function Skirt({
   drawstring,
   flip,
   oversize,
+  sx,
+  sz,
 }: {
   y: number
   span: number
@@ -1211,10 +1256,44 @@ function Skirt({
   drawstring?: boolean
   flip?: boolean
   oversize?: boolean
+  sx?: number
+  sz?: number
 }) {
   const dir = flip ? -1 : 1
   const cloth = jute ? "#c4a574" : color
-  const h = Math.max(span * 0.42, height)
+  const h = Math.max(span * 0.38, height)
+  if (sx && sz && !flip) {
+    const top = oversize ? 1.06 : 0.98
+    const botX = sx * 0.99
+    const botZ = sz * 0.99
+    const topX = sx * top
+    const topZ = sz * top
+    const midX = (botX + topX) / 2
+    const midZ = (botZ + topZ) / 2
+    const leanZ = Math.atan2((botZ - topZ) / 2, h)
+    const leanX = Math.atan2((botX - topX) / 2, h)
+    const t = 0.02
+    return (
+      <group position={[0, y, 0]}>
+        <mesh position={[0, h / 2, midZ / 2]} rotation={[leanZ, 0, 0]}>
+          <boxGeometry args={[midX, h, t]} />
+          <Fabric color={cloth} doubleSide />
+        </mesh>
+        <mesh position={[0, h / 2, -midZ / 2]} rotation={[-leanZ, 0, 0]}>
+          <boxGeometry args={[midX, h, t]} />
+          <Fabric color={cloth} doubleSide />
+        </mesh>
+        <mesh position={[midX / 2, h / 2, 0]} rotation={[0, 0, -leanX]}>
+          <boxGeometry args={[t, h, midZ - t]} />
+          <Fabric color={cloth} doubleSide />
+        </mesh>
+        <mesh position={[-midX / 2, h / 2, 0]} rotation={[0, 0, leanX]}>
+          <boxGeometry args={[t, h, midZ - t]} />
+          <Fabric color={cloth} doubleSide />
+        </mesh>
+      </group>
+    )
+  }
   const mouth = span * 0.52
   const open = span * (oversize ? 0.88 : 0.76)
   const topY = dir * h
@@ -1363,6 +1442,7 @@ export function FillingKit({
   const conicalTop = /conical/i.test(topType) && !conicalPlate
   const petal = /petal/i.test(spoutType)
   const iris = /iris|pyjama/i.test(spoutType)
+  const starBased = /star/i.test(spoutType)
   const jute = /jute/i.test(topType)
   const drawstring = /drawstring/i.test(topType)
   const oversize = /oversize/i.test(topType)
@@ -1387,6 +1467,8 @@ export function FillingKit({
           jute={jute}
           drawstring={drawstring}
           oversize={oversize}
+          sx={sx}
+          sz={sz}
         />
       ) : null}
       {(conicalPlate || conicalTop) && !clearHandle ? (
@@ -1421,13 +1503,16 @@ export function FillingKit({
             />
             <Fabric color={color} doubleSide={!clearHandle} />
           </mesh>
-          {petal && !clearHandle ? (
+          {petal && !clearHandle && !starBased ? (
             <Petals radius={shownSpoutR * 1.05} height={shownSpoutH} color={color} bagSpan={span} />
           ) : null}
-          {iris && !clearHandle ? <Iris radius={shownSpoutR * 1.05} height={shownSpoutH} strap={strap} /> : null}
+          {iris && !clearHandle && !starBased ? <Iris radius={shownSpoutR * 1.05} height={shownSpoutH} strap={strap} /> : null}
+          {starBased && !clearHandle ? (
+            <StarBasedCollar radius={shownSpoutR} y={shownSpoutH * 0.08} color={color} strap={strap} />
+          ) : null}
         </group>
       ) : null}
-      {!clearHandle && (rope || tie || drawstring) && (skirt || fillingSpout || conicalPlate || conicalTop) ? (
+      {!clearHandle && (rope || tie || drawstring || fillingSpout) && (skirt || fillingSpout || conicalPlate || conicalTop) ? (
         <SpoutCinch
           radius={skirt ? span * (oversize ? 0.88 : 0.76) : shownSpoutR}
           y={
@@ -1435,17 +1520,17 @@ export function FillingKit({
               ? sy + skirtH
               : sy +
                 (conicalPlate || conicalTop ? hopperH * 0.92 : 0) +
-                shownSpoutH
+                shownSpoutH * 0.5
           }
           rope={rope}
-          tie={(tie || drawstring) && !rope}
+          tie={(tie || drawstring || fillingSpout) && !rope}
           ropeColor={ropeColor || strap}
           tieColor={tieColor || strap}
           ropeCount={ropeCount}
           tieCount={tieCount}
           ropeSize={ropeSize}
           tieSize={tieSize}
-          hang={Math.max(0.12, shownSpoutH * 0.9)}
+          hang={Math.max(0.1, shownSpoutH * 0.55)}
         />
       ) : null}
       {flap && !clearHandle ? (
@@ -1503,22 +1588,19 @@ export function DischargeKit({
   const conicalPlate = /plate/i.test(bottomType)
   const conicalBase = /conical/i.test(bottomType) && !conicalPlate
   const star = /star/i.test(bottomType) || /star/i.test(spoutType)
+  const starBased = /star/i.test(spoutType) || /star/i.test(bottomType)
   const petal = /petal/i.test(spoutType)
   const iris = /iris|pyjama|bonnet/i.test(spoutType)
   const span = Math.min(sx, sz)
   const skirtH = Math.max(span * 0.38, conicalH * 0.65)
   const hopperH = Math.max(span * 0.28, conicalH)
-  const foldH = Math.max(span * 0.2, conicalH * 0.45)
-  const starBar = Math.max(0.04, span * 0.055)
-  const starFunnel = Math.max(0.08, foldH * 0.55)
   const holeR = Math.max(spoutR, span * 0.16)
   const shownSpoutH = Math.max(spoutH, span * 0.22)
   const showDischarge = fillingSpout || conicalPlate || star
-  const spoutRoot = star ? -(starFunnel + starBar * 0.55) : conicalPlate || conicalBase ? -hopperH * 0.92 : 0
+  const spoutRoot = conicalPlate || conicalBase ? -hopperH * 0.92 : 0
 
   return (
     <group>
-      {star ? <StarFold sx={sx} sz={sz} foldH={foldH} holeR={holeR} color={color} /> : null}
       {(conicalPlate || conicalBase) && !star ? (
         <ConicalHopper y={0} span={span} height={hopperH} holeR={holeR} color={color} flip />
       ) : null}
@@ -1541,7 +1623,10 @@ export function DischargeKit({
           {petal && !star ? (
             <Petals radius={holeR * 1.05} height={shownSpoutH} color={color} bagSpan={span} flip />
           ) : null}
-          {iris ? <Iris radius={holeR} height={shownSpoutH} strap={strap} flip /> : null}
+          {iris && !starBased ? <Iris radius={holeR} height={shownSpoutH} strap={strap} flip /> : null}
+          {starBased ? (
+            <StarBasedCollar radius={holeR} y={-0.02} color={color} strap={strap} flip />
+          ) : null}
           {flap ? (
             <mesh position={[span * 0.12, -0.03, 0]} rotation={[0.55, 0.1, 0]}>
               <boxGeometry args={[span * 0.55, 0.016, span * 0.55]} />
@@ -1550,19 +1635,19 @@ export function DischargeKit({
           ) : null}
         </group>
       ) : null}
-      {(rope || tie) && (skirt || showDischarge || conicalBase) ? (
+      {(rope || tie || fillingSpout) && (skirt || showDischarge || conicalBase) ? (
         <SpoutCinch
           radius={skirt ? span * 0.76 : holeR}
-          y={skirt ? -skirtH : spoutRoot - shownSpoutH}
+          y={skirt ? -skirtH : spoutRoot - shownSpoutH * 0.5}
           rope={rope}
-          tie={Boolean(tie) && !rope}
+          tie={(Boolean(tie) || fillingSpout) && !rope}
           ropeColor={ropeColor || strap}
           tieColor={tieColor || strap}
           ropeCount={ropeCount}
           tieCount={tieCount}
           ropeSize={ropeSize}
           tieSize={tieSize}
-          hang={Math.max(0.12, shownSpoutH * 0.85)}
+          hang={Math.max(0.1, shownSpoutH * 0.55)}
           flip
         />
       ) : null}
@@ -1595,9 +1680,10 @@ function StevedoreStrap({
     const mx = (x1 + x2) / 2
     const mz = (z1 + z2) / 2
     const span = Math.hypot(x2 - x1, z2 - z1)
+    const rise = Math.max(0.22, Math.min(0.38, span * 0.32))
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(x1, y, z1),
-      new THREE.Vector3(mx, y + Math.min(0.12, span * 0.08), mz),
+      new THREE.Vector3(mx, y + rise, mz),
       new THREE.Vector3(x2, y, z2),
     ])
     return strapGeo(curve, width, Math.max(0.008, width * 0.2))
@@ -1627,6 +1713,8 @@ export function LoopKit({
   stevedore,
   stevedorePortion,
   stevedoreColor,
+  stevedoreCount = 1,
+  ancerie = false,
   tunnelEnabled = false,
   tunnelColor,
   protector,
@@ -1651,6 +1739,8 @@ export function LoopKit({
   stevedore: boolean
   stevedorePortion: string
   stevedoreColor?: string
+  stevedoreCount?: number
+  ancerie?: boolean
   tunnelEnabled?: boolean
   tunnelColor?: string
   protector: boolean
@@ -1676,7 +1766,10 @@ export function LoopKit({
   const above = Math.max(0.12, loopAbove)
   const down = tillBottom || full ? sy * 0.92 : Math.min(sy * 0.55, Math.max(above * 0.9, sewDown))
   const y1 = sy + 0.01
-  const y0Corner = tillBottom ? 0.06 : Math.max(sy * 0.93, y1 - 0.045)
+  const cornerDown = tillBottom ? sy * 0.92 : Math.min(sy * 0.68, Math.max(sewDown * 2.2, sy * 0.5))
+  const y0Long = tillBottom ? 0.06 : Math.max(0.08, sy - cornerDown)
+  const y0Short = tillBottom ? Math.max(y0Long + 0.08, sy * 0.42) : y0Long + (y1 - y0Long) * 0.32
+  const y0Corner = y0Long
   const y0Cross = tillBottom || full ? 0.06 : sy - down
   const width = Math.max(0.028, strapWidth)
   const loopGap = Math.max(crossEndGap, Math.min(sx, sz) * 0.16)
@@ -1716,21 +1809,31 @@ export function LoopKit({
   const showCross = !none && !liftBag && !hood && (cross || full)
   const cornerSet = (showCorner || showCross ? corners : []).slice(0, single4 || double4 ? 4 : nCorner)
   const portion = stevedorePortion.toLowerCase()
-  const steveY = sy + above * 0.55
   const steveColor = stevedoreColor || strap
-  const steveWidth = Math.max(width * 0.75, 0.025)
-  const lengthBridges: [[number, number], [number, number]][] = [
-    [[-sx / 2 + inset, sz / 2 - inset], [sx / 2 - inset, sz / 2 - inset]],
-    [[-sx / 2 + inset, -sz / 2 + inset], [sx / 2 - inset, -sz / 2 + inset]],
-  ]
-  const widthBridges: [[number, number], [number, number]][] = [
-    [[sx / 2 - inset, -sz / 2 + inset], [sx / 2 - inset, sz / 2 - inset]],
-    [[-sx / 2 + inset, -sz / 2 + inset], [-sx / 2 + inset, sz / 2 - inset]],
-  ]
-  const diagonalBridges: [[number, number], [number, number]][] = [
-    [[-sx / 2 + inset, -sz / 2 + inset], [sx / 2 - inset, sz / 2 - inset]],
-    [[-sx / 2 + inset, sz / 2 - inset], [sx / 2 - inset, -sz / 2 + inset]],
-  ]
+  const steveWidth = Math.max(width * 0.85, 0.028)
+  const steveN = Math.min(2, Math.max(1, stevedoreCount))
+  const off = Math.min(sx, sz) * 0.22
+  const lengthBridges: [[number, number], [number, number]][] =
+    steveN === 1
+      ? [[[-sx / 2 + inset, 0], [sx / 2 - inset, 0]]]
+      : [
+          [[-sx / 2 + inset, off], [sx / 2 - inset, off]],
+          [[-sx / 2 + inset, -off], [sx / 2 - inset, -off]],
+        ]
+  const widthBridges: [[number, number], [number, number]][] =
+    steveN === 1
+      ? [[[0, -sz / 2 + inset], [0, sz / 2 - inset]]]
+      : [
+          [[off, -sz / 2 + inset], [off, sz / 2 - inset]],
+          [[-off, -sz / 2 + inset], [-off, sz / 2 - inset]],
+        ]
+  const diagonalBridges: [[number, number], [number, number]][] =
+    steveN === 1
+      ? [[[-sx / 2 + inset, -sz / 2 + inset], [sx / 2 - inset, sz / 2 - inset]]]
+      : [
+          [[-sx / 2 + inset, -sz / 2 + inset], [sx / 2 - inset, sz / 2 - inset]],
+          [[-sx / 2 + inset, sz / 2 - inset], [sx / 2 - inset, -sz / 2 + inset]],
+        ]
   const steveBridges = portion.includes("width")
     ? widthBridges
     : portion.includes("length") || portion.includes("lenght")
@@ -1759,7 +1862,8 @@ export function LoopKit({
               <FaceSlackLoop
                 x={x}
                 z={z}
-                y0={y0Corner}
+                y0={y0Long}
+                y0Short={y0Short}
                 y1={y1}
                 color={strap}
                 above={above}
@@ -1804,6 +1908,7 @@ export function LoopKit({
           x={x}
           z={z}
           y0={y0Corner}
+          y0Short={y0Short}
           y1={y1}
           color={strap}
           above={above}
@@ -1843,9 +1948,30 @@ export function LoopKit({
               key={`st-${index}`}
               start={start}
               end={end}
-              y={steveY}
+              y={sy + 0.02}
               color={steveColor}
               width={steveWidth}
+            />
+          ))}
+        </group>
+      ) : null}
+      {ancerie ? (
+        <group>
+          {corners.map(([x, z]) => (
+            <FaceSlackLoop
+              key={`anc-${x}-${z}`}
+              x={x}
+              z={z}
+              y0={sy * 0.9}
+              y0Short={sy * 0.96}
+              y1={sy + 0.01}
+              color={strap}
+              above={Math.max(0.1, above * 0.42)}
+              width={width * 0.72}
+              circular={circular}
+              sx={sx}
+              sy={sy}
+              sz={sz}
             />
           ))}
         </group>

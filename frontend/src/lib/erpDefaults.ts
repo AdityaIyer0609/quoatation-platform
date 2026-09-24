@@ -91,6 +91,10 @@ export function topTypeDefaults(topType: string, spec: QuoteSpecification): Part
       topSpoutType: "Simple",
       topSpoutDia: spec.topSpoutDia || "35",
       topSpoutHeight: spec.topSpoutHeight || "50",
+      topSpoutTie: true,
+      topSpoutTieGsm: spec.topSpoutTieGsm || "6",
+      topSpoutTieSize: spec.topSpoutTieSize || "15",
+      topSpoutTieCount: spec.topSpoutTieCount || "1",
       topGsm: spec.sameFabricForPanels ? spec.topGsm : spec.topGsm || "70",
       topLami: spec.sameFabricForPanels ? spec.topLami : spec.topLami || "25",
       ...(spec.sameFabricForPanels
