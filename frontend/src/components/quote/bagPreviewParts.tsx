@@ -833,18 +833,190 @@ function Iris({ radius, height, strap, flip }: { radius: number; height: number;
   )
 }
 
-function SpoutTies({ radius, height, strap, flip }: { radius: number; height: number; strap: string; flip?: boolean }) {
+function cinchTube(size: string, kind: "rope" | "tie", radius: number) {
+  const n = Number.parseFloat(size)
+  if (kind === "rope") {
+    const mm = Number.isFinite(n) && n > 0 ? n : 8
+    return Math.max(radius * 0.07, Math.min(radius * 0.16, mm * 0.0032))
+  }
+  const mm = Number.isFinite(n) && n > 0 ? n : 6
+  return Math.max(0.0038, Math.min(radius * 0.028, mm * 0.00045))
+}
+
+function SpoutRope({
+  radius,
+  y,
+  color,
+  flip,
+  wraps = 1,
+  size,
+}: {
+  radius: number
+  y: number
+  color: string
+  flip?: boolean
+  wraps?: number
+  size: string
+}) {
   const dir = flip ? -1 : 1
+  const tube = cinchTube(size, "rope", radius)
+  const ring = radius + tube * 1.05
+  const n = Math.min(3, Math.max(1, wraps))
+  const hang = Math.max(0.1, tube * 9)
+  return (
+    <group position={[0, y, 0]}>
+      {Array.from({ length: n }, (_, i) => (
+        <mesh
+          key={i}
+          position={[0, dir * i * tube * 2.15, 0]}
+          rotation={[Math.PI / 2, i * 0.45, 0]}
+        >
+          <torusGeometry args={[ring, tube, 12, 40]} />
+          <meshStandardMaterial
+            color={i % 2 ? shade(color, -22) : color}
+            roughness={0.58}
+            metalness={0.05}
+          />
+        </mesh>
+      ))}
+      <mesh position={[ring, dir * hang * 0.42, 0]}>
+        <cylinderGeometry args={[tube * 0.92, tube * 0.78, hang, 8]} />
+        <meshStandardMaterial color={color} roughness={0.58} />
+      </mesh>
+      <mesh position={[ring + tube * 1.5, dir * hang * 0.34, tube * 1.1]} rotation={[0.2, 0, 0.18]}>
+        <cylinderGeometry args={[tube * 0.82, tube * 0.7, hang * 0.82, 8]} />
+        <meshStandardMaterial color={shade(color, -14)} roughness={0.6} />
+      </mesh>
+      <mesh position={[ring, dir * tube * 0.4, 0]}>
+        <sphereGeometry args={[tube * 1.45, 10, 8]} />
+        <meshStandardMaterial color={shade(color, -24)} roughness={0.68} />
+      </mesh>
+    </group>
+  )
+}
+
+function WebTies({
+  radius,
+  y,
+  color,
+  hang,
+  pairs = 1,
+}: {
+  radius: number
+  y: number
+  color: string
+  hang: number
+  pairs?: number
+}) {
+  const h = Math.max(0.1, hang)
+  const w = 0.008
+  const t = 0.0036
+  const n = Math.min(2, Math.max(1, pairs))
+  return (
+    <group position={[0, y, 0]}>
+      {Array.from({ length: n }, (_, p) => (
+        <group key={p} rotation={[0, n === 1 ? 0.12 : (p * Math.PI) / n, 0]}>
+          {[-1, 1].map((side) => (
+            <mesh
+              key={side}
+              position={[side * w * 1.25, -h * 0.48, radius + t]}
+              rotation={[0.22, 0, side * 0.06]}
+            >
+              <boxGeometry args={[w, h, t]} />
+              <Webbing color={color} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+    </group>
+  )
+}
+
+function StarFold({
+  sx,
+  sz,
+  foldH,
+  holeR,
+  color,
+}: {
+  sx: number
+  sz: number
+  foldH: number
+  holeR: number
+  color: string
+}) {
+  const span = Math.min(sx, sz)
+  const h = Math.max(0.08, foldH * 0.55)
+  const arm = Math.hypot(sx, sz) * 0.94
+  const bar = Math.max(0.04, span * 0.055)
+  const star = shade(color, -16)
   return (
     <group>
-      <mesh position={[0, dir * height * 0.55, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[radius * 0.92, 0.011, 8, 20]} />
-        <Webbing color={strap} />
+      <mesh position={[0, -bar * 0.35, 0]} rotation={[0, Math.PI / 4, 0]}>
+        <boxGeometry args={[arm, bar, bar]} />
+        <Fabric color={star} />
       </mesh>
-      <mesh position={[0, dir * height * 0.55, 0]} rotation={[0, 0, 0]}>
-        <boxGeometry args={[radius * 2.4, 0.012, 0.012]} />
-        <Webbing color={strap} />
+      <mesh position={[0, -bar * 0.35, 0]} rotation={[0, -Math.PI / 4, 0]}>
+        <boxGeometry args={[arm, bar, bar]} />
+        <Fabric color={star} />
       </mesh>
+      <mesh position={[0, -bar * 0.28, 0]}>
+        <boxGeometry args={[sx * 0.96, bar * 0.72, bar * 0.72]} />
+        <Fabric color={shade(color, -8)} />
+      </mesh>
+      <mesh position={[0, -bar * 0.28, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <boxGeometry args={[sz * 0.96, bar * 0.72, bar * 0.72]} />
+        <Fabric color={shade(color, -8)} />
+      </mesh>
+      <mesh position={[0, -h / 2 - bar * 0.2, 0]} rotation={[0, Math.PI / 8, 0]}>
+        <cylinderGeometry args={[span * 0.38, holeR, h, 8, 1, true]} />
+        <Fabric color={color} doubleSide />
+      </mesh>
+    </group>
+  )
+}
+
+function SpoutCinch({
+  radius,
+  y,
+  rope,
+  tie,
+  ropeColor,
+  tieColor,
+  ropeCount,
+  tieCount,
+  ropeSize,
+  tieSize,
+  hang = 0.12,
+  flip,
+}: {
+  radius: number
+  y: number
+  rope?: boolean
+  tie?: boolean
+  ropeColor: string
+  tieColor: string
+  ropeCount: number
+  tieCount: number
+  ropeSize: string
+  tieSize: string
+  hang?: number
+  flip?: boolean
+}) {
+  if (!rope && !tie) return null
+  return (
+    <group>
+      {rope ? (
+        <SpoutRope radius={radius} y={y} color={ropeColor} flip={flip} wraps={ropeCount} size={ropeSize} />
+      ) : (
+        <WebTies
+          radius={radius}
+          y={y}
+          color={tieColor}
+          hang={hang}
+          pairs={Math.max(1, Math.round(tieCount / 2))}
+        />
+      )}
     </group>
   )
 }
@@ -1028,9 +1200,7 @@ function Skirt({
   jute,
   drawstring,
   flip,
-  rectangular,
-  sx,
-  sz,
+  oversize,
 }: {
   y: number
   span: number
@@ -1040,36 +1210,52 @@ function Skirt({
   jute?: boolean
   drawstring?: boolean
   flip?: boolean
-  /** Soft gathered duffle vs rectangular open skirt. */
-  rectangular?: boolean
-  sx?: number
-  sz?: number
+  oversize?: boolean
 }) {
   const dir = flip ? -1 : 1
   const cloth = jute ? "#c4a574" : color
-  const h = Math.max(0.12, height)
-  if (rectangular && sx && sz) {
-    return (
-      <group position={[0, y, 0]}>
-        <OpenCollar sx={sx * 0.98} sy={0} sz={sz * 0.98} height={h} color={cloth} />
-        <mesh position={[0, dir * h * 0.55, sx ? 0 : 0]}>
-          <boxGeometry args={[0.012, 0.012, Math.min(sx, sz) * 0.9]} />
-          <Webbing color={drawstring ? strap : shade(cloth, -15)} />
-        </mesh>
-      </group>
-    )
-  }
+  const h = Math.max(span * 0.42, height)
+  const mouth = span * 0.52
+  const open = span * (oversize ? 0.88 : 0.76)
+  const topY = dir * h
   return (
     <group position={[0, y, 0]}>
-      <mesh position={[0, dir * h * 0.45, 0]} rotation={flip ? [Math.PI, 0, 0] : [0, 0, 0]}>
-        <cylinderGeometry args={[span * 0.22, span * 0.48, h, 28, 1, true]} />
+      <mesh position={[0, dir * h * 0.5, 0]} rotation={flip ? [Math.PI, 0, 0] : [0, 0, 0]}>
+        <cylinderGeometry args={[open, mouth, h, 36, 1, true]} />
         <Fabric color={cloth} doubleSide />
       </mesh>
-      <mesh position={[0, dir * h * 0.88, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[span * 0.2, 0.014, 8, 22]} />
-        <Webbing color={drawstring ? strap : shade(cloth, -15)} />
+      <mesh position={[0, topY, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[open, 0.016, 8, 28]} />
+        <Webbing color={drawstring ? strap : shade(cloth, -12)} />
       </mesh>
     </group>
+  )
+}
+
+function ConicalHopper({
+  y,
+  span,
+  height,
+  holeR,
+  color,
+  flip,
+}: {
+  y: number
+  span: number
+  height: number
+  holeR: number
+  color: string
+  flip?: boolean
+}) {
+  const dir = flip ? -1 : 1
+  const h = Math.max(span * 0.28, height)
+  const base = span * 0.49
+  const hole = Math.min(base * 0.55, Math.max(span * 0.14, holeR))
+  return (
+    <mesh position={[0, y + dir * h * 0.5, 0]} rotation={flip ? [Math.PI, 0, 0] : [0, 0, 0]}>
+      <cylinderGeometry args={[hole, base, h, 36, 1, true]} />
+      <Fabric color={color} doubleSide />
+    </mesh>
   )
 }
 
@@ -1138,6 +1324,14 @@ export function FillingKit({
   clearHandle = false,
   flapColor,
   circular = false,
+  rope = false,
+  tie = false,
+  ropeColor,
+  tieColor,
+  ropeCount = 1,
+  tieCount = 1,
+  ropeSize = "8",
+  tieSize = "6",
 }: {
   sx: number
   sy: number
@@ -1154,22 +1348,33 @@ export function FillingKit({
   clearHandle?: boolean
   flapColor?: string
   circular?: boolean
+  rope?: boolean
+  tie?: boolean
+  ropeColor?: string
+  tieColor?: string
+  ropeCount?: number
+  tieCount?: number
+  ropeSize?: string
+  tieSize?: string
 }) {
-  const spout = /spout/i.test(topType)
+  const fillingSpout = /^top spout$/i.test(topType.trim())
   const skirt = /duffle|skrit|skirt|leno|jute|drawstring|top \+ skrit|oversize/i.test(topType)
-  const conical = /conical/i.test(topType)
+  const conicalPlate = /plate/i.test(topType)
+  const conicalTop = /conical/i.test(topType) && !conicalPlate
   const petal = /petal/i.test(spoutType)
   const iris = /iris|pyjama/i.test(spoutType)
   const jute = /jute/i.test(topType)
   const drawstring = /drawstring/i.test(topType)
+  const oversize = /oversize/i.test(topType)
   const span = Math.min(sx, sz)
-  const skirtH = Math.max(0.12, duffleH)
+  const skirtH = Math.max(span * 0.42, duffleH || span * 0.48)
+  const hopperH = Math.max(span * 0.32, conicalH)
   const shownSpoutH = clearHandle ? Math.min(0.1, spoutH * 0.35) : spoutH
-  const shownSpoutR = clearHandle ? Math.min(spoutR, span * 0.22) : spoutR
+  const shownSpoutR = clearHandle ? Math.min(spoutR, span * 0.22) : Math.max(spoutR, span * 0.16)
 
   return (
     <group>
-      {spout && !clearHandle ? (
+      {fillingSpout && !clearHandle ? (
         <SpoutDeck sx={sx} sy={sy} sz={sz} holeR={shownSpoutR * 0.92} color={color} circular={circular} />
       ) : null}
       {skirt && !clearHandle ? (
@@ -1181,16 +1386,28 @@ export function FillingKit({
           strap={strap}
           jute={jute}
           drawstring={drawstring}
+          oversize={oversize}
         />
       ) : null}
-      {conical && !clearHandle ? (
-        <mesh position={[0, sy + conicalH / 2, 0]}>
-          <coneGeometry args={[span * 0.36, conicalH, 24]} />
-          <Fabric color={color} />
-        </mesh>
+      {(conicalPlate || conicalTop) && !clearHandle ? (
+        <ConicalHopper y={sy} span={span} height={hopperH} holeR={shownSpoutR} color={color} />
       ) : null}
-      {spout ? (
-        <group position={[0, sy + (clearHandle ? -shownSpoutH * 0.15 : (skirt ? skirtH * 0.85 : 0) + (conical ? conicalH * 0.35 : 0)), 0]}>
+      {conicalPlate && !clearHandle ? (
+        <SpoutDeck sx={sx} sy={sy} sz={sz} holeR={span * 0.46} color={color} circular={circular} />
+      ) : null}
+      {(fillingSpout || conicalPlate) && !skirt ? (
+        <group
+          position={[
+            0,
+            sy +
+              (clearHandle
+                ? -shownSpoutH * 0.15
+                : conicalPlate || conicalTop
+                  ? hopperH * 0.92
+                  : 0),
+            0,
+          ]}
+        >
           <mesh position={[0, shownSpoutH / 2, 0]} castShadow>
             <cylinderGeometry
               args={[
@@ -1208,11 +1425,31 @@ export function FillingKit({
             <Petals radius={shownSpoutR * 1.05} height={shownSpoutH} color={color} bagSpan={span} />
           ) : null}
           {iris && !clearHandle ? <Iris radius={shownSpoutR * 1.05} height={shownSpoutH} strap={strap} /> : null}
-          {!petal && !iris && !clearHandle ? <SpoutTies radius={shownSpoutR} height={shownSpoutH} strap={strap} /> : null}
         </group>
       ) : null}
+      {!clearHandle && (rope || tie || drawstring) && (skirt || fillingSpout || conicalPlate || conicalTop) ? (
+        <SpoutCinch
+          radius={skirt ? span * (oversize ? 0.88 : 0.76) : shownSpoutR}
+          y={
+            skirt
+              ? sy + skirtH
+              : sy +
+                (conicalPlate || conicalTop ? hopperH * 0.92 : 0) +
+                shownSpoutH
+          }
+          rope={rope}
+          tie={(tie || drawstring) && !rope}
+          ropeColor={ropeColor || strap}
+          tieColor={tieColor || strap}
+          ropeCount={ropeCount}
+          tieCount={tieCount}
+          ropeSize={ropeSize}
+          tieSize={tieSize}
+          hang={Math.max(0.12, shownSpoutH * 0.9)}
+        />
+      ) : null}
       {flap && !clearHandle ? (
-        <mesh position={[span * 0.05, sy + (spout ? spoutH * 0.15 : 0.05), 0]} rotation={[0.22, 0.08, 0]}>
+        <mesh position={[span * 0.05, sy + (fillingSpout ? spoutH * 0.15 : 0.05), 0]} rotation={[0.22, 0.08, 0]}>
           <boxGeometry args={[span * 0.78, 0.018, span * 0.78]} />
           <Fabric color={flapColor || color} />
         </mesh>
@@ -1232,6 +1469,14 @@ export function DischargeKit({
   spoutH,
   spoutR,
   conicalH,
+  rope = false,
+  tie = false,
+  ropeColor,
+  tieColor,
+  ropeCount = 1,
+  tieCount = 1,
+  ropeSize = "8",
+  tieSize = "6",
 }: {
   sx: number
   sy: number
@@ -1244,57 +1489,59 @@ export function DischargeKit({
   spoutH: number
   spoutR: number
   conicalH: number
+  rope?: boolean
+  tie?: boolean
+  ropeColor?: string
+  tieColor?: string
+  ropeCount?: number
+  tieCount?: number
+  ropeSize?: string
+  tieSize?: string
 }) {
-  const spout = /spout/i.test(bottomType)
-  const skirt = /skirt/i.test(bottomType)
-  const conical = /conical/i.test(bottomType)
-  const star = /star/i.test(bottomType)
+  const fillingSpout = /^bottom spout$/i.test(bottomType.trim())
+  const skirt = /skirt/i.test(bottomType) && !/conical/i.test(bottomType) && !/star/i.test(bottomType)
+  const conicalPlate = /plate/i.test(bottomType)
+  const conicalBase = /conical/i.test(bottomType) && !conicalPlate
+  const star = /star/i.test(bottomType) || /star/i.test(spoutType)
   const petal = /petal/i.test(spoutType)
   const iris = /iris|pyjama|bonnet/i.test(spoutType)
   const span = Math.min(sx, sz)
-  const skirtH = Math.max(0.18, conicalH)
+  const skirtH = Math.max(span * 0.38, conicalH * 0.65)
+  const hopperH = Math.max(span * 0.28, conicalH)
+  const foldH = Math.max(span * 0.2, conicalH * 0.45)
+  const starBar = Math.max(0.04, span * 0.055)
+  const starFunnel = Math.max(0.08, foldH * 0.55)
+  const holeR = Math.max(spoutR, span * 0.16)
+  const shownSpoutH = Math.max(spoutH, span * 0.22)
+  const showDischarge = fillingSpout || conicalPlate || star
+  const spoutRoot = star ? -(starFunnel + starBar * 0.55) : conicalPlate || conicalBase ? -hopperH * 0.92 : 0
 
   return (
     <group>
-      {star ? (
-        <group position={[0, 0.02, 0]}>
-          <mesh rotation={[0, Math.PI / 4, 0]}>
-            <boxGeometry args={[span * 0.9, 0.02, 0.06]} />
-            <Fabric color={shade(color, -10)} />
-          </mesh>
-          <mesh rotation={[0, -Math.PI / 4, 0]}>
-            <boxGeometry args={[span * 0.9, 0.02, 0.06]} />
-            <Fabric color={shade(color, -10)} />
-          </mesh>
-        </group>
-      ) : null}
-      {conical ? (
-        <mesh position={[0, -conicalH / 2, 0]} rotation={[Math.PI, 0, 0]}>
-          <coneGeometry args={[span * 0.32, conicalH, 24]} />
-          <Fabric color={color} />
-        </mesh>
+      {star ? <StarFold sx={sx} sz={sz} foldH={foldH} holeR={holeR} color={color} /> : null}
+      {(conicalPlate || conicalBase) && !star ? (
+        <ConicalHopper y={0} span={span} height={hopperH} holeR={holeR} color={color} flip />
       ) : null}
       {skirt ? (
         <Skirt
-          y={conical ? -conicalH * 0.4 : 0}
-          span={span * 0.92}
+          y={0}
+          span={span}
           height={skirtH}
           color={color}
           strap={strap}
           flip
         />
       ) : null}
-      {spout ? (
-        <group position={[0, conical ? -conicalH * 0.35 : 0, 0]}>
-          <mesh position={[0, -spoutH / 2, 0]} castShadow>
-            <cylinderGeometry args={[spoutR, spoutR * 0.86, spoutH, 28]} />
+      {showDischarge ? (
+        <group position={[0, spoutRoot, 0]}>
+          <mesh position={[0, -shownSpoutH / 2, 0]} castShadow>
+            <cylinderGeometry args={[holeR, holeR * 0.92, shownSpoutH, 28]} />
             <Fabric color={color} />
           </mesh>
-          {petal ? (
-            <Petals radius={spoutR * 1.05} height={spoutH} color={color} bagSpan={span} flip />
+          {petal && !star ? (
+            <Petals radius={holeR * 1.05} height={shownSpoutH} color={color} bagSpan={span} flip />
           ) : null}
-          {iris ? <Iris radius={spoutR} height={spoutH} strap={strap} flip /> : null}
-          {!petal && !iris ? <SpoutTies radius={spoutR} height={spoutH} strap={strap} flip /> : null}
+          {iris ? <Iris radius={holeR} height={shownSpoutH} strap={strap} flip /> : null}
           {flap ? (
             <mesh position={[span * 0.12, -0.03, 0]} rotation={[0.55, 0.1, 0]}>
               <boxGeometry args={[span * 0.55, 0.016, span * 0.55]} />
@@ -1303,7 +1550,23 @@ export function DischargeKit({
           ) : null}
         </group>
       ) : null}
-      {flap && !spout ? (
+      {(rope || tie) && (skirt || showDischarge || conicalBase) ? (
+        <SpoutCinch
+          radius={skirt ? span * 0.76 : holeR}
+          y={skirt ? -skirtH : spoutRoot - shownSpoutH}
+          rope={rope}
+          tie={Boolean(tie) && !rope}
+          ropeColor={ropeColor || strap}
+          tieColor={tieColor || strap}
+          ropeCount={ropeCount}
+          tieCount={tieCount}
+          ropeSize={ropeSize}
+          tieSize={tieSize}
+          hang={Math.max(0.12, shownSpoutH * 0.85)}
+          flip
+        />
+      ) : null}
+      {flap && !showDischarge ? (
         <mesh position={[0, -0.03, 0]}>
           <boxGeometry args={[span * 0.55, 0.016, span * 0.55]} />
           <Fabric color={color} />

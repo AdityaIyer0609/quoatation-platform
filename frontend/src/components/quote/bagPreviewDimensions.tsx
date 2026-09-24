@@ -20,36 +20,73 @@ function Seg({ a, b }: { a: XYZ; b: XYZ }) {
   )
 }
 
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  const radius = Math.min(r, w / 2, h / 2)
+  ctx.beginPath()
+  ctx.moveTo(x + radius, y)
+  ctx.arcTo(x + w, y, x + w, y + h, radius)
+  ctx.arcTo(x + w, y + h, x, y + h, radius)
+  ctx.arcTo(x, y + h, x, y, radius)
+  ctx.arcTo(x, y, x + w, y, radius)
+  ctx.closePath()
+}
+
 function labelTexture(text: string) {
+  const dpr = 2
+  const fontSize = 42
+  const padX = 22
+  const padY = 12
+  const font = `700 ${fontSize}px "Segoe UI", ui-sans-serif, system-ui, sans-serif`
+  const probe = document.createElement("canvas").getContext("2d")
+  if (!probe) return null
+  probe.font = font
+  const textW = Math.ceil(probe.measureText(text).width)
+  const cssW = textW + padX * 2
+  const cssH = fontSize + padY * 2
   const canvas = document.createElement("canvas")
-  canvas.width = 384
-  canvas.height = 96
+  canvas.width = Math.max(2, Math.ceil(cssW * dpr))
+  canvas.height = Math.max(2, Math.ceil(cssH * dpr))
   const ctx = canvas.getContext("2d")
   if (!ctx) return null
+  ctx.scale(dpr, dpr)
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = "high"
+  roundRect(ctx, 0.5, 0.5, cssW - 1, cssH - 1, 8)
   ctx.fillStyle = PAPER
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.fill()
+  ctx.lineWidth = 1.5
   ctx.strokeStyle = LINE
-  ctx.lineWidth = 4
-  ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6)
+  ctx.stroke()
   ctx.fillStyle = INK
-  ctx.font = "700 36px ui-sans-serif, system-ui, sans-serif"
+  ctx.font = font
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
-  ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 2)
+  ctx.fillText(text, cssW / 2, cssH / 2 + 0.5)
   const map = new THREE.CanvasTexture(canvas)
   map.colorSpace = THREE.SRGBColorSpace
+  map.minFilter = THREE.LinearFilter
+  map.magFilter = THREE.LinearFilter
+  map.generateMipmaps = false
+  map.anisotropy = 8
   map.needsUpdate = true
-  return map
+  return { map, aspect: cssW / cssH }
 }
 
 function Chip({ position, text, scale = 1 }: { position: XYZ; text: string; scale?: number }) {
-  const map = useMemo(() => labelTexture(text), [text])
-  useEffect(() => () => map?.dispose(), [map])
-  if (!map) return null
-  const width = Math.min(0.92, Math.max(0.48, text.length * 0.038)) * scale
+  const tex = useMemo(() => labelTexture(text), [text])
+  useEffect(() => () => tex?.map.dispose(), [tex])
+  if (!tex) return null
+  const width = Math.min(1.05, Math.max(0.5, text.length * 0.042)) * scale
   return (
-    <sprite position={position} scale={[width, 0.13 * scale, 1]} renderOrder={20}>
-      <spriteMaterial map={map} depthTest={false} transparent />
+    <sprite position={position} scale={[width, width / tex.aspect, 1]} renderOrder={20}>
+      <spriteMaterial map={tex.map} depthTest={false} transparent toneMapped={false} />
     </sprite>
   )
 }
@@ -217,7 +254,17 @@ export function dimensionFrame(spec: {
   const spoutBotH = Math.max(0.08, (botHCm || 40) * scale)
   const spoutBotR = Math.min(Math.min(sx, sz) * 0.48, Math.max(0.05, ((botDiaCm || 35) * scale) / 2))
   const conicalH = Math.max(0.08, toNum(spec.conicalTop || spec.bottomConicalHeight, 30) * scale)
-  const lift = /spout/i.test(spec.bottomType) ? spoutBotH : /conical|skirt/i.test(spec.bottomType) ? conicalH : 0
+  const lift = /star/i.test(spec.bottomType) || /star/i.test(spec.bottomSpoutType)
+    ? Math.max(Math.min(sx, sz) * 0.2, conicalH * 0.45) + spoutBotH
+    : /plate/i.test(spec.bottomType)
+    ? Math.max(conicalH, Math.min(sx, sz) * 0.28) + spoutBotH * 0.92
+    : /conical/i.test(spec.bottomType)
+      ? Math.max(conicalH, Math.min(sx, sz) * 0.28)
+      : /skirt/i.test(spec.bottomType)
+        ? Math.max(conicalH, Math.min(sx, sz) * 0.38)
+        : /spout/i.test(spec.bottomType)
+          ? spoutBotH
+          : 0
   const faceZ = upanel ? sz / 2 + 0.01 : (sz / 2) * (1 + belly) + 0.04
   const topSpout =
     /spout/i.test(spec.topType) && topDiaCm > 0

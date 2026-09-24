@@ -1,5 +1,5 @@
-import { Maximize2 } from "lucide-react"
-import { Component, lazy, Suspense, useState, type ReactNode } from "react"
+import { Eye, EyeOff, Maximize2 } from "lucide-react"
+import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from "react"
 
 import {
   Dialog,
@@ -14,6 +14,23 @@ import { cn } from "@/lib/utils"
 import type { QuoteSpecification } from "@/types/quote"
 
 const BagPreviewCanvas = lazy(() => import("@/components/quote/BagPreviewCanvas"))
+const LABELS_KEY = "bag-preview-labels"
+
+function readLabelsPref() {
+  try {
+    return sessionStorage.getItem(LABELS_KEY) !== "off"
+  } catch {
+    return true
+  }
+}
+
+function writeLabelsPref(on: boolean) {
+  try {
+    sessionStorage.setItem(LABELS_KEY, on ? "on" : "off")
+  } catch {
+    /* ignore */
+  }
+}
 
 class PreviewErrorBoundary extends Component<
   { fallback: ReactNode; children: ReactNode; resetKey: string },
@@ -46,15 +63,17 @@ function Stage({
   className,
   fallbackClassName,
   interactive,
+  showLabels = false,
 }: {
   specification: QuoteSpecification
   className: string
   fallbackClassName: string
   interactive: boolean
+  showLabels?: boolean
 }) {
   return (
     <PreviewErrorBoundary
-      resetKey={`${interactive ? "live" : "thumb"}-${specification.length}-${specification.width}-${specification.height}-${specification.bodyGsm}`}
+      resetKey={`${interactive ? "live" : "thumb"}-${showLabels ? "labels" : "plain"}-${specification.length}-${specification.width}-${specification.height}-${specification.bodyGsm}`}
       fallback={
         <div className={cn("flex items-center justify-center px-4 text-center text-xs text-[var(--text-secondary)]", fallbackClassName)}>
           3D preview needs WebGL in this browser.
@@ -69,7 +88,12 @@ function Stage({
         }
       >
         <div className={cn("bg-[var(--navy-bg)]", className)}>
-          <BagPreviewCanvas specification={specification} interactive={interactive} className="h-full w-full touch-none" />
+          <BagPreviewCanvas
+            specification={specification}
+            interactive={interactive}
+            showLabels={showLabels}
+            className="h-full w-full touch-none"
+          />
         </div>
       </Suspense>
     </PreviewErrorBoundary>
@@ -88,7 +112,20 @@ export function BagPreview3D({
   onApplySample?: () => void
 }) {
   const [open, setOpen] = useState(false)
+  const [showLabels, setShowLabels] = useState(true)
   const thumbH = compact ? "h-[168px]" : "h-[280px] sm:h-[320px]"
+
+  useEffect(() => {
+    setShowLabels(readLabelsPref())
+  }, [])
+
+  const toggleLabels = () => {
+    setShowLabels((on) => {
+      const next = !on
+      writeLabelsPref(next)
+      return next
+    })
+  }
 
   return (
     <>
@@ -124,8 +161,26 @@ export function BagPreview3D({
             <DialogDescription>{caption(specification)}</DialogDescription>
           </DialogHeader>
           <div className="px-5 pt-4">
-            <div className="overflow-hidden rounded-xl border border-[var(--navy-border)]">
-              <Stage specification={specification} className="h-[min(62dvh,560px)]" fallbackClassName="h-[420px]" interactive />
+            <div className="relative overflow-hidden rounded-xl border border-[var(--navy-border)]">
+              <Stage
+                specification={specification}
+                className="h-[min(62dvh,560px)]"
+                fallbackClassName="h-[420px]"
+                interactive
+                showLabels={showLabels}
+              />
+              <button
+                type="button"
+                onClick={toggleLabels}
+                className="absolute right-2 bottom-2 z-10"
+                aria-pressed={showLabels}
+                aria-label={showLabels ? "Hide dimension labels" : "Show dimension labels"}
+              >
+                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--surface)]/90 px-2 py-1 text-[10px] font-medium text-[var(--navy)] shadow-sm">
+                  {showLabels ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                  {showLabels ? "Hide labels" : "Show labels"}
+                </span>
+              </button>
             </div>
             <p className="mt-2 text-[11px] text-[var(--text-muted)]">
               Drag any direction to orbit (top, sides, or bottom). Scroll to zoom. Right-drag to pan.

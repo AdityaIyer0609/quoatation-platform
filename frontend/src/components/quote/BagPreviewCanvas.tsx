@@ -49,6 +49,25 @@ function removeTopCap(geo: THREE.BufferGeometry, topY: number) {
   geo.setIndex(kept)
 }
 
+function removeBottomCap(geo: THREE.BufferGeometry, bottomY: number) {
+  const index = geo.index
+  const position = geo.attributes.position
+  if (!index || !position) return
+  const kept: number[] = []
+  const tolerance = Math.max(0.0001, Math.abs(bottomY) * 0.001)
+  for (let i = 0; i < index.count; i += 3) {
+    const a = index.getX(i)
+    const b = index.getX(i + 1)
+    const c = index.getX(i + 2)
+    const isBottom =
+      position.getY(a) <= bottomY + tolerance &&
+      position.getY(b) <= bottomY + tolerance &&
+      position.getY(c) <= bottomY + tolerance
+    if (!isBottom) kept.push(a, b, c)
+  }
+  geo.setIndex(kept)
+}
+
 function makeSackGeometry(
   sx: number,
   sy: number,
@@ -57,6 +76,7 @@ function makeSackGeometry(
   tubular: boolean,
   gatherTop = false,
   openTop = false,
+  openBottom = false,
 ) {
   const hy = sy / 2
   if (tubular) {
@@ -87,6 +107,7 @@ function makeSackGeometry(
     }
     pos.needsUpdate = true
     if (openTop) removeTopCap(geo, hy)
+    if (openBottom) removeBottomCap(geo, -hy)
     geo.computeVertexNormals()
     return geo
   }
@@ -128,6 +149,7 @@ function makeSackGeometry(
   }
   pos.needsUpdate = true
   if (openTop) removeTopCap(geo, hy)
+  if (openBottom) removeBottomCap(geo, -hy)
   geo.computeVertexNormals()
   return geo
 }
@@ -156,7 +178,11 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
     const botSpoutDia = num(spec.bottomSpoutDia, 35)
     const loopLenCm = num(spec.loopLength, 30)
     const loopWCm = num(spec.loopWidth, 5)
-    const duffleCm = num(spec.duffleHeight, 0)
+    const duffleCm =
+      num(spec.duffleHeight, 0) ||
+      (/duffle|skrit|skirt|leno|jute|drawstring|oversize/i.test(spec.topType)
+        ? Math.max(35, (length + width) / 2 - 10)
+        : 0)
     const bodyColor = fabricColor(spec.fabricColour)
     const loopColor = fabricColor(spec.loopColour || spec.fabricColour)
     const laminated = num(spec.bodyLami, 0) > 0
@@ -201,7 +227,12 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
       twoSided: /^2S/i.test(spec.printing || ""),
       belly,
       gatherTop: false,
-      openTop: /^open$/i.test(spec.topType.trim()) || /spout/i.test(spec.topType),
+      openTop:
+        /^open$/i.test(spec.topType.trim()) ||
+        /^top spout$/i.test(spec.topType.trim()) ||
+        /duffle|skrit|skirt|leno|conical/i.test(spec.topType),
+      openBottom:
+        /spout|star|conical|skirt/i.test(spec.bottomType) || /star/i.test(spec.bottomSpoutType),
     }
   }, [spec])
 
@@ -241,16 +272,27 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
     belly,
     gatherTop,
     openTop,
+    openBottom,
   } = model
 
   const sack = useMemo(
-    () => makeSackGeometry(sx, sy, sz, belly, circular, gatherTop, openTop),
-    [sx, sy, sz, belly, circular, gatherTop, openTop],
+    () => makeSackGeometry(sx, sy, sz, belly, circular, gatherTop, openTop, openBottom),
+    [sx, sy, sz, belly, circular, gatherTop, openTop, openBottom],
   )
   useEffect(() => () => sack.dispose(), [sack])
 
   const stitch = shade(color, -28)
-  const lift = /spout/i.test(spec.bottomType) ? spoutBotH : /conical|skirt/i.test(spec.bottomType) ? conicalH : 0
+  const lift = /star/i.test(spec.bottomType) || /star/i.test(spec.bottomSpoutType)
+    ? Math.max(Math.min(sx, sz) * 0.2, conicalH * 0.45) + spoutBotH
+    : /plate/i.test(spec.bottomType)
+    ? Math.max(conicalH, Math.min(sx, sz) * 0.28) + spoutBotH * 0.92
+    : /conical/i.test(spec.bottomType)
+      ? Math.max(conicalH, Math.min(sx, sz) * 0.28)
+      : /skirt/i.test(spec.bottomType)
+        ? Math.max(conicalH, Math.min(sx, sz) * 0.38)
+        : /spout/i.test(spec.bottomType)
+          ? spoutBotH
+          : 0
   const faceZ = upanel ? sz / 2 + 0.01 : (sz / 2) * (1 + belly) + 0.04
   const inset = 0.02
   const corners = circular
@@ -340,6 +382,14 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
         clearHandle={liftBag}
         flapColor={fabricColor(spec.topFlapColor || spec.fabricColour)}
         circular={circular}
+        rope={spec.topRope || spec.topSpoutRope}
+        tie={spec.topTie || spec.topSpoutTie}
+        ropeColor={fabricColor(spec.topSpoutRopeColor || spec.topRopeColor || spec.fabricColour)}
+        tieColor={fabricColor(spec.topTieColor || spec.loopColour || spec.fabricColour)}
+        ropeCount={Math.max(1, Number.parseInt(spec.topSpoutRopeCount || spec.topRopeCount || "1", 10) || 1)}
+        tieCount={Math.max(1, Number.parseInt(spec.topSpoutTieCount || spec.topTieCount || "1", 10) || 1)}
+        ropeSize={spec.topSpoutRopeSize || spec.topRopeSize || "8"}
+        tieSize={spec.topSpoutTieSize || spec.topTieSize || "6"}
       />
       <DischargeKit
         sx={sx}
@@ -353,6 +403,14 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
         spoutH={spoutBotH}
         spoutR={spoutBotR}
         conicalH={conicalH}
+        rope={spec.bottomRope || spec.bottomSpoutRope}
+        tie={spec.bottomTie || spec.bottomSpoutTie}
+        ropeColor={fabricColor(spec.bottomSpoutRopeColor || spec.bottomRopeColor || spec.fabricColour)}
+        tieColor={fabricColor(spec.bottomTieColor || spec.loopColour || spec.fabricColour)}
+        ropeCount={Math.max(1, Number.parseInt(spec.bottomSpoutRopeCount || spec.bottomRopeCount || "1", 10) || 1)}
+        tieCount={Math.max(1, Number.parseInt(spec.bottomSpoutTieCount || spec.bottomTieCount || "1", 10) || 1)}
+        ropeSize={spec.bottomSpoutRopeSize || spec.bottomRopeSize || "8"}
+        tieSize={spec.bottomSpoutTieSize || spec.bottomTieSize || "6"}
       />
       <LoopKit
         sx={sx}
@@ -403,8 +461,8 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
 
       {printed ? <PrintedLogoKit sx={sx} sy={sy} faceZ={faceZ} twoSided={twoSided} /> : null}
 
-      {/* Safety / Palmetto-style label */}
-      <group position={[-sx * 0.2, sy * 0.74, faceZ + 0.01]}>
+      {/* Safety / Palmetto-style label — upper face, just below the top hem */}
+      <group position={[-sx * 0.28, sy * 0.92, faceZ + 0.01]}>
         <mesh>
           <planeGeometry args={[sx * 0.14, sy * 0.09]} />
           <meshStandardMaterial color="#f0d24a" roughness={0.5} />
@@ -440,10 +498,12 @@ export default function BagPreviewCanvas({
   specification,
   className,
   interactive = true,
+  showLabels = false,
 }: {
   specification: QuoteSpecification
   className?: string
   interactive?: boolean
+  showLabels?: boolean
 }) {
   return (
     <Canvas
@@ -461,7 +521,7 @@ export default function BagPreviewCanvas({
       <Bounds fit observe margin={1.5}>
         <FibcBag spec={specification} />
       </Bounds>
-      <DimensionLayer spec={specification} />
+      {showLabels ? <DimensionLayer spec={specification} /> : null}
       <ContactShadows position={[0, 0, 0]} opacity={0.38} scale={12} blur={2.8} far={6} />
       <OrbitControls
         makeDefault
