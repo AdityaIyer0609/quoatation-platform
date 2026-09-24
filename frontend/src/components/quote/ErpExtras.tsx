@@ -19,6 +19,7 @@ import {
   ROPE_SIZE_10_25,
   ROPE_SIZES,
   ROPE_TYPES,
+  STEVEDORE_KINDS,
   STEVEDORE_PORTIONS,
   THREAD_NEEDLES,
   THREAD_TYPES,
@@ -917,12 +918,19 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
     },
     {
       id: "extra-stevedore",
-      title: "Stevdore",
+      title: "Stevedore",
       on: spec.stevedore,
       search: "stevedore strap",
-      summary: `${spec.stevedorePortion} · ${spec.stevedoreGsm || "—"} GPM`,
+      summary: `${Number.parseInt(spec.stevedoreCount || "1", 10) >= 2 ? "Double" : "Single"} · ${spec.stevedoreGsm || "—"} GPM`,
       body: (
         <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-4">
+          <Labeled label="Type">
+            <FormSelect
+              value={Number.parseInt(spec.stevedoreCount || "1", 10) >= 2 ? "Double" : "Single"}
+              onChange={(value) => update("stevedoreCount", value === "Double" ? "2" : "1")}
+              options={[...STEVEDORE_KINDS]}
+            />
+          </Labeled>
           <Labeled label="Portion">
             <FormSelect value={spec.stevedorePortion} onChange={(value) => update("stevedorePortion", value)} options={[...STEVEDORE_PORTIONS]} />
           </Labeled>
@@ -931,9 +939,6 @@ export function ErpExtras({ specification: spec, update, tab }: DraftApi & { tab
           </Labeled>
           <Labeled label="Size">
             <Input value={spec.stevedoreSize} onChange={(event) => update("stevedoreSize", event.target.value)} className={fieldClassName} />
-          </Labeled>
-          <Labeled label="Count">
-            <Input value={spec.stevedoreCount} onChange={(event) => update("stevedoreCount", event.target.value)} className={fieldClassName} />
           </Labeled>
         </div>
       ),

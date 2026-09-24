@@ -1967,32 +1967,23 @@ export function DischargeKit({
 }
 
 function StevedoreStrap({
-  start,
-  end,
-  y,
+  path,
   color,
   width,
+  closed = false,
 }: {
-  start: [number, number]
-  end: [number, number]
-  y: number
+  path: [number, number, number][]
   color: string
   width: number
+  closed?: boolean
 }) {
   const geometry = useMemo(() => {
-    const [x1, z1] = start
-    const [x2, z2] = end
-    const mx = (x1 + x2) / 2
-    const mz = (z1 + z2) / 2
-    const span = Math.hypot(x2 - x1, z2 - z1)
-    const rise = Math.max(0.22, Math.min(0.38, span * 0.32))
-    const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(x1, y, z1),
-      new THREE.Vector3(mx, y + rise, mz),
-      new THREE.Vector3(x2, y, z2),
-    ])
-    return strapGeo(curve, width, Math.max(0.008, width * 0.2))
-  }, [start, end, y, width])
+    const curve = new THREE.CatmullRomCurve3(
+      path.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
+      closed,
+    )
+    return strapGeo(curve, width, Math.max(0.008, width * 0.22))
+  }, [path, width, closed])
   useEffect(() => () => geometry.dispose(), [geometry])
   return (
     <mesh geometry={geometry} castShadow>
@@ -2117,35 +2108,83 @@ export function LoopKit({
   const cornerSet = (showCorner || showCross ? corners : []).slice(0, single4 || double4 ? 4 : nCorner)
   const portion = stevedorePortion.toLowerCase()
   const steveColor = stevedoreColor || strap
-  const steveWidth = Math.max(width * 0.85, 0.028)
-  const steveN = Math.min(2, Math.max(1, stevedoreCount))
-  const off = Math.min(sx, sz) * 0.22
-  const lengthBridges: [[number, number], [number, number]][] =
-    steveN === 1
-      ? [[[-sx / 2 + inset, 0], [sx / 2 - inset, 0]]]
-      : [
-          [[-sx / 2 + inset, off], [sx / 2 - inset, off]],
-          [[-sx / 2 + inset, -off], [sx / 2 - inset, -off]],
+  const steveWidth = Math.max(width * 0.9, 0.03)
+  const doubleSteve = stevedoreCount >= 2
+  const peakH = Math.max(0.22, above * 1.15)
+  const eyeY = y1 + peakH * 0.58
+  const eyeOf = (x: number, z: number): [number, number, number] => {
+    const out = 0.028
+    if (circular) {
+      const a = Math.atan2(z, x)
+      return [Math.cos(a) * (sx / 2 + out), eyeY, Math.sin(a) * (sz / 2 + out)]
+    }
+    const yaw = Math.atan2(x, z)
+    return [x + Math.sin(yaw) * out, eyeY, z + Math.cos(yaw) * out]
+  }
+  const wind: [number, number][] = circular
+    ? corners
+    : [
+        [sx / 2 - inset, sz / 2 - inset],
+        [-sx / 2 + inset, sz / 2 - inset],
+        [-sx / 2 + inset, -sz / 2 + inset],
+        [sx / 2 - inset, -sz / 2 + inset],
+      ]
+  const eyes = wind.map(([x, z]) => eyeOf(x, z))
+  const between = (a: [number, number, number], b: [number, number, number]): [number, number, number] => [
+    (a[0] + b[0]) * 0.5,
+    Math.min(a[1], b[1]) - 0.015,
+    (a[2] + b[2]) * 0.5,
+  ]
+  const dualJoin = (a: [number, number, number], b: [number, number, number]): [number, number, number][][] => {
+    const dx = b[0] - a[0]
+    const dz = b[2] - a[2]
+    const len = Math.hypot(dx, dz) || 1
+    const ox = (-dz / len) * steveWidth * 1.45
+    const oz = (dx / len) * steveWidth * 1.45
+    const shift = (p: [number, number, number], s: number): [number, number, number] => [
+      p[0] + ox * s,
+      p[1],
+      p[2] + oz * s,
+    ]
+    const a1 = shift(a, 1)
+    const b1 = shift(b, 1)
+    const a2 = shift(a, -1)
+    const b2 = shift(b, -1)
+    return [
+      [a1, between(a1, b1), b1],
+      [a2, between(a2, b2), b2],
+    ]
+  }
+  const doublePairs: [[number, number, number], [number, number, number]][] = portion.includes("width")
+    ? [
+        [eyes[0], eyes[3]],
+        [eyes[1], eyes[2]],
+      ]
+    : portion.includes("digo") || portion.includes("diag")
+      ? [
+          [eyes[0], eyes[2]],
+          [eyes[1], eyes[3]],
         ]
-  const widthBridges: [[number, number], [number, number]][] =
-    steveN === 1
-      ? [[[0, -sz / 2 + inset], [0, sz / 2 - inset]]]
       : [
-          [[off, -sz / 2 + inset], [off, sz / 2 - inset]],
-          [[-off, -sz / 2 + inset], [-off, sz / 2 - inset]],
+          [eyes[0], eyes[1]],
+          [eyes[3], eyes[2]],
         ]
-  const diagonalBridges: [[number, number], [number, number]][] =
-    steveN === 1
-      ? [[[-sx / 2 + inset, -sz / 2 + inset], [sx / 2 - inset, sz / 2 - inset]]]
+  const stevePaths: [number, number, number][][] = !stevedore
+    ? []
+    : doubleSteve
+      ? doublePairs.flatMap(([a, b]) => dualJoin(a, b))
       : [
-          [[-sx / 2 + inset, -sz / 2 + inset], [sx / 2 - inset, sz / 2 - inset]],
-          [[-sx / 2 + inset, sz / 2 - inset], [sx / 2 - inset, -sz / 2 + inset]],
+          [
+            eyes[0],
+            between(eyes[0], eyes[1]),
+            eyes[1],
+            between(eyes[1], eyes[2]),
+            eyes[2],
+            between(eyes[2], eyes[3]),
+            eyes[3],
+            between(eyes[3], eyes[0]),
+          ],
         ]
-  const steveBridges = portion.includes("width")
-    ? widthBridges
-    : portion.includes("length") || portion.includes("lenght")
-      ? lengthBridges
-      : diagonalBridges
   const span = Math.min(sx, sz)
   const extraLoops =
     multi && loopCount > 4
@@ -2250,14 +2289,13 @@ export function LoopKit({
       ) : null}
       {stevedore ? (
         <group>
-          {steveBridges.map(([start, end], index) => (
+          {stevePaths.map((path, index) => (
             <StevedoreStrap
               key={`st-${index}`}
-              start={start}
-              end={end}
-              y={sy + 0.02}
+              path={path}
               color={steveColor}
               width={steveWidth}
+              closed={!doubleSteve}
             />
           ))}
         </group>

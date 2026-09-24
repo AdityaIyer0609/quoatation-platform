@@ -490,8 +490,8 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
         loopCount={loopCount}
         tillBottom={spec.loopTillBottom}
         dropLoop={spec.dropLoop}
-        stevedore={spec.stevedore || spec.steveCover}
-        stevedorePortion={spec.stevedorePortion || "Diagonal"}
+        stevedore={spec.stevedore}
+        stevedorePortion={spec.stevedorePortion || "Lenght wise"}
         stevedoreColor={stevedoreStrap}
         stevedoreCount={Math.max(1, Number.parseInt(spec.stevedoreCount || "1", 10) || 1)}
         ancerie={spec.ancerie}

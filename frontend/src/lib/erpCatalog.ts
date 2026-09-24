@@ -172,6 +172,8 @@ export const BUFFLE_KINDS = ["Standard", "Net Buffle", "Rectangular", "Special"]
 
 export const STEVEDORE_PORTIONS = ["Lenght wise", "Width Wise", "Digonal Wise"] as const
 
+export const STEVEDORE_KINDS = ["Single", "Double"] as const
+
 export const PACKING = ["Bale", "Pallet  2 Way", "Pallet  4 Way"] as const
 
 export const SUPPLY_TYPES = ["Export", "CT1", "Advance License", "Deemed Export"] as const

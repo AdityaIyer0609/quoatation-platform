@@ -228,6 +228,7 @@ export function FeatureCard({
   summary,
   locked,
   className,
+  trailing,
   children,
 }: {
   title: string
@@ -236,6 +237,7 @@ export function FeatureCard({
   summary?: string
   locked?: boolean
   className?: string
+  trailing?: ReactNode
   children?: ReactNode
 }) {
   return (
@@ -284,6 +286,7 @@ export function FeatureCard({
             <div className="mt-0.5 text-xs text-[var(--text-muted)]">Off · switch to specify</div>
           ) : null}
         </div>
+        {trailing}
       </div>
       {on && children ? (
         <div className="space-y-4 border-t border-[var(--navy-border)]/50 bg-[var(--bg)]/40 px-4 py-4 sm:px-5">{children}</div>

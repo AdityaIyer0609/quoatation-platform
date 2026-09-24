@@ -37,6 +37,7 @@ import {
   ROPE_SIZE_10_25,
   ROPE_SIZES,
   ROPE_TYPES,
+  STEVEDORE_KINDS,
   STEVEDORE_PORTIONS,
   SUPPLY_TYPES,
   THREAD_BUFFLE_SEAMS,
@@ -230,10 +231,40 @@ export function LoopBomPanel({ spec, update, picker }: Draft & { picker: Complic
       </FeatureCard>
 
       <FeatureCard
-        title="Stevdore"
+        title="Stevedore"
         on={spec.stevedore}
-        onToggle={(v) => update("stevedore", v)}
-        summary={spec.stevedore ? `${spec.stevedoreGsm} grm · ${spec.stevedorePortion} · ${spec.stevedoreColor}` : undefined}
+        onToggle={(v) => {
+          update("stevedore", v)
+          if (v && (!spec.stevedoreCount || spec.stevedoreCount === "0")) update("stevedoreCount", "1")
+        }}
+        summary={
+          spec.stevedore
+            ? `${Number.parseInt(spec.stevedoreCount || "1", 10) >= 2 ? "Double" : "Single"} · ${spec.stevedoreGsm || "—"} grm · ${spec.stevedoreColor}`
+            : undefined
+        }
+        trailing={
+          <div className="flex shrink-0 rounded-full border border-[var(--navy-border)] p-0.5">
+            {(["Single", "Double"] as const).map((kind) => {
+              const active = spec.stevedore && (kind === "Double" ? Number.parseInt(spec.stevedoreCount || "1", 10) >= 2 : Number.parseInt(spec.stevedoreCount || "1", 10) < 2)
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => {
+                    update("stevedore", true)
+                    update("stevedoreCount", kind === "Double" ? "2" : "1")
+                  }}
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wide uppercase transition-colors",
+                    active ? "bg-[var(--navy)] text-white" : "text-[var(--navy)] hover:bg-[var(--navy-bg)]",
+                  )}
+                >
+                  {kind}
+                </button>
+              )
+            })}
+          </div>
+        }
       >
         <FieldGrid>
           <FieldCell>
@@ -249,8 +280,12 @@ export function LoopBomPanel({ spec, update, picker }: Draft & { picker: Complic
             <FormSelect value={spec.stevedorePortion} onChange={(value) => update("stevedorePortion", value)} options={[...STEVEDORE_PORTIONS]} />
           </FieldCell>
           <FieldCell>
-            <FieldLabel>No:</FieldLabel>
-            <Input value={spec.stevedoreCount} onChange={(event) => update("stevedoreCount", event.target.value)} className={fieldClassName} />
+            <FieldLabel>Type</FieldLabel>
+            <FormSelect
+              value={Number.parseInt(spec.stevedoreCount || "1", 10) >= 2 ? "Double" : "Single"}
+              onChange={(value) => update("stevedoreCount", value === "Double" ? "2" : "1")}
+              options={[...STEVEDORE_KINDS]}
+            />
           </FieldCell>
           <FieldCell>
             <FieldLabel>Lenght:</FieldLabel>
