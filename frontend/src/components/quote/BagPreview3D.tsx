@@ -15,11 +15,20 @@ import type { QuoteSpecification } from "@/types/quote"
 
 const BagPreviewCanvas = lazy(() => import("@/components/quote/BagPreviewCanvas"))
 
-class PreviewErrorBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
+class PreviewErrorBoundary extends Component<
+  { fallback: ReactNode; children: ReactNode; resetKey: string },
+  { failed: boolean }
+> {
   state = { failed: false }
 
   static getDerivedStateFromError() {
     return { failed: true }
+  }
+
+  componentDidUpdate(prevProps: { resetKey: string }) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.failed) {
+      this.setState({ failed: false })
+    }
   }
 
   render() {
@@ -45,6 +54,7 @@ function Stage({
 }) {
   return (
     <PreviewErrorBoundary
+      resetKey={`${interactive ? "live" : "thumb"}-${specification.length}-${specification.width}-${specification.height}-${specification.bodyGsm}`}
       fallback={
         <div className={cn("flex items-center justify-center px-4 text-center text-xs text-[var(--text-secondary)]", fallbackClassName)}>
           3D preview needs WebGL in this browser.

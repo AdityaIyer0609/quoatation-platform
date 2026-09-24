@@ -19,7 +19,7 @@ import {
   shade,
   webbingColor,
 } from "@/components/quote/bagPreviewParts"
-import type { QuoteSpecification } from "@/types/quote"
+import { BagDimensionKit, dimensionFrame } from "@/components/quote/bagPreviewDimensions"
 
 function num(value: string, fallback: number) {
   const parsed = Number.parseFloat(value)
@@ -458,9 +458,10 @@ export default function BagPreviewCanvas({
       <directionalLight position={[6, 10, 4]} intensity={1.35} castShadow />
       <directionalLight position={[-5, 5, 6]} intensity={0.55} />
       <directionalLight position={[-4, 3, -5]} intensity={0.28} />
-      <Bounds fit observe margin={1.45}>
+      <Bounds fit observe margin={1.5}>
         <FibcBag spec={specification} />
       </Bounds>
+      <DimensionLayer spec={specification} />
       <ContactShadows position={[0, 0, 0]} opacity={0.38} scale={12} blur={2.8} far={6} />
       <OrbitControls
         makeDefault
@@ -476,5 +477,26 @@ export default function BagPreviewCanvas({
         maxPolarAngle={Math.PI}
       />
     </Canvas>
+  )
+}
+
+function DimensionLayer({ spec }: { spec: QuoteSpecification }) {
+  const frame = dimensionFrame(spec)
+  return (
+    <group position={[0, frame.lift, 0]}>
+      <BagDimensionKit
+        sx={frame.sx}
+        sy={frame.sy}
+        sz={frame.sz}
+        faceZ={frame.faceZ}
+        lengthCm={frame.length}
+        widthCm={frame.width}
+        heightCm={frame.height}
+        gsm={spec.bodyGsm}
+        sizeType={spec.sizeType}
+        topSpout={frame.topSpout}
+        bottomSpout={frame.bottomSpout}
+      />
+    </group>
   )
 }
