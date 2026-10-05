@@ -20,9 +20,12 @@ import {
   FieldCell,
   FieldGrid,
   FieldLabel,
+  FloorNumber,
   FormSelect,
   GsmLamiFields,
+  LamGsmToggle,
   PanelStack,
+  isLamiOn,
 } from "@/components/quote/FormControls"
 import { Input } from "@/components/ui/input"
 import { useEffect, useRef, useState, type ReactNode } from "react"
@@ -43,7 +46,8 @@ import {
   ROPE_SIZE_10_25,
 } from "@/lib/erpCatalog"
 import { ERP_BOM_TABS } from "@/lib/erpBomTabs"
-import { bottomPunchRemarks, bottomTypeDefaults, topTypeDefaults } from "@/lib/erpDefaults"
+import { bottomPunchRemarks, bottomSpoutRopeFill, bottomSpoutTieFill, bottomGsmFromBody, bottomGsmLockedToBody, bottomTypeDefaults, isCircular, topSpoutTieFill, topTypeDefaults } from "@/lib/erpDefaults"
+import { atLeast, openingFabricFloor } from "@/lib/qualityFloors"
 import { cn } from "@/lib/utils"
 import type { ComplicationPicker, QuoteSpecification } from "@/types/quote"
 
@@ -188,6 +192,16 @@ function TopPanel({
   const showSpoutRope = topType === "Top Spout"
   const showConicalHeight = topType === "Conical PlateTop" || topType === "Conical Top"
   const irisTop = spec.topSpoutType.toLowerCase().includes("iris")
+  const opening = openingFabricFloor(spec)
+  const topGsmMin = spec.sameFabricForPanels ? undefined : opening.gsm
+  const topLamiOn = spec.sameFabricForPanels ? "25" : String(opening.lami)
+  const spoutLamiOn = spec.sameFabricForPanels ? "25" : String(opening.spoutLami)
+  const bodyFabric = spec.topGsm || spec.bodyGsm || "0"
+  const spoutGsmN = Number.parseFloat(spec.topSpoutGsm)
+  const spoutLooksLikeCoating = Number.isFinite(spoutGsmN) && spoutGsmN > 0 && spoutGsmN <= 30
+  const spoutFabricGsm = spec.sameFabricForPanels
+    ? spoutLooksLikeCoating || !spec.topSpoutGsm ? bodyFabric : spec.topSpoutGsm
+    : atLeast(spec.topSpoutGsm || String(opening.spoutGsm), opening.spoutGsm)
 
   return (
     <PanelStack>
@@ -195,7 +209,11 @@ function TopPanel({
         title="Top"
         on={spec.topEnabled}
         onToggle={(v) => update("topEnabled", v)}
-        summary={spec.topEnabled ? `${spec.topType} · ${spec.topGsm || "0"} GSM · ${spec.topColour}` : undefined}
+        summary={
+          spec.topEnabled
+            ? `${spec.topType} · ${spec.topGsm || "0"} GSM${isLamiOn(spec.topLami) ? ` + ${spec.topLami} lam` : ""} · ${spec.topColour}`
+            : undefined
+        }
       >
         <FieldGrid>
           <FieldCell span={2}>
@@ -208,19 +226,18 @@ function TopPanel({
           </FieldCell>
           <FieldCell>
             <FieldLabel>Top GSM</FieldLabel>
-            <FormSelect value={spec.topGsm || "0"} onChange={(value) => update("topGsm", value)} options={[...GSM_OPTIONS]} />
-          </FieldCell>
-          <FieldCell>
-            <CompactCheck
-              checked={Boolean(spec.topLami) && spec.topLami !== "0"}
-              onChange={(checked) => update("topLami", checked ? (spec.topLami && spec.topLami !== "0" ? spec.topLami : "25") : "0")}
-            >
-              Lam
-            </CompactCheck>
+            {topGsmMin != null ? (
+              <FloorNumber value={spec.topGsm || String(topGsmMin)} min={topGsmMin} onChange={(value) => update("topGsm", value)} />
+            ) : (
+              <FormSelect value={spec.topGsm || "0"} onChange={(value) => update("topGsm", value)} options={[...GSM_OPTIONS]} />
+            )}
           </FieldCell>
           <FieldCell>
             <FieldLabel>No</FieldLabel>
             <Input value={spec.topCount} onChange={(event) => update("topCount", event.target.value)} className={fieldClassName} />
+          </FieldCell>
+          <FieldCell span={2}>
+            <LamGsmToggle value={spec.topLami || "0"} defaultOn={topLamiOn} onChange={(value) => update("topLami", value)} />
           </FieldCell>
           {showConicalHeight ? (
             <FieldCell>
@@ -244,17 +261,26 @@ function TopPanel({
               </FieldCell>
               <FieldCell>
                 <FieldLabel>GSM</FieldLabel>
-                <FormSelect value={spec.topSpoutGsm || "0"} onChange={(value) => update("topSpoutGsm", value)} options={[...GSM_OPTIONS]} />
+                {spec.sameFabricForPanels ? (
+                  <FormSelect
+                    value={spoutFabricGsm}
+                    onChange={(value) => update("topSpoutGsm", value)}
+                    options={[...GSM_OPTIONS]}
+                  />
+                ) : (
+                  <FloorNumber
+                    value={spoutFabricGsm}
+                    min={opening.spoutGsm}
+                    onChange={(value) => update("topSpoutGsm", value)}
+                  />
+                )}
               </FieldCell>
-              <FieldCell>
-                <CompactCheck
-                  checked={Boolean(spec.topSpoutLami) && spec.topSpoutLami !== "0"}
-                  onChange={(checked) =>
-                    update("topSpoutLami", checked ? (spec.topSpoutLami && spec.topSpoutLami !== "0" ? spec.topSpoutLami : "25") : "0")
-                  }
-                >
-                  Lam
-                </CompactCheck>
+              <FieldCell span={2}>
+                <LamGsmToggle
+                  value={spec.topSpoutLami || "0"}
+                  defaultOn={spoutLamiOn}
+                  onChange={(value) => update("topSpoutLami", value)}
+                />
               </FieldCell>
               <FieldCell>
                 <FieldLabel>Dia</FieldLabel>
@@ -344,7 +370,7 @@ function TopPanel({
           <FeatureCard
             title="TopSpout Tie"
             on={spec.topSpoutTie}
-            onToggle={(v) => update("topSpoutTie", v)}
+            onToggle={(v) => (v ? patch(topSpoutTieFill(spec)) : update("topSpoutTie", false))}
             summary={spec.topSpoutTie ? `${spec.topSpoutTieGsm || "0"} grm · ${spec.topSpoutTieCount} tie` : undefined}
           >
             <FieldGrid>
@@ -403,6 +429,8 @@ function BottomPanel({
   const discharge = spec.bottomType === "Bottom Spout"
   const showSkirt = spec.bottomType === "Bottom + Skirt"
   const irisBottom = spec.bottomSpoutType.toLowerCase().includes("iris")
+  const bottomLocked = bottomGsmLockedToBody(spec.constructionType)
+  const linkedBottomGsm = bottomGsmFromBody(spec.constructionType, spec.bodyGsm || "0")
 
   function patchSubtype(partial: Partial<QuoteSpecification>) {
     const nextType = partial.bottomType ?? spec.bottomType
@@ -418,7 +446,11 @@ function BottomPanel({
         title="Bottom"
         on={spec.bottomEnabled}
         onToggle={(v) => update("bottomEnabled", v)}
-        summary={spec.bottomEnabled ? `${spec.bottomType} · ${spec.bottomGsm || spec.bodyGsm || "0"} GSM · ${spec.bottomColour}` : undefined}
+        summary={
+          spec.bottomEnabled
+            ? `${spec.bottomType} · ${spec.bottomGsm || spec.bodyGsm || "0"} GSM${isLamiOn(spec.bottomLami) ? ` + ${spec.bottomLami} lam` : ""} · ${spec.bottomColour}`
+            : undefined
+        }
       >
         <FieldGrid>
           <FieldCell span={2}>
@@ -431,21 +463,32 @@ function BottomPanel({
           </FieldCell>
           <FieldCell>
             <FieldLabel>GSM</FieldLabel>
-            <FormSelect
-              value={spec.bottomGsm || spec.bodyGsm || "0"}
-              onChange={(value) => update("bottomGsm", value)}
-              options={[...GSM_OPTIONS]}
-            />
+            {bottomLocked ? (
+              <>
+                <Input value={linkedBottomGsm} readOnly className={fieldClassName} />
+                <div className="mt-1 text-[10px] text-[var(--text-muted)]">Locked to body GSM</div>
+              </>
+            ) : isCircular(spec.constructionType) ? (
+              <FloorNumber
+                value={spec.bottomGsm || linkedBottomGsm}
+                min={Number.parseInt(linkedBottomGsm, 10) || 0}
+                onChange={(value) => update("bottomGsm", value)}
+                hint={`Min ${linkedBottomGsm} (body + 10)`}
+              />
+            ) : (
+              <FormSelect
+                value={spec.bottomGsm || spec.bodyGsm || "0"}
+                onChange={(value) => update("bottomGsm", value)}
+                options={[...GSM_OPTIONS]}
+              />
+            )}
           </FieldCell>
-          <FieldCell>
-            <CompactCheck
-              checked={Boolean(spec.bottomLami) && spec.bottomLami !== "0"}
-              onChange={(checked) =>
-                update("bottomLami", checked ? (spec.bottomLami && spec.bottomLami !== "0" ? spec.bottomLami : "25") : "0")
-              }
-            >
-              Lam
-            </CompactCheck>
+          <FieldCell span={2}>
+            <LamGsmToggle
+              value={spec.bottomLami || "0"}
+              defaultOn={spec.sameFabricForPanels ? "25" : openingFabricFloor(spec).lami.toString()}
+              onChange={(value) => update("bottomLami", value)}
+            />
           </FieldCell>
           <FieldCell>
             <FieldLabel>No</FieldLabel>
@@ -476,18 +519,12 @@ function BottomPanel({
                 options={[...GSM_OPTIONS]}
               />
             </FieldCell>
-            <FieldCell>
-              <CompactCheck
-                checked={Boolean(spec.bottomSpoutLami) && spec.bottomSpoutLami !== "0"}
-                onChange={(checked) =>
-                  update(
-                    "bottomSpoutLami",
-                    checked ? (spec.bottomSpoutLami && spec.bottomSpoutLami !== "0" ? spec.bottomSpoutLami : "25") : "0",
-                  )
-                }
-              >
-                Lam
-              </CompactCheck>
+            <FieldCell span={2}>
+              <LamGsmToggle
+                value={spec.bottomSpoutLami || "0"}
+                defaultOn={spec.sameFabricForPanels ? "25" : String(openingFabricFloor(spec).spoutLami)}
+                onChange={(value) => update("bottomSpoutLami", value)}
+              />
             </FieldCell>
             <FieldCell>
               <FieldLabel>Dia</FieldLabel>
@@ -590,7 +627,7 @@ function BottomPanel({
           <FeatureCard
             title="Bottom Spout Rope"
             on={spec.bottomSpoutRope}
-            onToggle={(v) => update("bottomSpoutRope", v)}
+            onToggle={(v) => (v ? patch(bottomSpoutRopeFill(spec)) : update("bottomSpoutRope", false))}
             summary={spec.bottomSpoutRope ? `${spec.bottomSpoutRopeType} · ${spec.bottomSpoutRopeCount} rope · ${spec.bottomSpoutRopeColor}` : undefined}
           >
             <FieldGrid>
@@ -630,7 +667,7 @@ function BottomPanel({
           <FeatureCard
             title="Bottom Spout Tie"
             on={spec.bottomSpoutTie}
-            onToggle={(v) => update("bottomSpoutTie", v)}
+            onToggle={(v) => (v ? patch(bottomSpoutTieFill(spec)) : update("bottomSpoutTie", false))}
             summary={spec.bottomSpoutTie ? `${spec.bottomSpoutTieGsm || "0"} grm · ${spec.bottomSpoutTieCount} tie` : undefined}
           >
             <FieldGrid>

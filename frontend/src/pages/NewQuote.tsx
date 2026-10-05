@@ -30,10 +30,18 @@ import {
   bodyStylesFor,
 } from "@/lib/erpCatalog"
 import {
+  bagDimensionLinkedPatch,
   constructionDefaults,
   sameFabricPatch,
+  syncBodyLinkedGsm,
   topTypeDefaults,
 } from "@/lib/erpDefaults"
+import {
+  clampBodyFabric,
+  lookupSalesQuality,
+  openingFabricReset,
+  salesQualityReset,
+} from "@/lib/qualityFloors"
 import { PREVIEW_SAMPLE_PATCH } from "@/lib/previewSample"
 import { fetchComplicationPicker } from "@/services/pricing"
 import type { ComplicationPicker, QuoteSpecification } from "@/types/quote"
@@ -123,9 +131,13 @@ export default function NewQuote() {
   }
 
   function setFabric(bodyGsm: string, bodyLami: string) {
-    if (spec.sameFabricForPanels) patch(sameFabricPatch(spec, bodyGsm, bodyLami))
-    else patch({ bodyGsm, bodyLami })
+    const clamped = clampBodyFabric(spec, bodyGsm, bodyLami)
+    const linked = syncBodyLinkedGsm(spec, clamped.bodyGsm, clamped.bodyLami)
+    if (spec.sameFabricForPanels) patch({ ...sameFabricPatch(spec, clamped.bodyGsm, clamped.bodyLami), ...linked })
+    else patch({ ...clamped, ...linked })
   }
+
+  const salesFloor = lookupSalesQuality(spec)
 
   return (
     <div className="qc-page max-w-[1180px] pb-28 lg:pb-8">
@@ -194,7 +206,13 @@ export default function NewQuote() {
                           title={type}
                           hint={BAG_HINT[type]}
                           selected={spec.productCategory === type}
-                          onSelect={() => update("productCategory", type)}
+                          onSelect={() => {
+                            const next = { ...spec, productCategory: type }
+                            patch({
+                              productCategory: type,
+                              ...(spec.sameFabricForPanels ? {} : openingFabricReset(next)),
+                            })
+                          }}
                         />
                       ))}
                     </div>
@@ -249,7 +267,12 @@ export default function NewQuote() {
                     <FieldLabel>Body style</FieldLabel>
                     <FormSelect
                       value={spec.bodyStyle}
-                      onChange={(value) => update("bodyStyle", value)}
+                      onChange={(value) =>
+                        patch({
+                          bodyStyle: value,
+                          ...constructionDefaults(spec.constructionType, { ...spec, bodyStyle: value }),
+                        })
+                      }
                       options={styleOptions}
                       allowCustom
                     />
@@ -262,7 +285,13 @@ export default function NewQuote() {
                           key={grade}
                           title={grade}
                           selected={spec.bodyGrade === grade}
-                          onSelect={() => update("bodyGrade", grade)}
+                          onSelect={() => {
+                            const next = { ...spec, bodyGrade: grade }
+                            patch({
+                              bodyGrade: grade,
+                              ...(spec.sameFabricForPanels ? {} : openingFabricReset(next)),
+                            })
+                          }}
                         />
                       ))}
                     </div>
@@ -276,7 +305,12 @@ export default function NewQuote() {
                           title={size === "OUTER" ? "Outer" : size === "INNER" ? "Inner" : size}
                           hint={size === "INNER" ? "Filled size" : size === "OUTER" ? "Cut size including seams" : undefined}
                           selected={spec.sizeType === size}
-                          onSelect={() => update("sizeType", size)}
+                          onSelect={() =>
+                            patch({
+                              sizeType: size,
+                              ...bagDimensionLinkedPatch({ ...spec, sizeType: size }),
+                            })
+                          }
                         />
                       ))}
                     </div>
@@ -304,7 +338,15 @@ export default function NewQuote() {
                           <div className="mb-1 text-[10px] text-[var(--text-muted)]">{label}</div>
                           <Input
                             value={spec[key]}
-                            onChange={(event) => update(key, event.target.value)}
+                            onChange={(event) => {
+                              const value = event.target.value
+                              if (key === "height") {
+                                patch({ height: value, ...salesQualityReset({ ...spec, height: value }) })
+                              } else {
+                                const next = { ...spec, [key]: value }
+                                patch({ [key]: value, ...bagDimensionLinkedPatch(next) })
+                              }
+                            }}
                             placeholder="cm"
                             className={fieldClassName}
                           />
@@ -375,6 +417,15 @@ export default function NewQuote() {
                   </div>
                   <div>
                     <FieldLabel>Body fabric</FieldLabel>
+                    {salesFloor ? (
+                      <p className="mb-2 text-[11px] text-[var(--text-muted)]">
+                        Plastene sales min {salesFloor.gsmMin} GSM (filled {salesFloor.gsmOffer}). You can raise GSM, not lower it.
+                      </p>
+                    ) : (
+                      <p className="mb-2 text-[11px] text-[var(--text-muted)]">
+                        No Excel row for this SWL/SF/construction — mill loop defaults only.
+                      </p>
+                    )}
                     <GsmLamiFields
                       gsm={spec.bodyGsm}
                       lami={spec.bodyLami}
@@ -382,54 +433,19 @@ export default function NewQuote() {
                       onLami={(value) => setFabric(spec.bodyGsm, value)}
                       gsmOptions={[...GSM_OPTIONS]}
                       lamiOptions={[...LAMI_OPTIONS]}
+                      minGsm={salesFloor?.gsmMin ?? 0}
+                      minLami={0}
                     />
                   </div>
                   <CheckRow
                     checked={spec.sameFabricForPanels}
                     onChange={(checked) => {
                       if (checked) patch({ sameFabricForPanels: true, ...sameFabricPatch(spec, spec.bodyGsm, spec.bodyLami) })
-                      else update("sameFabricForPanels", false)
+                      else patch({ sameFabricForPanels: false, ...openingFabricReset({ ...spec, sameFabricForPanels: false }) })
                     }}
                   >
-                    Use the same fabric for top, bottom, sides, and spouts
+                    Use the same fabric for top, sides, and spouts
                   </CheckRow>
-                  {!spec.sameFabricForPanels && (
-                    <div className="space-y-4 rounded-2xl border border-[var(--border)] p-4">
-                      <div>
-                        <FieldLabel>Top fabric</FieldLabel>
-                        <GsmLamiFields
-                          gsm={spec.topGsm || spec.bodyGsm}
-                          lami={spec.topLami || spec.bodyLami}
-                          onGsm={(value) => update("topGsm", value)}
-                          onLami={(value) => update("topLami", value)}
-                          gsmOptions={[...GSM_OPTIONS]}
-                          lamiOptions={[...LAMI_OPTIONS]}
-                        />
-                      </div>
-                      <div>
-                        <FieldLabel>Bottom fabric</FieldLabel>
-                        <GsmLamiFields
-                          gsm={spec.bottomGsm || spec.bodyGsm}
-                          lami={spec.bottomLami || spec.bodyLami}
-                          onGsm={(value) => update("bottomGsm", value)}
-                          onLami={(value) => update("bottomLami", value)}
-                          gsmOptions={[...GSM_OPTIONS]}
-                          lamiOptions={[...LAMI_OPTIONS]}
-                        />
-                      </div>
-                      <div>
-                        <FieldLabel>Side / U-panel fabric</FieldLabel>
-                        <GsmLamiFields
-                          gsm={spec.sideGsm || spec.bodyGsm}
-                          lami={spec.sideLami || spec.bodyLami}
-                          onGsm={(value) => update("sideGsm", value)}
-                          onLami={(value) => update("sideLami", value)}
-                          gsmOptions={[...GSM_OPTIONS]}
-                          lamiOptions={[...LAMI_OPTIONS]}
-                        />
-                      </div>
-                    </div>
-                  )}
                   <CheckRow
                     checked={spec.doubleFoldBody}
                     onChange={(checked) => update("doubleFoldBody", checked)}

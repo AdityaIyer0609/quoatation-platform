@@ -21,6 +21,7 @@ import {
   webbingColor,
 } from "@/components/quote/bagPreviewParts"
 import { BagDimensionKit, dimensionFrame } from "@/components/quote/bagPreviewDimensions"
+import type { QuoteSpecification } from "@/types/quote"
 
 function num(value: string, fallback: number) {
   const parsed = Number.parseFloat(value)
@@ -286,7 +287,7 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
 
   const stitch = shade(color, -28)
   const coverBot = spec.bottomFlap && spec.bottomHook
-  const flapHang = spec.bottomFlap && !spec.bottomHook ? Math.min(sx, sz) * 0.92 : 0
+  const flapHang = spec.bottomFlap && !spec.bottomHook ? sz * 0.99 : 0
   const dischargeLift = /plate/i.test(spec.bottomType)
     ? Math.max(conicalH, Math.min(sx, sz) * 0.28) + spoutBotH * 0.92
     : /conical/i.test(spec.bottomType)

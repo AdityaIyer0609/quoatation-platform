@@ -9,6 +9,8 @@ import {
   FieldLabel,
   FormSelect,
   GsmLamiFields,
+  FloorNumber,
+  LamGsmToggle,
   PanelStack,
 } from "@/components/quote/FormControls"
 import { cn } from "@/lib/utils"
@@ -46,6 +48,8 @@ import {
   TRANSPORT,
   TUNNEL_DESIGNS,
 } from "@/lib/erpCatalog"
+import { bottomFlapFill, topFlapFill } from "@/lib/erpDefaults"
+import { clampLoopFields, lookupSalesQuality } from "@/lib/qualityFloors"
 import type { ComplicationPicker, OtherBomRow, QuoteSpecification } from "@/types/quote"
 
 type Draft = {
@@ -85,7 +89,12 @@ function Box({ children }: { children: React.ReactNode }) {
   return <div className="space-y-4 rounded-2xl border border-[var(--border)] p-4">{children}</div>
 }
 
-export function LoopBomPanel({ spec, update, picker }: Draft & { picker: ComplicationPicker | null }) {
+export function LoopBomPanel({ spec, update, patch, picker }: Draft & { picker: ComplicationPicker | null }) {
+  const loopFloor = lookupSalesQuality(spec)
+  function setLoop<K extends keyof QuoteSpecification>(key: K, value: QuoteSpecification[K]) {
+    const extra = { [key]: value } as Partial<QuoteSpecification>
+    patch({ ...extra, ...clampLoopFields(spec, extra) })
+  }
   return (
     <PanelStack>
       <FeatureCard
@@ -120,22 +129,44 @@ export function LoopBomPanel({ spec, update, picker }: Draft & { picker: Complic
           ) : null}
           <FieldCell>
             <FieldLabel>Grm</FieldLabel>
-            <Input value={spec.loopGsm} onChange={(event) => update("loopGsm", event.target.value)} className={fieldClassName} />
+            {loopFloor ? (
+              <FloorNumber value={spec.loopGsm} min={loopFloor.loopGpm} onChange={(value) => setLoop("loopGsm", value)} hint={`Min ${loopFloor.loopGpm}`} />
+            ) : (
+              <Input value={spec.loopGsm} onChange={(event) => update("loopGsm", event.target.value)} className={fieldClassName} />
+            )}
           </FieldCell>
           <FieldCell>
             <FieldLabel>L</FieldLabel>
-            <Input value={spec.loopLength} onChange={(event) => update("loopLength", event.target.value)} className={fieldClassName} />
+            {loopFloor ? (
+              <FloorNumber value={spec.loopLength} min={loopFloor.loopLength} onChange={(value) => setLoop("loopLength", value)} />
+            ) : (
+              <Input value={spec.loopLength} onChange={(event) => update("loopLength", event.target.value)} className={fieldClassName} />
+            )}
           </FieldCell>
           <FieldCell>
             <FieldLabel>W</FieldLabel>
-            <Input value={spec.loopWidth} onChange={(event) => update("loopWidth", event.target.value)} className={fieldClassName} />
+            {loopFloor ? (
+              <FloorNumber value={spec.loopWidth} min={Number(loopFloor.loopWidthCm)} onChange={(value) => setLoop("loopWidth", value)} />
+            ) : (
+              <Input value={spec.loopWidth} onChange={(event) => update("loopWidth", event.target.value)} className={fieldClassName} />
+            )}
           </FieldCell>
           <FieldCell>
             <FieldLabel>No of Loop:</FieldLabel>
             <Input value={spec.loopCount} onChange={(event) => update("loopCount", event.target.value)} className={fieldClassName} />
           </FieldCell>
           <FieldCell>
-            <CompactCheck checked={spec.loopTillBottom} onChange={(checked) => update("loopTillBottom", checked)}>
+            <CompactCheck
+              checked={spec.loopTillBottom}
+              onChange={(checked) => {
+                const next = { ...spec, loopTillBottom: checked }
+                const found = lookupSalesQuality(next)
+                patch({
+                  loopTillBottom: checked,
+                  ...(found?.runningMinus10 ? { loopGsm: String(found.loopGpm) } : {}),
+                })
+              }}
+            >
               Till The Bottom
             </CompactCheck>
           </FieldCell>
@@ -144,11 +175,19 @@ export function LoopBomPanel({ spec, update, picker }: Draft & { picker: Complic
         <FieldGrid>
           <FieldCell>
             <FieldLabel>Short Leg</FieldLabel>
-            <Input value={spec.loopShortLeg} onChange={(event) => update("loopShortLeg", event.target.value)} className={fieldClassName} />
+            {loopFloor ? (
+              <FloorNumber value={spec.loopShortLeg} min={loopFloor.loopShortLeg} onChange={(value) => setLoop("loopShortLeg", value)} />
+            ) : (
+              <Input value={spec.loopShortLeg} onChange={(event) => update("loopShortLeg", event.target.value)} className={fieldClassName} />
+            )}
           </FieldCell>
           <FieldCell>
             <FieldLabel>Long Leg</FieldLabel>
-            <Input value={spec.loopLongLeg} onChange={(event) => update("loopLongLeg", event.target.value)} className={fieldClassName} />
+            {loopFloor ? (
+              <FloorNumber value={spec.loopLongLeg} min={loopFloor.loopLength} onChange={(value) => setLoop("loopLongLeg", value)} />
+            ) : (
+              <Input value={spec.loopLongLeg} onChange={(event) => update("loopLongLeg", event.target.value)} className={fieldClassName} />
+            )}
           </FieldCell>
           <FieldCell>
             <CompactCheck checked={spec.fabricPatch} onChange={(checked) => update("fabricPatch", checked)}>
@@ -161,13 +200,11 @@ export function LoopBomPanel({ spec, update, picker }: Draft & { picker: Complic
                 <FieldLabel>GSM</FieldLabel>
                 <FormSelect value={spec.fabricPatchGsm || "0"} onChange={(value) => update("fabricPatchGsm", value)} options={[...GSM_OPTIONS]} />
               </FieldCell>
-              <FieldCell>
-                <CompactCheck
-                  checked={Boolean(spec.fabricPatchLami) && spec.fabricPatchLami !== "0"}
-                  onChange={(checked) => update("fabricPatchLami", checked ? spec.fabricPatchLami && spec.fabricPatchLami !== "0" ? spec.fabricPatchLami : "25" : "0")}
-                >
-                  LAM
-                </CompactCheck>
+              <FieldCell span={2}>
+                <LamGsmToggle
+                  value={spec.fabricPatchLami || "0"}
+                  onChange={(value) => update("fabricPatchLami", value)}
+                />
               </FieldCell>
             </>
           ) : null}
@@ -206,13 +243,11 @@ export function LoopBomPanel({ spec, update, picker }: Draft & { picker: Complic
             <FieldLabel>GSM:</FieldLabel>
             <Input value={spec.loopCoverGsm} onChange={(event) => update("loopCoverGsm", event.target.value)} className={fieldClassName} />
           </FieldCell>
-          <FieldCell>
-            <CompactCheck
-              checked={Boolean(spec.loopCoverLami) && spec.loopCoverLami !== "0"}
-              onChange={(checked) => update("loopCoverLami", checked ? spec.loopCoverLami && spec.loopCoverLami !== "0" ? spec.loopCoverLami : "25" : "0")}
-            >
-              Lam
-            </CompactCheck>
+          <FieldCell span={2}>
+            <LamGsmToggle
+              value={spec.loopCoverLami || "0"}
+              onChange={(value) => update("loopCoverLami", value)}
+            />
           </FieldCell>
           <FieldCell>
             <FieldLabel>Size:</FieldLabel>
@@ -306,13 +341,11 @@ export function LoopBomPanel({ spec, update, picker }: Draft & { picker: Complic
             <FieldLabel>GSM:</FieldLabel>
             <Input value={spec.steveCoverGsm} onChange={(event) => update("steveCoverGsm", event.target.value)} className={fieldClassName} />
           </FieldCell>
-          <FieldCell>
-            <CompactCheck
-              checked={Boolean(spec.steveCoverLami) && spec.steveCoverLami !== "0"}
-              onChange={(checked) => update("steveCoverLami", checked ? spec.steveCoverLami && spec.steveCoverLami !== "0" ? spec.steveCoverLami : "25" : "0")}
-            >
-              Lam
-            </CompactCheck>
+          <FieldCell span={2}>
+            <LamGsmToggle
+              value={spec.steveCoverLami || "0"}
+              onChange={(value) => update("steveCoverLami", value)}
+            />
           </FieldCell>
           <FieldCell>
             <FieldLabel>Size</FieldLabel>
@@ -345,13 +378,11 @@ export function LoopBomPanel({ spec, update, picker }: Draft & { picker: Complic
             <FieldLabel>GSM</FieldLabel>
             <FormSelect value={spec.tunnelGsm || "0"} onChange={(value) => update("tunnelGsm", value)} options={[...GSM_OPTIONS]} />
           </FieldCell>
-          <FieldCell>
-            <CompactCheck
-              checked={Boolean(spec.tunnelLami) && spec.tunnelLami !== "0"}
-              onChange={(checked) => update("tunnelLami", checked ? spec.tunnelLami && spec.tunnelLami !== "0" ? spec.tunnelLami : "25" : "0")}
-            >
-              Lam
-            </CompactCheck>
+          <FieldCell span={2}>
+            <LamGsmToggle
+              value={spec.tunnelLami || "0"}
+              onChange={(value) => update("tunnelLami", value)}
+            />
           </FieldCell>
           <FieldCell>
             <FieldLabel>Free Len</FieldLabel>
@@ -578,27 +609,41 @@ export function RateBomPanel({ spec, update }: Draft) {
   )
 }
 
-export function FlapBomPanel({ spec, update }: Draft) {
+export function FlapBomPanel({ spec, update, patch }: Draft) {
   return (
     <PanelStack>
       <FeatureCard
         title="Top flap"
         on={spec.topFlap}
-        onToggle={(v) => update("topFlap", v)}
-        summary={spec.topFlap ? `${spec.topFlapGsm} GSM · ${spec.topFlapCount} flap · ${spec.topFlapColor}` : undefined}
+        onToggle={(v) => (v ? patch(topFlapFill(spec)) : update("topFlap", false))}
+        summary={
+          spec.topFlap
+            ? `${spec.topFlapGsm} GSM · ${spec.topFlapFabricSize}×${spec.topFlapCutLength} · ${spec.topFlapCount} flap · ${spec.topFlapColor}`
+            : undefined
+        }
       >
         <FieldGrid>
           <FieldCell>
             <FieldLabel>GSM</FieldLabel>
             <Input value={spec.topFlapGsm} onChange={(event) => update("topFlapGsm", event.target.value)} className={fieldClassName} />
           </FieldCell>
-          <FieldCell>
-            <FieldLabel>Lami</FieldLabel>
-            <FormSelect value={spec.topFlapLami || "0"} onChange={(value) => update("topFlapLami", value)} options={[...LAMI_OPTIONS]} />
+          <FieldCell span={2}>
+            <LamGsmToggle
+              value={spec.topFlapLami || "0"}
+              onChange={(value) => update("topFlapLami", value)}
+            />
           </FieldCell>
           <FieldCell>
             <FieldLabel>Nos {"{flap}"}</FieldLabel>
             <Input value={spec.topFlapCount} onChange={(event) => update("topFlapCount", event.target.value)} className={fieldClassName} />
+          </FieldCell>
+          <FieldCell>
+            <FieldLabel>Fabric size</FieldLabel>
+            <Input value={spec.topFlapFabricSize} onChange={(event) => update("topFlapFabricSize", event.target.value)} className={fieldClassName} />
+          </FieldCell>
+          <FieldCell>
+            <FieldLabel>Cut length</FieldLabel>
+            <Input value={spec.topFlapCutLength} onChange={(event) => update("topFlapCutLength", event.target.value)} className={fieldClassName} />
           </FieldCell>
         </FieldGrid>
         <BomColourField spec={spec} update={update} colourKey="topFlapColor" />
@@ -607,21 +652,35 @@ export function FlapBomPanel({ spec, update }: Draft) {
       <FeatureCard
         title="Bottom Flap"
         on={spec.bottomFlap}
-        onToggle={(v) => update("bottomFlap", v)}
-        summary={spec.bottomFlap ? `${spec.bottomFlapGsm} GSM · ${spec.bottomFlapCount} flap · ${spec.bottomFlapColor}` : undefined}
+        onToggle={(v) => (v ? patch(bottomFlapFill(spec)) : update("bottomFlap", false))}
+        summary={
+          spec.bottomFlap
+            ? `${spec.bottomFlapGsm} GSM · ${spec.bottomFlapFabricSize}×${spec.bottomFlapCutLength} · ${spec.bottomFlapCount} flap · ${spec.bottomFlapColor}`
+            : undefined
+        }
       >
         <FieldGrid>
           <FieldCell>
             <FieldLabel>GSM</FieldLabel>
             <Input value={spec.bottomFlapGsm} onChange={(event) => update("bottomFlapGsm", event.target.value)} className={fieldClassName} />
           </FieldCell>
-          <FieldCell>
-            <FieldLabel>Lami</FieldLabel>
-            <FormSelect value={spec.bottomFlapLami || "0"} onChange={(value) => update("bottomFlapLami", value)} options={[...LAMI_OPTIONS]} />
+          <FieldCell span={2}>
+            <LamGsmToggle
+              value={spec.bottomFlapLami || "0"}
+              onChange={(value) => update("bottomFlapLami", value)}
+            />
           </FieldCell>
           <FieldCell>
             <FieldLabel>Nos {"{flap}"}</FieldLabel>
             <Input value={spec.bottomFlapCount} onChange={(event) => update("bottomFlapCount", event.target.value)} className={fieldClassName} />
+          </FieldCell>
+          <FieldCell>
+            <FieldLabel>Fabric size</FieldLabel>
+            <Input value={spec.bottomFlapFabricSize} onChange={(event) => update("bottomFlapFabricSize", event.target.value)} className={fieldClassName} />
+          </FieldCell>
+          <FieldCell>
+            <FieldLabel>Cut length</FieldLabel>
+            <Input value={spec.bottomFlapCutLength} onChange={(event) => update("bottomFlapCutLength", event.target.value)} className={fieldClassName} />
           </FieldCell>
         </FieldGrid>
         <BomColourField spec={spec} update={update} colourKey="bottomFlapColor" />
@@ -1008,13 +1067,11 @@ export function DocBomPanel({ spec, update, patch }: Draft) {
             <FieldLabel>GSM</FieldLabel>
             <Input value={spec.loopProtectorGsm} onChange={(event) => update("loopProtectorGsm", event.target.value)} className={fieldClassName} />
           </FieldCell>
-          <FieldCell>
-            <CompactCheck
-              checked={Boolean(spec.loopProtectorLami) && spec.loopProtectorLami !== "0"}
-              onChange={(checked) => update("loopProtectorLami", checked ? spec.loopProtectorLami && spec.loopProtectorLami !== "0" ? spec.loopProtectorLami : "25" : "0")}
-            >
-              Lam
-            </CompactCheck>
+          <FieldCell span={2}>
+            <LamGsmToggle
+              value={spec.loopProtectorLami || "0"}
+              onChange={(value) => update("loopProtectorLami", value)}
+            />
           </FieldCell>
           <FieldCell>
             <FieldLabel>Size</FieldLabel>
@@ -1073,13 +1130,11 @@ export function ExtraLabelBomPanel({ spec, update }: Draft) {
             <FieldLabel>Micron</FieldLabel>
             <Input value={spec.extraLabelMicron} onChange={(event) => update("extraLabelMicron", event.target.value)} className={fieldClassName} />
           </FieldCell>
-          <FieldCell>
-            <CompactCheck
-              checked={Boolean(spec.extraLabelLami) && spec.extraLabelLami !== "0"}
-              onChange={(checked) => update("extraLabelLami", checked ? spec.extraLabelLami && spec.extraLabelLami !== "0" ? spec.extraLabelLami : "25" : "0")}
-            >
-              Lam
-            </CompactCheck>
+          <FieldCell span={2}>
+            <LamGsmToggle
+              value={spec.extraLabelLami || "0"}
+              onChange={(value) => update("extraLabelLami", value)}
+            />
           </FieldCell>
           <FieldCell>
             <FieldLabel>Type</FieldLabel>
@@ -1152,13 +1207,11 @@ export function ExtraLabelBomPanel({ spec, update }: Draft) {
             <FieldLabel>GSM</FieldLabel>
             <Input value={spec.innerTopGsm} onChange={(event) => update("innerTopGsm", event.target.value)} className={fieldClassName} />
           </FieldCell>
-          <FieldCell>
-            <CompactCheck
-              checked={Boolean(spec.innerTopLami) && spec.innerTopLami !== "0"}
-              onChange={(checked) => update("innerTopLami", checked ? spec.innerTopLami && spec.innerTopLami !== "0" ? spec.innerTopLami : "25" : "0")}
-            >
-              Lam
-            </CompactCheck>
+          <FieldCell span={2}>
+            <LamGsmToggle
+              value={spec.innerTopLami || "0"}
+              onChange={(value) => update("innerTopLami", value)}
+            />
           </FieldCell>
           <FieldCell>
             <FieldLabel>Dia</FieldLabel>
@@ -1182,13 +1235,11 @@ export function ExtraLabelBomPanel({ spec, update }: Draft) {
             <FieldLabel>GSM</FieldLabel>
             <Input value={spec.innerBottomGsm} onChange={(event) => update("innerBottomGsm", event.target.value)} className={fieldClassName} />
           </FieldCell>
-          <FieldCell>
-            <CompactCheck
-              checked={Boolean(spec.innerBottomLami) && spec.innerBottomLami !== "0"}
-              onChange={(checked) => update("innerBottomLami", checked ? spec.innerBottomLami && spec.innerBottomLami !== "0" ? spec.innerBottomLami : "25" : "0")}
-            >
-              Lam
-            </CompactCheck>
+          <FieldCell span={2}>
+            <LamGsmToggle
+              value={spec.innerBottomLami || "0"}
+              onChange={(value) => update("innerBottomLami", value)}
+            />
           </FieldCell>
           <FieldCell>
             <FieldLabel>Dia</FieldLabel>

@@ -220,11 +220,15 @@ export type QuoteSpecification = {
   topFlapLami: string
   topFlapColor: string
   topFlapCount: string
+  topFlapFabricSize: string
+  topFlapCutLength: string
   bottomFlap: boolean
   bottomFlapGsm: string
   bottomFlapLami: string
   bottomFlapColor: string
   bottomFlapCount: string
+  bottomFlapFabricSize: string
+  bottomFlapCutLength: string
   topHook: boolean
   topHookGsm: string
   topHookSize: string
@@ -650,7 +654,7 @@ export const defaultSpecification: QuoteSpecification = {
   fabricColour: "White",
   fabricPantone: "PMS White",
   colourPantones: {},
-  bodyGsm: "180",
+  bodyGsm: "152",
   bodyLami: "0",
   sameFabricForPanels: true,
   topGsm: "",
@@ -718,9 +722,9 @@ export const defaultSpecification: QuoteSpecification = {
   loopEnabled: true,
   loopType: "PP",
   loopConstruction: "Cross Corner",
-  loopGsm: "40",
-  loopLength: "30",
-  loopWidth: "5",
+  loopGsm: "42",
+  loopLength: "35",
+  loopWidth: "7",
   loopCount: "4",
   loopTillBottom: false,
   dropLoop: false,
@@ -834,11 +838,15 @@ export const defaultSpecification: QuoteSpecification = {
   topFlapLami: "0",
   topFlapColor: "Milky White",
   topFlapCount: "1",
+  topFlapFabricSize: "",
+  topFlapCutLength: "",
   bottomFlap: false,
   bottomFlapGsm: "",
   bottomFlapLami: "0",
   bottomFlapColor: "Milky White",
   bottomFlapCount: "1",
+  bottomFlapFabricSize: "",
+  bottomFlapCutLength: "",
   topHook: false,
   topHookGsm: "",
   topHookSize: "",
@@ -991,8 +999,8 @@ export const defaultSpecification: QuoteSpecification = {
   typeOfSupply: "Export",
   partyName: "",
   loopColour: "Milky White",
-  loopShortLeg: "",
-  loopLongLeg: "",
+  loopShortLeg: "35",
+  loopLongLeg: "35",
   loopCoverColor: "Milky White",
   tunnelWidth: "95",
   tunnelLength: "",

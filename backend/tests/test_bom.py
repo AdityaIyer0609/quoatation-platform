@@ -241,6 +241,26 @@ def test_top_flap_inner_formula():
     assert flap.total_kg == 0.1796
 
 
+def test_top_flap_follows_length_width():
+    result = preview_bom(
+        _spec(
+            loopEnabled=False,
+            sameFabricForPanels=False,
+            sizeType="INNER",
+            length="120",
+            width="70",
+            topFlap=True,
+            topFlapGsm="180",
+            topFlapLami="0",
+            topFlapCount="1",
+        )
+    )
+    flap = _line(result, "Top Flap")
+    assert flap is not None
+    assert flap.fabric_size == "125"
+    assert flap.cut_size == "85"
+
+
 def test_hose_slider_fixed_weight():
     result = preview_bom(_spec(loopEnabled=False, sameFabricForPanels=False, hoseSlider=True, hoseSliderCount="2"))
     line = _line(result, "Hose Slider")

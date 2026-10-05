@@ -1534,7 +1534,7 @@ function FlapHookKnot({ color }: { color: string }) {
   )
 }
 
-/** Mill protection flap: hinged on one edge. Drag the lid to open/close. Hooks sit on the free edge. */
+/** Protection flap: hinged on one edge, sized to the bag mouth. Hooks sit on the closing edge. */
 export function ProtectionFlap({
   sx,
   sz,
@@ -1564,11 +1564,11 @@ export function ProtectionFlap({
   const openRef = useRef(open)
   openRef.current = open
   const drag = useRef<{ y: number; open: number } | null>(null)
-  const fw = Math.min(sx, sz) * 0.94
-  const fd = Math.min(sx, sz) * 0.94
-  const rx = sx * 0.48
-  const rz = sz * 0.48
-  const hingeZ = circular ? rz : (sz / 2) * 0.98
+  const fw = Math.max(0.05, sx * 0.99)
+  const fd = Math.max(0.05, sz * 0.99)
+  const rx = fw / 2
+  const rz = fd / 2
+  const hingeZ = circular ? sz * 0.495 : (sz / 2) * 0.995
   const reach = circular ? rz : fd / 2
   const openSign = flip ? -1 : 1
   const rot = openSign * (Math.PI / 2) * open
@@ -1609,8 +1609,8 @@ export function ProtectionFlap({
     window.addEventListener("pointerup", up)
   }
 
-  const hookX = circular ? rx * 0.34 : fw * 0.22
-  const hookZ = -reach * 0.38
+  const hookX = circular ? rx * 0.4 : fw * 0.28
+  const hookZ = circular ? -rz * 1.86 : -fd * 0.92
 
   return (
     <group position={[0, y + (flip ? -0.008 : 0.008), hingeZ]}>
@@ -1644,7 +1644,7 @@ export function ProtectionFlap({
                 <group
                   key={side}
                   position={[side * hookX, flip ? -0.045 : 0.045, hookZ]}
-                  rotation={[flip ? Math.PI : 0, 0, 0]}
+                  rotation={[flip ? Math.PI : 0, side * 0.35, 0]}
                 >
                   <FlapHookKnot color={hookColor} />
                 </group>
@@ -1727,7 +1727,7 @@ export function FillingKit({
   const hopperH = Math.max(span * 0.32, conicalH)
   const shownSpoutH = clearHandle ? Math.min(0.1, spoutH * 0.35) : spoutH
   const shownSpoutR = clearHandle ? Math.min(spoutR, span * 0.22) : Math.max(spoutR, span * 0.16)
-  const hingeReach = (circular ? sz : Math.min(sx, sz)) * 0.48
+  const hingeReach = Math.max(0.05, sz * 0.5)
   const underH = spoutUnderFlap(shownSpoutH, gather, flap ? lidOpen : 1, hingeReach)
   const neckR = (skirt ? span * (oversize ? 0.88 : 0.76) : shownSpoutR) * THREE.MathUtils.lerp(1, 0.14, gather)
 
@@ -1890,7 +1890,7 @@ export function DischargeKit({
   const showDischarge = fillingSpout || conicalPlate || star
   const spoutRoot = conicalPlate || conicalBase ? -hopperH * 0.92 : 0
   const gather = flap ? 1 - lidOpen : 0
-  const hingeReach = (circular ? sz : Math.min(sx, sz)) * 0.48
+  const hingeReach = Math.max(0.05, sz * 0.5)
   const underH = spoutUnderFlap(shownSpoutH, gather, flap ? lidOpen : 1, hingeReach)
   const neckR = (skirt ? span * 0.76 : holeR) * THREE.MathUtils.lerp(1, 0.14, gather)
 

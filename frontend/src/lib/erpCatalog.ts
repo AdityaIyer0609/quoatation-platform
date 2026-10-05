@@ -161,7 +161,7 @@ export const TUNNEL_DESIGNS = ["Flexcon", "Plastene", "Wickes", "Greif", "Beef B
 /** comboBodyGSM: 0–250 in steps of 5 */
 export const GSM_OPTIONS = Array.from({ length: 51 }, (_, index) => String(index * 5))
 
-export const LAMI_OPTIONS = ["0", "15", "18", "20", "25"]
+export const LAMI_OPTIONS = ["0", "15", "18", "20", "25", "30"]
 
 /** comboTopTieGrm / comboBottomSpoutTieGrm */
 export const TIE_GSM_OPTIONS = Array.from({ length: 20 }, (_, index) => String(index))

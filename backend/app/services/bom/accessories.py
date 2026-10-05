@@ -517,7 +517,7 @@ def populate_bottom_flap(request: BomRequest) -> None:
     if gsm + lami <= 0 or length <= 0 or width <= 0 or no <= 0:
         return
     inner = is_inner_placement(request)
-    fabric = width + Decimal("5") if inner else width - Decimal("5")
+    fabric = num(values, "BottomFlapFabric") or (width + Decimal("5") if inner else width - Decimal("5"))
     cut = num(values, "BottomFlapCutSize") or (length + Decimal("15") if inner else length + Decimal("10"))
     raw = cut * fabric * (gsm + lami) * no
     set_if_missing(values, "BottomFlapFabric", fabric)

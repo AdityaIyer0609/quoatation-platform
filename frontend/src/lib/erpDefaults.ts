@@ -1,4 +1,5 @@
 import { bodyStylesFor } from "@/lib/erpCatalog"
+import { openingFabricFloor, salesQualityReset } from "@/lib/qualityFloors"
 import type { QuoteSpecification } from "@/types/quote"
 
 function sfIndex(sf: string) {
@@ -38,17 +39,26 @@ function panelLoopGrm(swl: number, sf: string): string {
   return "35"
 }
 
-function isCircular(construction: string) {
+export function isCircular(construction: string) {
   return construction.replace(/\s/g, "").toLowerCase() === "circular"
 }
 
-function isUPanel(construction: string) {
+export function isUPanel(construction: string) {
   const n = construction.replace(/[-\s]/g, "").toLowerCase()
   return n === "upanel"
 }
 
-function isFourPanel(construction: string) {
+export function isFourPanel(construction: string) {
   return construction.replace(/[-\s]/g, "").toLowerCase() === "4panel"
+}
+
+/** U-panel / 4-panel / baffle bottom is the same fabric as the body. */
+export function bottomGsmLockedToBody(construction: string) {
+  return isUPanel(construction) || isFourPanel(construction) || construction === "Buffle"
+}
+
+function emptyOrZero(value: string | undefined) {
+  return !value || value.trim() === "" || value.trim() === "0"
 }
 
 /** Defaults from frmBOM_NEW checkBoxLoop / check_bottom / comboTopType handlers. */
@@ -77,13 +87,25 @@ export function constructionDefaults(construction: string, spec: QuoteSpecificat
   }
 
   if (spec.bodyGrade === "Standard" || !spec.bodyGrade) patch.bodyGrade = "Std"
-  return patch
+
+  const withConstruction = { ...spec, ...patch }
+  const sales = salesQualityReset(withConstruction)
+  const merged: Partial<QuoteSpecification> = { ...patch, ...sales }
+  const bodyGsm = merged.bodyGsm || spec.bodyGsm
+  if (bodyGsm) {
+    Object.assign(merged, syncBodyLinkedGsm({ ...spec, ...merged }, bodyGsm, spec.bodyLami))
+  }
+  if (spec.sameFabricForPanels && merged.bodyGsm) {
+    Object.assign(merged, sameFabricPatch({ ...spec, ...merged }, merged.bodyGsm, spec.bodyLami))
+  }
+  return merged
 }
 
 export function topTypeDefaults(topType: string, spec: QuoteSpecification): Partial<QuoteSpecification> {
   const length = Number.parseFloat(spec.length) || 0
   const width = Number.parseFloat(spec.width) || 0
   const duffle = String(Math.max(0, (length + width) / 2 - 10))
+  const opening = openingFabricFloor(spec)
   if (topType === "Top Spout") {
     return {
       topType,
@@ -92,18 +114,25 @@ export function topTypeDefaults(topType: string, spec: QuoteSpecification): Part
       topSpoutDia: spec.topSpoutDia || "35",
       topSpoutHeight: spec.topSpoutHeight || "50",
       topSpoutTie: true,
-      topSpoutTieGsm: spec.topSpoutTieGsm || "6",
-      topSpoutTieSize: spec.topSpoutTieSize || "15",
-      topSpoutTieCount: spec.topSpoutTieCount || "1",
-      topGsm: spec.sameFabricForPanels ? spec.topGsm : spec.topGsm || "70",
-      topLami: spec.sameFabricForPanels ? spec.topLami : spec.topLami || "25",
-      ...(spec.sameFabricForPanels
-        ? {}
-        : { topSpoutGsm: spec.topSpoutGsm || "70", topSpoutLami: spec.topSpoutLami || "25" }),
+      ...(!spec.sameFabricForPanels
+        ? {
+            topGsm: spec.topGsm || String(opening.gsm),
+            topLami: spec.topLami || String(opening.lami),
+            topSpoutGsm: spec.topSpoutGsm || String(opening.spoutGsm),
+            topSpoutLami: spec.topSpoutLami || String(opening.spoutLami),
+          }
+        : {}),
+      ...topSpoutTieFill(spec),
     }
   }
   if (topType === "Duffle or Skrit" || topType === "Top + Skrit" || topType === "Oversize Duffle or Skrit" || topType === "Leno" || topType === "Drawstring Skirt" || topType === "Jute Skirt") {
-    return { topType, duffleHeight: spec.duffleHeight || duffle, topGsm: "70", topLami: "25" }
+    return {
+      topType,
+      duffleHeight: spec.duffleHeight || duffle,
+      ...(spec.sameFabricForPanels
+        ? {}
+        : { topGsm: spec.topGsm || String(opening.gsm), topLami: spec.topLami || String(opening.lami) }),
+    }
   }
   if (topType === "Conical Top" || topType === "Conical PlateTop") {
     return {
@@ -145,6 +174,9 @@ export function bottomTypeDefaults(bottomType: string, spec: QuoteSpecification)
     bottomType,
     bottomSpoutTie: tieOn,
   }
+  if (tieOn) {
+    Object.assign(patch, bottomSpoutTieFill(spec))
+  }
   if (bottomType === "Bottom Spout") {
     const dia = spec.bottomSpoutDia || "35"
     patch.bottomSpoutType = "Simple"
@@ -163,6 +195,50 @@ export function bottomGsmFromBody(construction: string, bodyGsm: string): string
   const gsm = Number.parseInt(bodyGsm, 10) || 0
   if (isCircular(construction) && gsm > 0) return String(gsm + 10)
   return bodyGsm
+}
+
+/** Keep U-panel / 4-panel / baffle bottom (and sides) on the same GSM as body. Circular bottom = body + 10. */
+export function syncBodyLinkedGsm(
+  spec: Pick<QuoteSpecification, "constructionType">,
+  bodyGsm: string,
+  bodyLami?: string,
+): Partial<QuoteSpecification> {
+  const patch: Partial<QuoteSpecification> = {
+    bottomGsm: bottomGsmFromBody(spec.constructionType, bodyGsm),
+  }
+  if (bottomGsmLockedToBody(spec.constructionType)) {
+    patch.sideGsm = bodyGsm
+    if (bodyLami != null) patch.sideLami = bodyLami
+  }
+  return patch
+}
+
+export function topSpoutTieFill(spec: QuoteSpecification): Partial<QuoteSpecification> {
+  return {
+    topSpoutTie: true,
+    topSpoutTieGsm: emptyOrZero(spec.topSpoutTieGsm) ? "6" : spec.topSpoutTieGsm,
+    topSpoutTieSize: spec.topSpoutTieSize || "15",
+    topSpoutTieCount: spec.topSpoutTieCount || "1",
+    topSpoutTieRemarks: spec.topSpoutTieRemarks || "Size: 60",
+  }
+}
+
+export function bottomSpoutTieFill(spec: QuoteSpecification): Partial<QuoteSpecification> {
+  return {
+    bottomSpoutTie: true,
+    bottomSpoutTieGsm: emptyOrZero(spec.bottomSpoutTieGsm) ? "6" : spec.bottomSpoutTieGsm,
+    bottomSpoutTieSize: spec.bottomSpoutTieSize || "15",
+    bottomSpoutTieCount: spec.bottomSpoutTieCount || "1",
+    bottomSpoutTieRemarks: spec.bottomSpoutTieRemarks || "Size: 60",
+  }
+}
+
+export function bottomSpoutRopeFill(spec: QuoteSpecification): Partial<QuoteSpecification> {
+  return {
+    bottomSpoutRope: true,
+    bottomSpoutRopeGsm: emptyOrZero(spec.bottomSpoutRopeGsm) ? "8" : spec.bottomSpoutRopeGsm,
+    bottomSpoutRopeSize: spec.bottomSpoutRopeSize || "6",
+  }
 }
 
 /** Copies body GSM/lami onto panels and spouts, matching mapper.same_fabric_for_panels. */
@@ -184,5 +260,91 @@ export function sameFabricPatch(
     topSpoutLami: bodyLami,
     bottomSpoutGsm: bodyGsm,
     bottomSpoutLami: bodyLami,
+  }
+}
+
+function bagInner(spec: Pick<QuoteSpecification, "sizeType">) {
+  return spec.sizeType !== "OUTER"
+}
+
+/** frmBOM_NEW TopFlapWtFormula / BottomFlapWtFormula from bag L × W. */
+export function flapSizesFromBag(spec: Pick<QuoteSpecification, "length" | "width" | "sizeType">): {
+  topFlapFabricSize: string
+  topFlapCutLength: string
+  bottomFlapFabricSize: string
+  bottomFlapCutLength: string
+} {
+  const length = Number.parseFloat(spec.length) || 0
+  const width = Number.parseFloat(spec.width) || 0
+  const inner = bagInner(spec)
+  return {
+    topFlapFabricSize: String(Math.max(0, inner ? length + 5 : length - 5)),
+    topFlapCutLength: String(Math.max(0, inner ? width + 15 : width + 10)),
+    bottomFlapFabricSize: String(Math.max(0, inner ? width + 5 : width - 5)),
+    bottomFlapCutLength: String(Math.max(0, inner ? length + 15 : length + 10)),
+  }
+}
+
+export function bagDimensionLinkedPatch(spec: QuoteSpecification): Partial<QuoteSpecification> {
+  const sizes = flapSizesFromBag(spec)
+  const patch: Partial<QuoteSpecification> = {}
+  if (spec.topFlap) {
+    patch.topFlapFabricSize = sizes.topFlapFabricSize
+    patch.topFlapCutLength = sizes.topFlapCutLength
+  }
+  if (spec.bottomFlap) {
+    patch.bottomFlapFabricSize = sizes.bottomFlapFabricSize
+    patch.bottomFlapCutLength = sizes.bottomFlapCutLength
+  }
+  return patch
+}
+
+export function topFlapFill(spec: QuoteSpecification): Partial<QuoteSpecification> {
+  const sizes = flapSizesFromBag(spec)
+  return {
+    topFlap: true,
+    topFlapGsm: spec.topFlapGsm || spec.bodyGsm,
+    topFlapCount: spec.topFlapCount || "1",
+    topFlapFabricSize: sizes.topFlapFabricSize,
+    topFlapCutLength: sizes.topFlapCutLength,
+  }
+}
+
+export function bottomFlapFill(spec: QuoteSpecification): Partial<QuoteSpecification> {
+  const sizes = flapSizesFromBag(spec)
+  return {
+    bottomFlap: true,
+    bottomFlapGsm: spec.bottomFlapGsm || spec.bodyGsm,
+    bottomFlapCount: spec.bottomFlapCount || "1",
+    bottomFlapFabricSize: sizes.bottomFlapFabricSize,
+    bottomFlapCutLength: sizes.bottomFlapCutLength,
+  }
+}
+
+/** Lid cover in bag cm: along length (X) and width (Z). Mill fabric/cut axes differ for bottom. */
+export function flapCoverCm(
+  spec: Pick<
+    QuoteSpecification,
+    | "length"
+    | "width"
+    | "sizeType"
+    | "topFlapFabricSize"
+    | "topFlapCutLength"
+    | "bottomFlapFabricSize"
+    | "bottomFlapCutLength"
+  >,
+  which: "top" | "bottom",
+): { alongLength: number; alongWidth: number } {
+  const sizes = flapSizesFromBag(spec)
+  const parse = (value: string, fallback: string) => Number.parseFloat(value) || Number.parseFloat(fallback) || 0
+  if (which === "top") {
+    return {
+      alongLength: parse(spec.topFlapFabricSize, sizes.topFlapFabricSize),
+      alongWidth: parse(spec.topFlapCutLength, sizes.topFlapCutLength),
+    }
+  }
+  return {
+    alongLength: parse(spec.bottomFlapCutLength, sizes.bottomFlapCutLength),
+    alongWidth: parse(spec.bottomFlapFabricSize, sizes.bottomFlapFabricSize),
   }
 }

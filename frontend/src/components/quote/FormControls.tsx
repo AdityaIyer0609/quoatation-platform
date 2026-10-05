@@ -161,6 +161,37 @@ export function FormSelect({
   )
 }
 
+/** Number field that cannot commit below `min` (clamps on blur). */
+export function FloorNumber({
+  value,
+  min,
+  onChange,
+  hint,
+}: {
+  value: string
+  min: number
+  onChange: (value: string) => void
+  hint?: string
+}) {
+  return (
+    <div>
+      <input
+        type="number"
+        min={min}
+        step={1}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onBlur={() => {
+          const n = Number.parseFloat(value)
+          if (!Number.isFinite(n) || n < min) onChange(String(min))
+        }}
+        className={SELECT_CLASS}
+      />
+      {hint ? <div className="mt-1 text-[10px] text-[var(--text-muted)]">{hint}</div> : null}
+    </div>
+  )
+}
+
 export function GsmLamiFields({
   gsm,
   lami,
@@ -168,6 +199,8 @@ export function GsmLamiFields({
   onLami,
   gsmOptions,
   lamiOptions,
+  minGsm,
+  minLami,
 }: {
   gsm: string
   lami: string
@@ -175,16 +208,26 @@ export function GsmLamiFields({
   onLami: (value: string) => void
   gsmOptions: string[]
   lamiOptions: string[]
+  minGsm?: number
+  minLami?: number
 }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
         <div className="mb-1 text-[10px] text-[var(--text-muted)]">GSM</div>
-        <FormSelect value={gsm} onChange={onGsm} options={gsmOptions} allowCustom />
+        {minGsm != null ? (
+          <FloorNumber value={gsm} min={minGsm} onChange={onGsm} hint={`Min ${minGsm}`} />
+        ) : (
+          <FormSelect value={gsm} onChange={onGsm} options={gsmOptions} allowCustom />
+        )}
       </div>
       <div>
         <div className="mb-1 text-[10px] text-[var(--text-muted)]">Lamination</div>
-        <FormSelect value={lami} onChange={onLami} options={lamiOptions} allowCustom />
+        {minLami != null ? (
+          <FloorNumber value={lami} min={minLami} onChange={onLami} hint={`Min ${minLami}`} />
+        ) : (
+          <FormSelect value={lami} onChange={onLami} options={lamiOptions} allowCustom />
+        )}
       </div>
     </div>
   )
@@ -243,7 +286,7 @@ export function FeatureCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border transition-all duration-200",
+        "relative overflow-visible rounded-2xl border transition-all duration-200",
         on
           ? "border-[var(--navy-border)] bg-[var(--surface)] shadow-[0_8px_24px_rgba(17,24,39,0.06)]"
           : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--navy-border)]",
@@ -342,6 +385,63 @@ export function CompactCheck({
       />
       {children}
     </label>
+  )
+}
+
+export function isLamiOn(value: string | undefined) {
+  const n = Number.parseFloat(value ?? "")
+  return Number.isFinite(n) && n > 0
+}
+
+/** Lam tick plus a visible coating GSM field (separate from fabric GSM). */
+export function LamGsmToggle({
+  value,
+  onChange,
+  defaultOn = "25",
+  label = "Lam",
+}: {
+  value: string
+  onChange: (value: string) => void
+  defaultOn?: string
+  label?: string
+}) {
+  const on = isLamiOn(value)
+  const parsed = Number.parseFloat(defaultOn)
+  const min = Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+  return (
+    <div className="min-w-0">
+      <FieldLabel>Lami GSM</FieldLabel>
+      <div className="flex min-w-0 items-center gap-2">
+        <label className="flex h-[46px] shrink-0 items-center gap-1.5 text-sm text-[var(--text)]">
+          <input
+            type="checkbox"
+            checked={on}
+            onChange={(event) => {
+              const checked = event.target.checked
+              if (!checked) onChange("0")
+              else onChange(on ? value : defaultOn)
+            }}
+            className="size-4 rounded border-[var(--border-strong)] accent-[var(--navy)]"
+          />
+          {label}
+        </label>
+        <input
+          type="number"
+          min={min}
+          step={1}
+          disabled={!on}
+          value={on ? value : ""}
+          placeholder="Off"
+          onChange={(event) => onChange(event.target.value)}
+          onBlur={() => {
+            if (!on) return
+            const n = Number.parseFloat(value)
+            if (!Number.isFinite(n) || n < min) onChange(String(min))
+          }}
+          className={cn(SELECT_CLASS, "pr-3.5 disabled:opacity-40")}
+        />
+      </div>
+    </div>
   )
 }
 
