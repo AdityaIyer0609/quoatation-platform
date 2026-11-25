@@ -14,9 +14,9 @@ function Seg({ a, b }: { a: XYZ; b: XYZ }) {
   }, [a[0], a[1], a[2], b[0], b[1], b[2]])
   useEffect(() => () => geometry.dispose(), [geometry])
   return (
-    <line geometry={geometry}>
+    <lineSegments geometry={geometry}>
       <lineBasicMaterial color={LINE} />
-    </line>
+    </lineSegments>
   )
 }
 
@@ -228,6 +228,9 @@ export function dimensionFrame(spec: {
   bottomSpoutHeight?: string
   conicalTop?: string
   bottomConicalHeight?: string
+  bottomSpoutType?: string
+  bottomFlap?: boolean
+  bottomHook?: boolean
 }) {
   const toNum = (value: string | undefined, fallback: number) => {
     const parsed = Number.parseFloat(value || "")
@@ -260,7 +263,7 @@ export function dimensionFrame(spec: {
       ? Math.max(conicalH, Math.min(sx, sz) * 0.28)
       : /skirt/i.test(spec.bottomType)
         ? Math.max(conicalH, Math.min(sx, sz) * 0.38)
-        : /spout|star/i.test(spec.bottomType) || /star/i.test(spec.bottomSpoutType)
+        : /spout|star/i.test(spec.bottomType) || /star/i.test(spec.bottomSpoutType || "")
           ? spoutBotH
           : 0
   const coverBot = spec.bottomFlap && spec.bottomHook

@@ -552,7 +552,7 @@ export function FaceSlackLoop({
   color,
   above = 0.32,
   width = 0.055,
-  endGap = 0.22,
+  endGap: _endGap = 0.22,
   circular = false,
   sx = 0,
   sy = 0,
@@ -1071,7 +1071,7 @@ function SpoutCinch({
   ropeCount,
   tieCount,
   ropeSize,
-  tieSize,
+  tieSize: _tieSize,
   hang = 0.12,
   flip,
   gather = 0,
@@ -1160,7 +1160,7 @@ function GatheredSpout({
 }
 
 /** Full-open / open-top rectangular collar matching mill drawings. */
-function OpenCollar({
+export function OpenCollar({
   sx,
   sy,
   sz,
