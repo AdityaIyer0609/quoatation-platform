@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 !**/.env.example
+quotation_data.sql
 
 # Python
 backend/.venv/

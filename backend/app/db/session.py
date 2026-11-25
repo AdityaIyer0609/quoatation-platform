@@ -15,6 +15,8 @@ def make_engine(url: str):
             connect_args={"check_same_thread": False},
             poolclass=StaticPool,
         )
+    if url.startswith("mssql"):
+        return create_engine(url, pool_pre_ping=True, pool_recycle=300)
     return create_engine(url, pool_pre_ping=True)
 
 
