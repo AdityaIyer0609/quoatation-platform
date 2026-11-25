@@ -217,8 +217,16 @@ function FibcBag({ spec }: { spec: QuoteSpecification }) {
       spoutBotR: Math.min(Math.min(sx, sz) * 0.48, Math.max(0.05, (botSpoutDia * scale) / 2)),
       duffleH: Math.max(0, duffleCm * scale),
       conicalH: Math.max(0.08, num(spec.conicalTop || spec.bottomConicalHeight, 30) * scale),
-      loopAbove: Math.max(0.1, loopLenCm * scale),
-      sewDown: Math.max(0.08, Math.min(height * 0.55, loopLenCm * 1.15) * scale),
+      // U/4-panel loopLength is mill L1 (sewn long leg), not the lift eye. Baffle/circular
+      // keep loopLength as the standing eye (~30–35 cm).
+      loopAbove: Math.max(0.1, (upanel || fourPanel ? Math.min(loopLenCm, 32) : loopLenCm) * scale),
+      sewDown: Math.max(
+        0.08,
+        (upanel || fourPanel
+          ? Math.min(height * 0.92, loopLenCm)
+          : Math.min(height * 0.55, loopLenCm * 1.15)) *
+          scale,
+      ),
       strapWidth: Math.max(0.02, (loopWCm * scale) / 2),
       crossEndGap: 28 * scale,
       loopCount: Math.min(12, Math.max(0, Number.parseInt(spec.loopCount || "4", 10) || 4)),
@@ -629,7 +637,7 @@ function PreviewScene({
         autoRotate={!interactive}
         autoRotateSpeed={0.9}
         enableDamping
-        enabled={interactive && !orbitLock}
+        enabled={!orbitLock}
         enablePan={interactive && !orbitLock}
         enableZoom={interactive}
         enableRotate={interactive && !orbitLock}

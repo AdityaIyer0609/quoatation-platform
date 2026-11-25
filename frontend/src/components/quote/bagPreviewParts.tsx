@@ -574,7 +574,7 @@ export function FaceSlackLoop({
   y0Short?: number
 }) {
   const yaw = Math.atan2(x, z)
-  const peak = Math.max(0.22, above * 1.15)
+  const peak = Math.max(0.12, above)
   const xAbs = sx > 0 ? sx / 2 : Math.abs(x)
   const zAbs = sz > 0 ? sz / 2 : Math.abs(z)
   const dx = Math.sign(x) || 1
